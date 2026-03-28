@@ -7,8 +7,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip install --no-cache-dir -U pip setuptools wheel && \
-    pip install --no-cache-dir .
+RUN pip install --no-cache-dir -U pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com && \
+    pip install --no-cache-dir . -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 
 EXPOSE 8000
 
