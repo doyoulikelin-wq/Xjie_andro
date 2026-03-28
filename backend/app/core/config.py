@@ -17,8 +17,9 @@ class Settings(BaseSettings):
 
     LLM_PROVIDER: str = "openai"
     OPENAI_API_KEY: str | None = None
-    OPENAI_MODEL_TEXT: str = "gpt-5.2"
-    OPENAI_MODEL_VISION: str = "gpt-5.2"
+    OPENAI_BASE_URL: str | None = None  # e.g. https://api.moonshot.cn/v1 for Kimi
+    OPENAI_MODEL_TEXT: str = "moonshot-v1-8k"
+    OPENAI_MODEL_VISION: str = "moonshot-v1-8k"
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL_TEXT: str = "gemini-1.5-pro"
     GEMINI_MODEL_VISION: str = "gemini-1.5-pro"

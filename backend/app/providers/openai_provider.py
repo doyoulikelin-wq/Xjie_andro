@@ -12,7 +12,7 @@ from app.providers.base import ChatLLMResult, LLMProvider, MealVisionItem, MealV
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """\
-你是 MetaboDash 的健康AI助手 MetaBot 🤖。
+你是 Xjie 的健康AI助手 🤖。
 你帮助用户理解血糖数据、饮食记录、体检报告和代谢健康。
 
 关键规则:
@@ -157,7 +157,10 @@ class OpenAIProvider(LLMProvider):
     vision_model = settings.OPENAI_MODEL_VISION
 
     def __init__(self) -> None:
-        self._client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        kwargs: dict = {"api_key": settings.OPENAI_API_KEY}
+        if settings.OPENAI_BASE_URL:
+            kwargs["base_url"] = settings.OPENAI_BASE_URL
+        self._client = OpenAI(**kwargs)
 
     def analyze_image(self, image_url: str) -> MealVisionResult:
         """Analyze a meal photo using GPT vision."""

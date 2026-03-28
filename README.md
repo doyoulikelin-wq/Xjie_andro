@@ -1,29 +1,25 @@
-# Xjie — 微信小程序版
+# Xjie — iOS 智能代谢健康管理 App
 
-智能代谢健康管理平台，支持 CGM 血糖追踪、膳食记录（拍照识别）、AI 对话、代理干预系统。
+基于 SwiftUI 的智能代谢健康管理平台，支持 CGM 血糖追踪、膳食记录（拍照 AI 识别）、AI 健康对话、代理干预系统。
 
 ## 项目结构
 
 ```
-XJie/
-├── app.js / app.json / app.wxss    ← 小程序入口
-├── pages/                           ← 页面
-│   ├── index/                       ← 首页（仪表板）
-│   ├── glucose/                     ← 血糖曲线
-│   ├── meals/                       ← 膳食记录
-│   ├── chat/                        ← AI 助手
-│   ├── health/                      ← 健康数据 / 每日简报
-│   ├── settings/                    ← 设置
-│   └── login/                       ← 登录
-├── utils/                           ← 工具函数
-│   ├── api.js                       ← 请求封装（JWT 自动刷新）
-│   └── util.js                      ← 通用工具
-├── images/                          ← tabBar 图标
-├── project.config.json              ← 微信开发者工具配置
+XJie_IOS/
+├── Xjie/                            ← iOS App (SwiftUI)
+│   ├── Xjie/
+│   │   ├── XjieApp.swift            ← App 入口
+│   │   ├── Views/                   ← 页面视图
+│   │   ├── ViewModels/              ← 视图模型
+│   │   ├── Models/                  ← 数据模型
+│   │   ├── Services/                ← 网络/存储服务
+│   │   └── Resources/              ← 资源文件
+│   └── Xjie.xcodeproj              ← Xcode 工程
 ├── backend/                         ← FastAPI 后端 API
 │   ├── app/routers/                 ← 路由（auth, glucose, meals, chat, agent ...）
-│   ├── app/models/                  ← 数据库模型（16 张表）
+│   ├── app/models/                  ← 数据库模型
 │   ├── app/services/                ← 业务逻辑
+│   ├── app/providers/               ← LLM 提供商（OpenAI/Kimi/Gemini）
 │   └── app/core/                    ← 配置、安全、中间件
 ├── docker-compose.yml               ← 后端基础设施
 └── data/                            ← 研究数据（已 gitignore）
@@ -33,51 +29,59 @@ XJie/
 
 | 层级     | 技术                                      |
 | -------- | ----------------------------------------- |
-| 前端     | 微信小程序原生框架 (WXML + WXSS + JS)     |
+| iOS 前端 | SwiftUI + Combine + Swift 5.9             |
 | 后端     | FastAPI + SQLAlchemy 2.0 + Pydantic v2    |
-| 数据库   | PostgreSQL 16                             |
+| 数据库   | TimescaleDB (PostgreSQL 16)               |
 | 缓存     | Redis 7                                   |
-| 任务队列 | Celery 5.3                                |
-| 对象存储 | MinIO (S3 兼容)                           |
-| LLM      | OpenAI / Gemini                           |
+| LLM      | Kimi (Moonshot) / OpenAI / Gemini         |
+| 部署     | Docker + 阿里云 ECS                       |
 
 ## 快速开始
 
-### 后端
+### 后端部署
 
 ```bash
-# 启动基础设施
-docker compose up -d db redis minio
+# 克隆代码
+git clone https://github.com/doyoulikelin-wq/XJie_IOS.git
+cd XJie_IOS
 
-# 安装依赖并启动
-cd backend
-pip install -e .
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# 配置环境变量
+cp backend/.env.example backend/.env
+# 编辑 backend/.env，填入数据库、Redis、LLM API Key 等
+
+# Docker 构建并启动
+docker build -t xjie-backend ./backend
+docker run -d --name xjie-api \
+  --env-file backend/.env \
+  -p 8000:8000 \
+  --restart unless-stopped \
+  xjie-backend
 ```
 
-### 小程序
+### iOS App
 
-1. 下载并打开 [微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)
-2. 导入项目，选择 `XJie/` 根目录
-3. AppID: `wx24a461ae309ac297`
-4. 在 `app.js` 中配置 `baseUrl` 指向后端地址
+1. 用 Xcode 打开 `Xjie/Xjie.xcodeproj`
+2. 在 Info.plist 中配置 `API_BASE_URL` 指向后端地址
+3. 选择真机或模拟器运行
+4. Bundle ID: `com.xjie.app`
 
 ### 环境变量
 
 在 `backend/.env` 中配置：
 
 ```env
-DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/metabodash
-REDIS_URL=redis://localhost:6379/0
+DATABASE_URL=postgresql+psycopg://user:pass@host:port/metabodash
+REDIS_URL=redis://host:port/0
 JWT_SECRET=your-secret-key
-WX_APPID=wx24a461ae309ac297
-WX_SECRET=your-wechat-secret
 OPENAI_API_KEY=sk-xxx
+OPENAI_BASE_URL=https://api.moonshot.cn/v1   # Kimi API
+OPENAI_MODEL_TEXT=moonshot-v1-8k
+OPENAI_MODEL_VISION=moonshot-v1-8k
 ```
 
 ## 核心功能
 
-- **微信登录**: 一键授权，自动创建账户
+- **手机号登录**: 注册/登录，JWT 认证
 - **血糖监测**: CGM 数据导入、24h/7d 曲线、TIR 统计
 - **膳食记录**: 拍照上传 → AI 视觉识别热量 → 记录
 - **AI 助手**: 基于血糖 + 膳食上下文的智能对话
@@ -88,25 +92,20 @@ OPENAI_API_KEY=sk-xxx
 
 | 路由                         | 功能         |
 | ---------------------------- | ------------ |
-| POST /api/auth/wx-login      | 微信登录     |
-| GET  /api/dashboard/health   | 健康总览     |
-| GET  /api/glucose            | 血糖数据     |
-| POST /api/meals              | 膳食记录     |
-| POST /api/chat               | AI 对话      |
-| GET  /api/agent/today        | 每日简报     |
-| POST /api/agent/premeal-sim  | 餐前模拟     |
-| GET  /api/agent/rescue       | 救援检查     |
+| POST /api/auth/signup         | 手机号注册   |
+| POST /api/auth/login          | 手机号登录   |
+| POST /api/auth/wx-login       | 微信登录     |
+| GET  /api/dashboard/health    | 健康总览     |
+| GET  /api/glucose             | 血糖数据     |
+| POST /api/meals               | 膳食记录     |
+| POST /api/chat                | AI 对话      |
+| GET  /api/agent/today         | 每日简报     |
+| POST /api/agent/premeal-sim   | 餐前模拟     |
+| GET  /api/agent/rescue        | 救援检查     |
 
 ## 测试
 
 ```bash
 cd backend
 pytest -q
-```
-
-Frontend e2e smoke:
-
-```bash
-cd frontend
-npm run e2e
 ```
