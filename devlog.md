@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-03-27 — v0.7.0 AI 体验全面升级
+
+### 数据库修复 ✅
+- `user_profiles` 表补齐 6 个缺失列: `display_name`, `sex`, `height_cm`, `weight_kg`, `liver_risk_level`, `cohort`
+- `chat_messages` 表已包含 `analysis` 列（存储详细分析）
+
+### AI 聊天修复 ✅
+- **thread_id 缺失**: `ChatResult` 新增 `thread_id` 字段，iOS 可追踪会话
+- **403 授权问题**: iOS 端自动开启 AI 授权 (login/signup 后 PATCH `/api/users/consent`)，403 时自动重试
+
+### AI 系统提示词重写 ✅
+- AI 助手命名「小杰」，温暖友好风格，像一个懂医学的朋友
+- **数据感知策略**: 有数据直接引用分析；无数据绝不说"缺乏数据"，基于描述给建议
+- 自然引导用户关注代谢健康话题（血糖、饮食、体检）
+- 结构化 JSON 输出: `summary`(1-2 句) + `analysis`(详细 Markdown) + `followups` + `profile_extracted`
+
+### 用户画像自动提取 ✅
+- AI 从对话中提取用户信息（性别/年龄/身高/体重/昵称）
+- 后端 `_apply_profile_extraction()` 自动写入 `user_profiles` 表
+- 仅在字段为空时更新，不覆盖已有数据
+
+### 可展开分析气泡 UI ✅
+- `ChatView` 气泡显示 summary（简洁 1-2 句话）
+- 助手消息下方「查看详细分析 ▸」按钮，点击展开完整 Markdown 分析
+- 动画展开/收起，`@State expandedIDs` 追踪展开状态
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| `backend/app/providers/openai_provider.py` | 重写 SYSTEM_PROMPT、数据感知消息构建、结构化响应解析 |
+| `backend/app/providers/base.py` | `ChatLLMResult` 增加 `profile_extracted` |
+| `backend/app/schemas/chat.py` | `ChatResult` 增加 `summary` + `analysis` |
+| `backend/app/routers/chat.py` | 新增 `_apply_profile_extraction()`，返回 summary+analysis |
+| `Xjie/Models/ChatModels.swift` | `ChatResponse` 增加 `summary`/`analysis`，新增授权模型 |
+| `Xjie/ViewModels/ChatViewModel.swift` | `ChatMessageItem` 加 `analysis` 字段，403 自动授权重试 |
+| `Xjie/Views/Chat/ChatView.swift` | 可展开分析气泡 UI |
+| `Xjie/ViewModels/LoginViewModel.swift` | 手机号验证修复 (email→phone) |
+
+---
+
 ## 2026-03-26 — v0.6.0 P4+P5+P6 全部完成（39/39 ✅）
 
 ### P4 网络健壮性 (NET-01 ~ NET-04) ✅
