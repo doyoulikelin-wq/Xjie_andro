@@ -40,14 +40,14 @@ struct LoginView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [Color.appPrimary, Color(hex: "818cf8")],
+                            colors: [Color.appGradientStart, Color.appGradientEnd],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(width: 80, height: 80)
-                Text("M")
-                    .font(.system(size: 36, weight: .bold))
+                Text("XJ+")
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
             }
             Text("Xjie")
@@ -124,7 +124,7 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(
-                        LinearGradient(colors: [Color.appPrimary, Color(hex: "818cf8")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                        LinearGradient(colors: [Color.appGradientStart, Color.appGradientEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
                     .foregroundColor(.white)
                     .cornerRadius(8)
@@ -174,7 +174,7 @@ struct LoginView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(
-                    LinearGradient(colors: [Color.appPrimary, Color(hex: "818cf8")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(colors: [Color.appGradientStart, Color.appGradientEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
                 )
                 .foregroundColor(.white)
                 .cornerRadius(8)

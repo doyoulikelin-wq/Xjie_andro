@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// 全局颜色定义 — Dark Mode 自适应
+/// 全局颜色定义 — 品牌色 XJ+ (Teal → Blue 渐变)
 extension Color {
-    static let appPrimary = Color(hex: "6366f1")
-    static let appAccent = Color(hex: "06b6d4")
+    static let appPrimary = Color(hex: "1565C0")       // 深蓝（Logo 主色）
+    static let appAccent = Color(hex: "00C9A7")        // 青绿（Logo 辅色）
+    static let appGradientStart = Color(hex: "00C9A7") // 渐变起点：青绿
+    static let appGradientEnd = Color(hex: "1565C0")   // 渐变终点：深蓝
     static let appMuted = Color(.secondaryLabel)
     static let appDanger = Color(hex: "ef4444")
     static let appSuccess = Color(hex: "22c55e")

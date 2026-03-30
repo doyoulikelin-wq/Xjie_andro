@@ -62,8 +62,8 @@ struct AdminView: View {
                     statCard(icon: "flame.fill", title: "7天活跃", value: "\(s.active_users_7d)", color: .appWarning)
                     statCard(icon: "bubble.left.and.bubble.right.fill", title: "对话数", value: "\(s.total_conversations)", color: .appAccent)
                     statCard(icon: "text.bubble.fill", title: "消息数", value: "\(s.total_messages)", color: .appSuccess)
-                    statCard(icon: "doc.fill", title: "组学上传", value: "\(s.total_omics_uploads)", color: .purple)
-                    statCard(icon: "fork.knife", title: "餐食记录", value: "\(s.total_meals)", color: .orange)
+                    statCard(icon: "doc.fill", title: "组学上传", value: "\(s.total_omics_uploads)", color: Color(hex: "0F4C81"))
+                    statCard(icon: "fork.knife", title: "餐食记录", value: "\(s.total_meals)", color: Color(hex: "1B96C9"))
                 }
             } else {
                 Text("加载中…").foregroundColor(.appMuted)
@@ -192,7 +192,7 @@ struct AdminView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: "doc.badge.gearshape")
-                    .foregroundColor(.purple)
+                    .foregroundColor(Color(hex: "0F4C81"))
                 Text(item.file_name ?? "--")
                     .font(.subheadline).bold()
                     .lineLimit(1)

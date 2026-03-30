@@ -18,7 +18,7 @@ struct MealsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
                         .background(
-                            LinearGradient(colors: [Color.appPrimary, Color(hex: "818cf8")], startPoint: .topLeading, endPoint: .bottomTrailing)
+                            LinearGradient(colors: [Color.appGradientStart, Color.appGradientEnd], startPoint: .topLeading, endPoint: .bottomTrailing)
                         )
                         .foregroundColor(.white)
                         .cornerRadius(8)

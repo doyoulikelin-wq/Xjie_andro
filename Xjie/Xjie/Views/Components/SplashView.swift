@@ -9,7 +9,7 @@ struct SplashView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [Color.appPrimary, Color(hex: "818cf8")],
+                colors: [Color.appGradientStart, Color.appGradientEnd],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -20,8 +20,8 @@ struct SplashView: View {
                     Circle()
                         .fill(.white.opacity(0.2))
                         .frame(width: 100, height: 100)
-                    Text("M")
-                        .font(.system(size: 48, weight: .bold))
+                    Text("XJ+")
+                        .font(.system(size: 36, weight: .bold))
                         .foregroundColor(.white)
                 }
 
