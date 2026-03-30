@@ -76,8 +76,11 @@ struct HomeView: View {
     private func proactiveCard(_ p: ProactiveMessage) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Image(systemName: "brain")
-                    .foregroundColor(.appPrimary)
+                Image("NurseAvatar")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
                 Text(p.message ?? "")
                     .font(.subheadline)
             }
@@ -139,7 +142,7 @@ struct HomeView: View {
                 quickItem(icon: "camera", label: "记录膳食")
             }
             NavigationLink(destination: ChatView(isEmbedded: true)) {
-                quickItem(icon: "bubble.left.and.text.bubble.right", label: "AI 助手")
+                quickItem(icon: "bubble.left.and.text.bubble.right", label: "助手小捷")
             }
             NavigationLink(destination: HealthView()) {
                 quickItem(icon: "list.clipboard", label: "健康数据")

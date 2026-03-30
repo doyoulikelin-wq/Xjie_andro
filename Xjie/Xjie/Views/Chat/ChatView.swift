@@ -29,7 +29,7 @@ struct ChatView: View {
             // 输入栏
             inputBar
         }
-        .navigationTitle(vm.isViewingHistory ? "历史对话" : "AI 助手")
+        .navigationTitle(vm.isViewingHistory ? "历史对话" : "助手小捷")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -110,10 +110,12 @@ struct ChatView: View {
 
     private var welcomeMessage: some View {
         VStack(spacing: 8) {
-            Image(systemName: "brain")
-                .font(.system(size: 40))
-                .foregroundColor(.appPrimary)
-            Text("你好！我是你的健康AI助手。")
+            Image("NurseAvatar")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 80, height: 80)
+                .clipShape(Circle())
+            Text("你好！我是助手小捷。")
                 .font(.headline)
             Text("可以问我关于血糖、膳食、健康管理的问题。")
                 .font(.subheadline)

@@ -73,7 +73,10 @@ struct HealthDataView: View {
         Button { Task { await vm.generateSummary() } } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Image(systemName: "brain.head.profile")
+                    Image("Logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
                         .foregroundColor(.appPrimary)
                     Text("AI 健康总结").font(.headline).foregroundColor(.appText)
                     Spacer()

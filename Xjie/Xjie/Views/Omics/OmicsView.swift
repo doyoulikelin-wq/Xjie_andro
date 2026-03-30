@@ -267,8 +267,10 @@ struct OmicsView: View {
     private func analysisResultView(_ result: MetabolomicsAnalysis) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "brain.head.profile")
-                    .foregroundColor(.appPrimary)
+                Image("Logo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 20, height: 20)
                 Text("AI 分析结果")
                     .font(.subheadline.bold())
                 Spacer()

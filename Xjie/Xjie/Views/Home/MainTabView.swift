@@ -55,7 +55,7 @@ struct MainTabView: View {
             ChatView()
                 .tabItem {
                     Image(systemName: "bubble.left.and.bubble.right.fill")
-                    Text("AI 助手")
+                    Text("助手小捷")
                 }
         }
         .tint(Color.appPrimary)
@@ -69,7 +69,7 @@ struct MainTabView: View {
         case home = "首页"
         case healthData = "健康数据"
         case omics = "多组学"
-        case chat = "AI 助手"
+        case chat = "助手小捷"
 
         var id: String { rawValue }
 
