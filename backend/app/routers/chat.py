@@ -34,7 +34,7 @@ _PROFILE_FIELDS = {"sex", "age", "height_cm", "weight_kg", "display_name"}
 
 
 def _apply_profile_extraction(db: Session, user_id: int, extracted: dict) -> None:
-    \"\"\"Write AI-extracted profile fields to user_profiles.\"\"\"
+    """Write AI-extracted profile fields to user_profiles."""
     updates = {k: v for k, v in extracted.items() if k in _PROFILE_FIELDS and v is not None}
     if not updates:
         return
