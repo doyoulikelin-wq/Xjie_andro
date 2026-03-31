@@ -111,5 +111,3 @@ class SummaryTaskOut(BaseModel):
     progress_pct: float = 0.0
     token_used: int = 0
     error_message: str | None = None
-    delta: str | None = None
-    text: str | None = None
