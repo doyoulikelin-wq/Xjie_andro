@@ -48,8 +48,7 @@ struct MainTabView: View {
 
             OmicsView()
                 .tabItem {
-                    Image("Logo")
-                        .renderingMode(.template)
+                    Image(systemName: "atom")
                     Text("多组学")
                 }
 
@@ -78,7 +77,7 @@ struct MainTabView: View {
             switch self {
             case .home: return "house.fill"
             case .healthData: return "heart.text.square.fill"
-            case .omics: return "Logo"
+            case .omics: return "atom"
             case .chat: return "bubble.left.and.bubble.right.fill"
             }
         }
@@ -90,15 +89,7 @@ struct MainTabView: View {
                 Label {
                     Text(tab.rawValue)
                 } icon: {
-                    if tab == .omics {
-                        Image("Logo")
-                            .renderingMode(.template)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                    } else {
-                        Image(systemName: tab.icon)
-                    }
+                    Image(systemName: tab.icon)
                 }
             }
             .navigationTitle("Xjie")

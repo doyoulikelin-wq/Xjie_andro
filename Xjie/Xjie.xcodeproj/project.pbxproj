@@ -76,6 +76,8 @@
 		'A20006' = {isa = PBXBuildFile; fileRef = B20006; };
 		'A20007' = {isa = PBXBuildFile; fileRef = B20007; };
 		AF1F40F78195A1B7A92830D2 /* AdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC54489E8651D647068A1AF4 /* AdminView.swift */; };
+		'A10070' = {isa = PBXBuildFile; fileRef = B10070; };
+		'A10071' = {isa = PBXBuildFile; fileRef = B10071; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -161,6 +163,8 @@
 		'C10001' = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Xjie.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		'C20001' = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = XjieTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC54489E8651D647068A1AF4 /* AdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AdminView.swift; path = Xjie/Views/Admin/AdminView.swift; sourceTree = SOURCE_ROOT; };
+		'B10070' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
+		'B10071' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -223,6 +227,7 @@
 			isa = PBXGroup;
 			children = (
 				B10001,
+				B10071,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -248,6 +253,7 @@
 				B10003,
 				B10022,
 				B10023,
+				B10070,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -608,6 +614,8 @@
 				A10061,
 				A10062,
 				AF1F40F78195A1B7A92830D2 /* AdminView.swift in Sources */,
+				'A10070',
+				'A10071',
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

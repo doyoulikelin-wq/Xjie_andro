@@ -46,6 +46,13 @@ class Settings(BaseSettings):
     WX_APPID: str = ""
     WX_SECRET: str = ""
 
+    # APNs Push Notifications
+    APNS_KEY_ID: str = ""
+    APNS_TEAM_ID: str = ""
+    APNS_BUNDLE_ID: str = "com.xjie.app"
+    APNS_KEY_PATH: str = ""  # path to .p8 file
+    APNS_USE_SANDBOX: bool = True  # True for dev, False for production
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

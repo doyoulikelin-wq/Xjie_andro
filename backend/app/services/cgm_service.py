@@ -188,6 +188,14 @@ def ingest_cgm_records(
             )
             inserted_points += 1
 
+            # Trigger anomaly push check for extreme values
+            if glucose > 180 or glucose < 70:
+                try:
+                    from app.workers.push_tasks import check_glucose_anomaly
+                    check_glucose_anomaly.delay(user_id, float(glucose), ts.isoformat())
+                except Exception:
+                    pass  # Push is best-effort, don't block ingestion
+
     db.commit()
     return {
         "provider": provider,

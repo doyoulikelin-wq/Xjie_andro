@@ -9,10 +9,14 @@ final class HomeViewModel: ObservableObject {
     @Published var proactive: ProactiveMessage?
     @Published var errorMessage: String?
     @Published var isOfflineData = false
+    @Published var interventionLevel: Double = 1  // 0=L1, 1=L2, 2=L3
 
     private let api: APIServiceProtocol
     private let cache = OfflineCacheManager.shared
     private let dashboardCacheKey = "dashboard_health"
+
+    private static let levelMap: [Int: String] = [0: "L1", 1: "L2", 2: "L3"]
+    private static let reverseLevelMap: [String: Double] = ["L1": 0, "L2": 1, "L3": 2]
 
     init(api: APIServiceProtocol = APIService.shared) {
         self.api = api
@@ -39,5 +43,20 @@ final class HomeViewModel: ObservableObject {
         }
         guard !Task.isCancelled else { return }
         proactive = try? await api.get("/api/agent/proactive")
+
+        // Fetch current intervention level
+        if let settings: UserSettings = try? await api.get("/api/users/settings") {
+            interventionLevel = Self.reverseLevelMap[settings.intervention_level ?? "L2"] ?? 1
+        }
+    }
+
+    func updateInterventionLevel(_ value: Double) async {
+        let idx = Int(value.rounded())
+        guard let level = Self.levelMap[idx] else { return }
+        do {
+            try await api.patchVoid("/api/users/settings", body: UpdateSettingsBody(intervention_level: level))
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }

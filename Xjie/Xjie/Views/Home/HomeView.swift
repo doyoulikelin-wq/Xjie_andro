@@ -17,6 +17,9 @@ struct HomeView: View {
                         proactiveCard(proactive)
                     }
 
+                    // 主动交互级别滑块
+                    interventionSlider
+
                     // 血糖概览
                     if let glucose = vm.dashboard?.glucose?.last_24h {
                         glucoseCard(glucose)
@@ -91,6 +94,50 @@ struct HomeView: View {
                         .foregroundColor(.appDanger)
                 }
             }
+        }
+        .cardStyle()
+    }
+
+    private var interventionSlider: some View {
+        let levelLabels = ["温和", "标准", "积极"]
+        let levelDescs = [
+            "仅高风险时提醒",
+            "中等风险时提醒",
+            "主动积极提醒",
+        ]
+        let idx = Int(vm.interventionLevel.rounded())
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("主动交互", systemImage: "bell.badge")
+                    .font(.headline)
+                Spacer()
+                Text(levelLabels[idx])
+                    .font(.subheadline).bold()
+                    .foregroundColor(.appPrimary)
+            }
+
+            Slider(value: $vm.interventionLevel, in: 0...2, step: 1) {
+                Text("干预级别")
+            } onEditingChanged: { editing in
+                if !editing {
+                    Task { await vm.updateInterventionLevel(vm.interventionLevel) }
+                }
+            }
+            .tint(.appPrimary)
+
+            HStack {
+                Text("🤫").font(.caption2)
+                Spacer()
+                Text("⚖️").font(.caption2)
+                Spacer()
+                Text("🔔").font(.caption2)
+            }
+            .padding(.horizontal, 4)
+
+            Text(levelDescs[idx])
+                .font(.caption)
+                .foregroundColor(.appMuted)
         }
         .cardStyle()
     }
