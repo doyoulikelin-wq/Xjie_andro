@@ -6,6 +6,177 @@
 
 ---
 
+## 2026-04-01 — v1.2.0 Feature Flag + Skill 技能系统 + 健康摘要 + 指标趋势
+
+### Feature Flag 功能开关系统 ✅
+
+**后端**
+- 新建 `models/feature_flag.py`：`FeatureFlag` 表（key/enabled/description/rollout_pct/metadata_json）+ `Skill` 表（key/name/priority/trigger_hint/prompt_template）
+- 新建 `services/feature_service.py`：60 秒内存缓存 + `is_feature_enabled(key)` + `build_skill_prompt(query)` 关键词匹配
+- 新建 `schemas/feature_flag.py`：CRUD Pydantic schemas
+- Migration `0009_feature_flags_skills.py`：建表 + 种子数据（6 开关 + 6 技能）
+
+**Chat 集成**
+- `openai_provider.py`：`_build_messages()` 接受 `skill_prompt` 参数，匹配技能的 prompt 注入系统提示
+- `chat.py`：sync/stream 端点增加 `ai_chat` 开关守卫（禁用时 503）+ 自动技能注入
+
+**管理后台**
+- `admin.py` 新增 8 个 CRUD 端点：GET/POST/PATCH/DELETE × feature-flags + skills
+- `main.py` 新增公共 `GET /api/feature-flags`（非管理员可访问）
+- `admin.html` 新增"开关"和"技能"两个 Tab 页，支持一键开关/新增/编辑/删除
+
+**iOS 端**
+- 新建 `Models/FeatureFlagModels.swift`：Admin CRUD 模型 + 公共响应模型
+- 新建 `Services/FeatureFlagService.swift`：登录后自动拉取，5 分钟本地缓存，`isEnabled("key")` 查询
+- `AdminViewModel.swift`：新增 featureFlags/skills 属性 + CRUD 方法（toggle/create/update/delete）
+- `AdminView.swift`：新增"开关"和"技能"两个 Tab 页，支持 Sheet 表单编辑
+
+**预设 6 个功能开关**：ai_chat、health_summary、meal_vision、omics_analysis、agent_proactive、indicator_trend
+
+**预设 6 个技能**：
+| 优先级 | Key | 触发关键词 |
+|---|---|---|
+| 10 | glucose_analysis | 血糖,glucose,CGM |
+| 20 | diet_advice | 饮食,营养,食物 |
+| 30 | exam_report | 检验,报告,化验 |
+| 40 | omics_interpret | 组学,基因,微生物 |
+| 50 | fatty_liver | 脂肪肝,肝脏,ALT |
+| 90 | general_health | (无关键词，兜底) |
+
+### 健康 AI 摘要管线 ✅
+- 后端 `health_summary_service.py`：分阶段生成 AI 研究报告（overview → glucose → diet → omics → recommendations → final）
+- 后端台任务系统：`threading.Thread` 异步执行，`summary_tasks` 表追踪状态/Token 消耗
+- `SummaryTaskOut` schema：task_id/status/stage/token_used
+- iOS `HealthBriefViewModel` 对接摘要 API
+
+### 指标趋势图 ✅
+- 后端 `GET /api/health-reports/{id}/indicator-trends`：从 AI 摘要提取时序指标
+- iOS `IndicatorTrendView`：SwiftUI Charts 绘制趋势线，支持拖拽/点击 tooltip 交互
+- `IndicatorTrendViewModel`：按指标分组，支持刷新
+
+### Token 消耗面板增强 ✅
+- `GET /api/admin/token-stats` 新增 `summary_task_tokens` + `summary_task_count`
+- `GET /api/admin/token-stats/details`：按用户 Token 审计 + 近期摘要任务列表
+- Web admin Token 面板 + iOS AdminView Token Tab：6 指标卡片 + 3 明细表
+
+### 新增文件
+
+| 文件 | 用途 |
+|---|---|
+| `backend/app/models/feature_flag.py` | FeatureFlag + Skill ORM 模型 |
+| `backend/app/schemas/feature_flag.py` | 功能开关/技能 CRUD schemas |
+| `backend/app/services/feature_service.py` | 缓存 + 开关检查 + 技能匹配 |
+| `backend/app/db/migrations/versions/0009_feature_flags_skills.py` | 建表迁移 |
+| `Xjie/Models/FeatureFlagModels.swift` | iOS Feature Flag 模型 |
+| `Xjie/Services/FeatureFlagService.swift` | iOS 功能开关服务 |
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| `backend/app/providers/openai_provider.py` | skill_prompt 注入系统提示 |
+| `backend/app/providers/base.py` | generate_text/stream_text 增加 skill_prompt 参数 |
+| `backend/app/routers/chat.py` | 开关守卫 + 技能注入 |
+| `backend/app/routers/admin.py` | 8 个 flags/skills CRUD 端点 + Token 详情端点 |
+| `backend/app/main.py` | 公共 /api/feature-flags 端点 |
+| `backend/app/static/admin.html` | 开关/技能 Tab 页 + Token 面板 |
+| `Xjie/ViewModels/AdminViewModel.swift` | flags/skills 属性 + CRUD 方法 |
+| `Xjie/Views/Admin/AdminView.swift` | 开关/技能 Tab 页 + SkillEditSheet |
+| `Xjie/App/XjieApp.swift` | 登录后自动拉取 Feature Flags |
+
+---
+
+## 2026-03-31 — v1.1.0 管理后台 + 品牌升级 + Kimi K2.5 + 推送通知
+
+### 管理后台（iOS + Web）✅
+- 后端 `routers/admin.py`：`require_admin` 依赖 + stats/users/conversations/omics 端点
+- iOS `AdminView`：5 Tab 管理面板（概览/用户/对话/组学/Token）
+- iOS `AdminViewModel`：并发加载所有管理数据
+- Web `admin.html`：独立前端，JWT 登录 + 4 个数据表格 + 统计卡片
+
+### Kimi K2.5 思考模式 ✅
+- `openai_provider.py` 适配 Kimi K2.5 API（temperature=0.6 强制要求）
+- 流式输出过滤 `<think>...</think>` 标签，仅返回正文
+- Token 消耗追踪：`token_audit` 表记录每次调用的 prompt/completion tokens
+
+### 品牌视觉升级 ✅
+- Logo：XJ+ 标志，青绿→深蓝渐变配色方案
+- AI 助手形象：小护士封面 + 小捷助手头像
+- 多组学 Tab 图标替换为品牌 Logo
+
+### APNs 推送通知 ✅
+- 后端 `push_service.py`：Apple APNs HTTP/2 推送（JWT 认证）
+- iOS `PushNotificationManager`：注册 Device Token + 权限请求
+- 首页干预级别滑块：实时调节 AI 主动推送频率
+
+### 膳食图像真实识别 ✅
+- 替换 mock OCR 为 Kimi K2.5 多模态图片识别
+- 体检报告提取 prompt 优化 + 批量上传脚本
+
+### AI 聊天优化 ✅
+- 历史消息时间戳显示
+- 跨会话记忆（context_builder 汇总近期对话摘要）
+- 提示词工程优化：数据感知 + 三要素 summary
+- 移除所有后端/前端输出中的 emoji，防止 iOS 乱码
+- Followups 交互重新设计
+
+### 新增文件
+
+| 文件 | 用途 |
+|---|---|
+| `backend/app/routers/admin.py` | 管理员 API 路由 |
+| `backend/app/static/admin.html` | Web 管理后台 |
+| `Xjie/ViewModels/AdminViewModel.swift` | 管理后台 ViewModel |
+| `Xjie/Views/Admin/AdminView.swift` | 管理后台 View |
+| `Xjie/Services/PushNotificationManager.swift` | APNs 推送管理 |
+| `Xjie/App/AppDelegate.swift` | Device Token 注册 |
+
+---
+
+## 2026-03-30 — v1.0.0 多组学模块 + AI 体验升级 + 服务器部署
+
+### 多组学模块 ✅
+- 蛋白组/基因组 Tab 锁定（敬请期待）
+- 代谢组上传功能：文件上传 + LLM 解读 + 风险等级评估
+- 后端 `omics` model FK 引用修正（users → user_account）
+
+### AI 体验全面升级 ✅
+- AI 助手「小杰」：温暖友好风格系统提示词
+- 可展开分析气泡：summary(1-2句) + 点击展开详细 analysis
+- 用户画像自动提取：AI 从对话中识别性别/年龄/身高/体重
+- Followups 追问建议交互
+
+### 服务器部署 ✅
+- Aliyun 服务器 8.130.213.44 部署
+- Docker 容器：FastAPI + TimescaleDB
+- iOS `API_BASE_URL` 切换至生产环境
+- Aliyun pip 镜像加速 Docker 构建
+
+---
+
+## 2026-03-28 — v0.8.0 后端适配 + Kimi LLM 接入
+
+### 后端 Schema 适配 ✅
+- 适配服务器数据库：BigInteger IDs、`user_account` 表名、phone/password 字段
+- 移除 UUID 主键，改用自增整数
+- iOS 登录流程适配 phone 认证
+
+### Kimi/Moonshot LLM 接入 ✅
+- 通过 `OPENAI_BASE_URL` 配置 Moonshot API
+- 支持 Kimi 大模型作为 AI 后端
+- README 更新 iOS 应用说明
+
+### 修改文件
+
+| 文件 | 变更 |
+|---|---|
+| `backend/app/models/` | BigInteger + user_account 表适配 |
+| `backend/app/routers/auth.py` | phone/password 登录 |
+| `Xjie/Services/Environment.swift` | 生产 API_BASE_URL |
+| `Xjie/ViewModels/LoginViewModel.swift` | phone 登录适配 |
+
+---
+
 ## 2026-03-27 — v0.7.0 AI 体验全面升级
 
 ### 数据库修复 ✅
