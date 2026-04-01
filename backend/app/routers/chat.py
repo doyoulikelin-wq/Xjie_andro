@@ -23,6 +23,7 @@ from app.schemas.chat import (
     ConversationItem,
 )
 from app.services.context_builder import build_user_context
+from app.services.feature_service import build_skill_prompt, is_feature_enabled
 from app.services.safety_service import detect_safety_flags, emergency_template
 from app.utils.hash import context_hash
 
@@ -154,6 +155,11 @@ def chat(
     db: Session = Depends(get_db),
 ):
     _check_consent(db, user_id)
+
+    # Feature flag gate
+    if not is_feature_enabled("ai_chat", db):
+        raise HTTPException(status_code=503, detail="AI 对话功能暂时关闭")
+
     flags = detect_safety_flags(payload.message)
     context = build_user_context(db, user_id)
 
@@ -169,9 +175,12 @@ def chat(
                           followups=["如果你愿意，我可以帮你整理就医时要描述的关键信息。"],
                           safety_flags=flags, used_context=context, thread_id=str(conv.id))
 
+    # Build skill prompt based on user query
+    skill_prompt = build_skill_prompt(payload.message, db)
+
     provider = get_provider()
     t0 = time.perf_counter()
-    result = provider.generate_text(context, payload.message, history=history)
+    result = provider.generate_text(context, payload.message, history=history, skill_prompt=skill_prompt)
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
     _save_assistant_message(db, conv, result.summary, result.analysis, {"safety_flags": flags, "confidence": result.confidence})
@@ -201,6 +210,11 @@ def chat_stream(
     db: Session = Depends(get_db),
 ):
     _check_consent(db, user_id)
+
+    # Feature flag gate
+    if not is_feature_enabled("ai_chat", db):
+        raise HTTPException(status_code=503, detail="AI 对话功能暂时关闭")
+
     flags = detect_safety_flags(payload.message)
     context = build_user_context(db, user_id)
 
@@ -227,11 +241,12 @@ def chat_stream(
 
     provider = get_provider()
     thread_id_str = str(conv.id)
+    skill_prompt = build_skill_prompt(payload.message, db)
 
     def event_stream():
         started = time.perf_counter()
         emitted_parts: list[str] = []
-        for chunk in provider.stream_text(context, payload.message, history=history):
+        for chunk in provider.stream_text(context, payload.message, history=history, skill_prompt=skill_prompt):
             emitted_parts.append(chunk)
             yield f"data: {json.dumps({'type': 'token', 'delta': chunk}, ensure_ascii=False)}\n\n"
 

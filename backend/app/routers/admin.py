@@ -12,6 +12,7 @@ from app.core.deps import get_db, require_admin
 from app.models.audit import LLMAuditLog
 from app.models.conversation import ChatMessage, Conversation
 from app.models.health_document import SummaryTask
+from app.models.feature_flag import FeatureFlag, Skill
 from app.models.meal import Meal
 from app.models.omics import OmicsUpload
 from app.models.user import User
@@ -25,6 +26,17 @@ from app.schemas.admin import (
     SummaryTaskItem,
     UserTokenItem,
 )
+from app.schemas.feature_flag import (
+    FeatureFlagCreate,
+    FeatureFlagListOut,
+    FeatureFlagOut,
+    FeatureFlagUpdate,
+    SkillCreate,
+    SkillListOut,
+    SkillOut,
+    SkillUpdate,
+)
+from app.services.feature_service import invalidate_cache
 
 router = APIRouter()
 
@@ -385,3 +397,149 @@ def admin_token_details(
     ]
 
     return AdminTokenDetails(by_user=by_user, recent_tasks=recent_tasks)
+
+
+# ── Feature Flags CRUD ───────────────────────────────────────
+
+
+@router.get("/feature-flags", response_model=FeatureFlagListOut)
+def list_feature_flags(
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.execute(select(FeatureFlag).order_by(FeatureFlag.key)).scalars().all()
+    return FeatureFlagListOut(flags=[
+        FeatureFlagOut(id=r.id, key=r.key, enabled=r.enabled, description=r.description,
+                       rollout_pct=r.rollout_pct, updated_at=r.updated_at)
+        for r in rows
+    ])
+
+
+@router.post("/feature-flags", response_model=FeatureFlagOut, status_code=201)
+def create_feature_flag(
+    body: FeatureFlagCreate,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    existing = db.execute(select(FeatureFlag).where(FeatureFlag.key == body.key)).scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Flag '{body.key}' already exists")
+    flag = FeatureFlag(key=body.key, enabled=body.enabled, description=body.description, rollout_pct=body.rollout_pct)
+    db.add(flag)
+    db.commit()
+    db.refresh(flag)
+    invalidate_cache()
+    return FeatureFlagOut(id=flag.id, key=flag.key, enabled=flag.enabled,
+                          description=flag.description, rollout_pct=flag.rollout_pct, updated_at=flag.updated_at)
+
+
+@router.patch("/feature-flags/{flag_id}", response_model=FeatureFlagOut)
+def update_feature_flag(
+    flag_id: int,
+    body: FeatureFlagUpdate,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    flag = db.get(FeatureFlag, flag_id)
+    if not flag:
+        raise HTTPException(status_code=404, detail="Flag not found")
+    if body.enabled is not None:
+        flag.enabled = body.enabled
+    if body.description is not None:
+        flag.description = body.description
+    if body.rollout_pct is not None:
+        flag.rollout_pct = body.rollout_pct
+    db.commit()
+    db.refresh(flag)
+    invalidate_cache()
+    return FeatureFlagOut(id=flag.id, key=flag.key, enabled=flag.enabled,
+                          description=flag.description, rollout_pct=flag.rollout_pct, updated_at=flag.updated_at)
+
+
+@router.delete("/feature-flags/{flag_id}")
+def delete_feature_flag(
+    flag_id: int,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    flag = db.get(FeatureFlag, flag_id)
+    if not flag:
+        raise HTTPException(status_code=404, detail="Flag not found")
+    db.delete(flag)
+    db.commit()
+    invalidate_cache()
+    return {"ok": True}
+
+
+# ── Skills CRUD ──────────────────────────────────────────────
+
+
+@router.get("/skills", response_model=SkillListOut)
+def list_skills(
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    rows = db.execute(select(Skill).order_by(Skill.priority)).scalars().all()
+    return SkillListOut(skills=[
+        SkillOut(id=r.id, key=r.key, name=r.name, description=r.description, enabled=r.enabled,
+                 priority=r.priority, trigger_hint=r.trigger_hint, prompt_template=r.prompt_template,
+                 updated_at=r.updated_at)
+        for r in rows
+    ])
+
+
+@router.post("/skills", response_model=SkillOut, status_code=201)
+def create_skill(
+    body: SkillCreate,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    existing = db.execute(select(Skill).where(Skill.key == body.key)).scalars().first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Skill '{body.key}' already exists")
+    skill = Skill(key=body.key, name=body.name, description=body.description, enabled=body.enabled,
+                  priority=body.priority, trigger_hint=body.trigger_hint, prompt_template=body.prompt_template)
+    db.add(skill)
+    db.commit()
+    db.refresh(skill)
+    invalidate_cache()
+    return SkillOut(id=skill.id, key=skill.key, name=skill.name, description=skill.description,
+                    enabled=skill.enabled, priority=skill.priority, trigger_hint=skill.trigger_hint,
+                    prompt_template=skill.prompt_template, updated_at=skill.updated_at)
+
+
+@router.patch("/skills/{skill_id}", response_model=SkillOut)
+def update_skill(
+    skill_id: int,
+    body: SkillUpdate,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    skill = db.get(Skill, skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    for field in ("name", "description", "enabled", "priority", "trigger_hint", "prompt_template"):
+        val = getattr(body, field, None)
+        if val is not None:
+            setattr(skill, field, val)
+    db.commit()
+    db.refresh(skill)
+    invalidate_cache()
+    return SkillOut(id=skill.id, key=skill.key, name=skill.name, description=skill.description,
+                    enabled=skill.enabled, priority=skill.priority, trigger_hint=skill.trigger_hint,
+                    prompt_template=skill.prompt_template, updated_at=skill.updated_at)
+
+
+@router.delete("/skills/{skill_id}")
+def delete_skill(
+    skill_id: int,
+    _admin_id: int = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    skill = db.get(Skill, skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found")
+    db.delete(skill)
+    db.commit()
+    invalidate_cache()
+    return {"ok": True}

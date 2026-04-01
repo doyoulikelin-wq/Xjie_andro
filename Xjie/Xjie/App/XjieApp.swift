@@ -17,6 +17,7 @@ struct XjieApp: App {
                         .environmentObject(networkMonitor)
                         .onAppear {
                             pushManager.requestPermission()
+                            Task { await FeatureFlagService.shared.fetchIfNeeded() }
                         }
                 } else {
                     LoginView()

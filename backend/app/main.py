@@ -62,6 +62,19 @@ def create_app() -> FastAPI:
     app.include_router(push.router, prefix="/api/push", tags=["push"])
     app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
+    # Public feature flags endpoint (authenticated, non-admin)
+    from app.core.deps import get_current_user_id, get_db as _get_db
+    from app.services.feature_service import get_all_flags
+    from fastapi import Depends
+    from sqlalchemy.orm import Session as _Session
+
+    @app.get("/api/feature-flags", tags=["feature-flags"])
+    def public_feature_flags(
+        _user_id: int = Depends(get_current_user_id),
+        db: _Session = Depends(_get_db),
+    ):
+        return {"flags": get_all_flags(db)}
+
     @app.get("/admin")
     def admin_page():
         return FileResponse(_STATIC_DIR / "admin.html", media_type="text/html")

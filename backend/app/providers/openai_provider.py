@@ -108,9 +108,13 @@ def _build_messages(
     context: dict,
     user_query: str,
     history: list[dict] | None = None,
+    skill_prompt: str = "",
 ) -> list[dict]:
     """Build the messages array for OpenAI Chat Completions."""
-    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    base_prompt = SYSTEM_PROMPT
+    if skill_prompt:
+        base_prompt += "\n\n# 当前激活的专业技能\n" + skill_prompt
+    messages: list[dict] = [{"role": "system", "content": base_prompt}]
 
     # Inject user context as a system message
     ctx_parts = []
@@ -301,10 +305,10 @@ class OpenAIProvider(LLMProvider):
             return MealVisionResult(items=items, total_kcal=480, confidence=0.2,
                                     notes=f"Vision fallback: {e}")
 
-    def generate_text(self, context: dict, user_query: str, *, history: list[dict] | None = None) -> ChatLLMResult:
+    def generate_text(self, context: dict, user_query: str, *, history: list[dict] | None = None, skill_prompt: str = "") -> ChatLLMResult:
         """Generate a complete text response. Uses thinking mode for health queries."""
         try:
-            messages = _build_messages(context, user_query, history=history)
+            messages = _build_messages(context, user_query, history=history, skill_prompt=skill_prompt)
             is_health = _is_health_query(user_query, history)
 
             # kimi-k2.5 defaults to thinking enabled; disable for non-health queries
@@ -348,10 +352,10 @@ class OpenAIProvider(LLMProvider):
                 analysis=f"错误信息: {e}",
             )
 
-    def stream_text(self, context: dict, user_query: str, *, history: list[dict] | None = None) -> Iterator[str]:
+    def stream_text(self, context: dict, user_query: str, *, history: list[dict] | None = None, skill_prompt: str = "") -> Iterator[str]:
         """Stream text token-by-token. Uses thinking mode for health queries."""
         try:
-            messages = _build_messages(context, user_query, history=history)
+            messages = _build_messages(context, user_query, history=history, skill_prompt=skill_prompt)
             is_health = _is_health_query(user_query, history)
 
             extra: dict = {}

@@ -99,6 +99,8 @@
     <button class="tab" onclick="switchTab('conversations',this)">💬 对话</button>
     <button class="tab" onclick="switchTab('omics',this)">🧬 组学</button>
     <button class="tab" onclick="switchTab('token',this)">🔑 Token</button>
+    <button class="tab" onclick="switchTab('flags',this)">🚩 开关</button>
+    <button class="tab" onclick="switchTab('skills',this)">🧠 技能</button>
   </div>
 
   <div class="content">
@@ -162,6 +164,32 @@
         </tr></thead><tbody id="tasksTbody"></tbody></table></div>
       </div>
     </div>
+
+    <!-- Feature Flags -->
+    <div id="panel-flags" style="display:none">
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h3>🚩 功能开关</h3>
+          <button onclick="addFlag()" style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer">+ 新增</button>
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>Key</th><th>描述</th><th>状态</th><th>灰度%</th><th>更新时间</th><th>操作</th>
+        </tr></thead><tbody id="flagsTbody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- Skills -->
+    <div id="panel-skills" style="display:none">
+      <div class="table-wrapper">
+        <div class="table-header">
+          <h3>🧠 AI 技能管理</h3>
+          <button onclick="addSkill()" style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:13px;cursor:pointer">+ 新增</button>
+        </div>
+        <div style="overflow-x:auto"><table><thead><tr>
+          <th>优先级</th><th>Key</th><th>名称</th><th>状态</th><th>触发关键词</th><th>Prompt</th><th>操作</th>
+        </tr></thead><tbody id="skillsTbody"></tbody></table></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -204,7 +232,7 @@ async function apiFetch(path) {
 async function showApp() {
   document.getElementById('loginOverlay').style.display = 'none';
   document.getElementById('mainApp').style.display = '';
-  loadStats(); loadUsers(); loadConversations(); loadOmics(); loadTokenStats();
+  loadStats(); loadUsers(); loadConversations(); loadOmics(); loadTokenStats(); loadFlags(); loadSkills();
 }
 
 // Check existing token
@@ -223,7 +251,7 @@ document.getElementById('loginPassword').addEventListener('keydown', e => { if (
 function switchTab(name, btn) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  ['stats','users','conversations','omics','token'].forEach(p => {
+  ['stats','users','conversations','omics','token','flags','skills'].forEach(p => {
     document.getElementById('panel-' + p).style.display = p === name ? '' : 'none';
   });
 }
@@ -367,6 +395,102 @@ function riskBadge(r) {
   if (!r) return '--';
   const cls = r.match(/high|高/) ? 'badge-high' : r.match(/medium|中/) ? 'badge-medium' : 'badge-low';
   return `<span class="badge ${cls}">${esc(r)}</span>`;
+}
+
+// ── Feature Flags ──
+async function loadFlags() {
+  try {
+    const data = await apiFetch('/api/admin/feature-flags');
+    const flags = data.flags || [];
+    document.getElementById('flagsTbody').innerHTML = flags.map(f => `<tr>
+      <td><code>${esc(f.key)}</code></td>
+      <td>${esc(f.description)}</td>
+      <td><span class="badge ${f.enabled?'badge-low':'badge-high'}" style="cursor:pointer" onclick="toggleFlag(${f.id},${!f.enabled})">${f.enabled?'开启':'关闭'}</span></td>
+      <td>${f.rollout_pct}%</td>
+      <td>${fmtTime(f.updated_at)}</td>
+      <td><button onclick="editFlag(${f.id},'${esc(f.key)}','${esc(f.description)}',${f.rollout_pct})" style="border:1px solid var(--border);background:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px">编辑</button>
+      <button onclick="deleteFlag(${f.id})" style="border:1px solid var(--danger);color:var(--danger);background:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px;margin-left:4px">删除</button></td>
+    </tr>`).join('') || '<tr><td colspan="6" class="empty">暂无开关</td></tr>';
+  } catch {}
+}
+async function toggleFlag(id, val) {
+  await fetch(API+'/api/admin/feature-flags/'+id, {method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({enabled:val})});
+  loadFlags();
+}
+async function addFlag() {
+  const key = prompt('Feature key (英文):');
+  if (!key) return;
+  const desc = prompt('描述:','') || '';
+  await fetch(API+'/api/admin/feature-flags', {method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({key,description:desc,enabled:true,rollout_pct:100})});
+  loadFlags();
+}
+async function editFlag(id,key,desc,pct) {
+  const newDesc = prompt('描述:', desc);
+  if (newDesc===null) return;
+  const newPct = parseInt(prompt('灰度百分比 (0-100):', pct));
+  if (isNaN(newPct)) return;
+  await fetch(API+'/api/admin/feature-flags/'+id, {method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({description:newDesc,rollout_pct:newPct})});
+  loadFlags();
+}
+async function deleteFlag(id) {
+  if (!confirm('确认删除此开关？')) return;
+  await fetch(API+'/api/admin/feature-flags/'+id, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  loadFlags();
+}
+
+// ── Skills ──
+async function loadSkills() {
+  try {
+    const data = await apiFetch('/api/admin/skills');
+    const skills = data.skills || [];
+    document.getElementById('skillsTbody').innerHTML = skills.map(s => `<tr>
+      <td>${s.priority}</td>
+      <td><code>${esc(s.key)}</code></td>
+      <td><strong>${esc(s.name)}</strong><br><span style="font-size:11px;color:var(--muted)">${esc(s.description)}</span></td>
+      <td><span class="badge ${s.enabled?'badge-low':'badge-high'}" style="cursor:pointer" onclick="toggleSkill(${s.id},${!s.enabled})">${s.enabled?'启用':'停用'}</span></td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.trigger_hint)}">${esc(s.trigger_hint||'(始终注入)')}</td>
+      <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.prompt_template)}">${esc(s.prompt_template.slice(0,80))}${s.prompt_template.length>80?'…':''}</td>
+      <td><button onclick="editSkill(${s.id})" style="border:1px solid var(--border);background:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px">编辑</button>
+      <button onclick="deleteSkill(${s.id})" style="border:1px solid var(--danger);color:var(--danger);background:none;border-radius:4px;padding:3px 8px;cursor:pointer;font-size:12px;margin-left:4px">删除</button></td>
+    </tr>`).join('') || '<tr><td colspan="7" class="empty">暂无技能</td></tr>';
+  } catch {}
+}
+async function toggleSkill(id, val) {
+  await fetch(API+'/api/admin/skills/'+id, {method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({enabled:val})});
+  loadSkills();
+}
+async function editSkill(id) {
+  const data = await apiFetch('/api/admin/skills');
+  const s = (data.skills||[]).find(x=>x.id===id);
+  if (!s) return;
+  const name = prompt('名称:', s.name);
+  if (name===null) return;
+  const priority = parseInt(prompt('优先级 (越小越先):', s.priority));
+  if (isNaN(priority)) return;
+  const trigger = prompt('触发关键词 (逗号分隔，空=始终注入):', s.trigger_hint);
+  if (trigger===null) return;
+  const tpl = prompt('Prompt 模板:', s.prompt_template);
+  if (tpl===null) return;
+  await fetch(API+'/api/admin/skills/'+id, {method:'PATCH',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({name,priority,trigger_hint:trigger,prompt_template:tpl})});
+  loadSkills();
+}
+async function addSkill() {
+  const key = prompt('Skill key (英文):');
+  if (!key) return;
+  const name = prompt('名称:');
+  if (!name) return;
+  const desc = prompt('描述:','') || '';
+  const priority = parseInt(prompt('优先级 (10-100):', '50')) || 50;
+  const trigger = prompt('触发关键词 (逗号分隔，空=始终注入):','') || '';
+  const tpl = prompt('Prompt 模板:','');
+  if (tpl===null) return;
+  await fetch(API+'/api/admin/skills', {method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({key,name,description:desc,enabled:true,priority,trigger_hint:trigger,prompt_template:tpl})});
+  loadSkills();
+}
+async function deleteSkill(id) {
+  if (!confirm('确认删除此技能？')) return;
+  await fetch(API+'/api/admin/skills/'+id, {method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  loadSkills();
 }
 </script>
 </body>

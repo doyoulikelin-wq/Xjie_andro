@@ -100,6 +100,8 @@ final class AdminViewModel: ObservableObject {
     @Published var users: [AdminUserItem] = []
     @Published var conversations: [AdminConversationItem] = []
     @Published var omicsUploads: [AdminOmicsItem] = []
+    @Published var featureFlags: [AdminFeatureFlag] = []
+    @Published var skills: [AdminSkill] = []
     @Published var loading = false
     @Published var errorMessage: String?
 
@@ -162,6 +164,108 @@ final class AdminViewModel: ObservableObject {
         async let c: Void = fetchConversations()
         async let o: Void = fetchOmics()
         async let t: Void = fetchTokenStats()
-        _ = await (s, u, c, o, t)
+        async let f: Void = fetchFlags()
+        async let sk: Void = fetchSkills()
+        _ = await (s, u, c, o, t, f, sk)
+    }
+
+    // MARK: - Feature Flags CRUD
+
+    func fetchFlags() async {
+        do {
+            let resp: AdminFeatureFlagList = try await api.get("/api/admin/feature-flags")
+            featureFlags = resp.flags
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleFlag(_ flag: AdminFeatureFlag) async {
+        do {
+            let body = AdminFeatureFlagUpdate(enabled: !flag.enabled)
+            let _: AdminFeatureFlag = try await api.patch("/api/admin/feature-flags/\(flag.id)", body: body)
+            await fetchFlags()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func updateFlag(_ flag: AdminFeatureFlag, desc: String, pct: Int) async {
+        do {
+            let body = AdminFeatureFlagUpdate(description: desc, rollout_pct: pct)
+            let _: AdminFeatureFlag = try await api.patch("/api/admin/feature-flags/\(flag.id)", body: body)
+            await fetchFlags()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func createFlag(key: String, description: String) async {
+        do {
+            let body = AdminFeatureFlagCreate(key: key, description: description)
+            let _: AdminFeatureFlag = try await api.post("/api/admin/feature-flags", body: body)
+            await fetchFlags()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteFlag(_ flag: AdminFeatureFlag) async {
+        do {
+            try await api.deleteVoid("/api/admin/feature-flags/\(flag.id)")
+            await fetchFlags()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Skills CRUD
+
+    func fetchSkills() async {
+        do {
+            let resp: AdminSkillList = try await api.get("/api/admin/skills")
+            skills = resp.skills
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func toggleSkill(_ skill: AdminSkill) async {
+        do {
+            let body = AdminSkillUpdate(enabled: !skill.enabled)
+            let _: AdminSkill = try await api.patch("/api/admin/skills/\(skill.id)", body: body)
+            await fetchSkills()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func updateSkill(_ skill: AdminSkill, name: String, description: String, priority: Int, triggerHint: String, promptTemplate: String) async {
+        do {
+            let body = AdminSkillUpdate(name: name, description: description, priority: priority, trigger_hint: triggerHint, prompt_template: promptTemplate)
+            let _: AdminSkill = try await api.patch("/api/admin/skills/\(skill.id)", body: body)
+            await fetchSkills()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func createSkill(key: String, name: String, triggerHint: String, promptTemplate: String) async {
+        do {
+            let body = AdminSkillCreate(key: key, name: name, trigger_hint: triggerHint, prompt_template: promptTemplate)
+            let _: AdminSkill = try await api.post("/api/admin/skills", body: body)
+            await fetchSkills()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteSkill(_ skill: AdminSkill) async {
+        do {
+            try await api.deleteVoid("/api/admin/skills/\(skill.id)")
+            await fetchSkills()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 }
