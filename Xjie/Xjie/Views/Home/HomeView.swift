@@ -127,11 +127,11 @@ struct HomeView: View {
             .tint(.appPrimary)
 
             HStack {
-                Text("🤫").font(.caption2)
+                Image(systemName: "speaker.slash").font(.caption2).foregroundColor(.appMuted)
                 Spacer()
-                Text("⚖️").font(.caption2)
+                Image(systemName: "equal").font(.caption2).foregroundColor(.appMuted)
                 Spacer()
-                Text("🔔").font(.caption2)
+                Image(systemName: "bell.fill").font(.caption2).foregroundColor(.appMuted)
             }
             .padding(.horizontal, 4)
 

@@ -88,7 +88,15 @@ struct HealthDataView: View {
                     }
                 }
 
-                if !vm.summary.isEmpty {
+                if vm.generatingSummary {
+                    VStack(spacing: 6) {
+                        ProgressView(value: vm.summaryProgress)
+                            .tint(.appPrimary)
+                        Text(vm.summaryStage)
+                            .font(.caption)
+                            .foregroundColor(.appMuted)
+                    }
+                } else if !vm.summary.isEmpty {
                     Text(vm.summary)
                         .font(.subheadline)
                         .foregroundColor(.appText)

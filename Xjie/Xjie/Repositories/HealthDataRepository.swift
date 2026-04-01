@@ -8,6 +8,8 @@ protocol HealthDataRepositoryProtocol: Sendable {
     func deleteDocument(id: String) async throws
     func fetchSummary() async throws -> HealthDataSummary
     func generateSummary() async throws -> HealthDataSummary
+    func generateSummaryAsync() async throws -> SummaryTaskResponse
+    func getSummaryTask(taskId: String) async throws -> SummaryTaskResponse
 }
 
 /// 健康数据仓库 — 通过 APIService 访问后端
@@ -45,5 +47,13 @@ actor HealthDataRepository: HealthDataRepositoryProtocol {
 
     func generateSummary() async throws -> HealthDataSummary {
         try await api.post("/api/health-data/summary/generate", body: nil)
+    }
+
+    func generateSummaryAsync() async throws -> SummaryTaskResponse {
+        try await api.post("/api/health-data/summary/generate-async")
+    }
+
+    func getSummaryTask(taskId: String) async throws -> SummaryTaskResponse {
+        try await api.get("/api/health-data/summary/task/\(taskId)")
     }
 }

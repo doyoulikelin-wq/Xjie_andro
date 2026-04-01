@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 体检报告列表 — 对应小程序 pages/exam-reports/list
+/// 体检报告列表 — 按日期分组显示
 struct ExamReportListView: View {
     @StateObject private var vm = ExamReportListViewModel()
 
@@ -16,17 +16,15 @@ struct ExamReportListView: View {
                     .background(Color.appPrimary.opacity(0.1)).cornerRadius(10)
                 }
 
-                if vm.items.isEmpty && !vm.loading {
+                if vm.groupedItems.isEmpty && !vm.loading {
                     EmptyStateView(
                         icon: "doc.text.magnifyingglass",
                         title: "暂无体检报告",
                         subtitle: "点击上方按钮上传体检报告"
                     )
                 } else {
-                    ForEach(vm.items) { item in
-                        NavigationLink(destination: ExamReportDetailView(docId: item.id)) {
-                            examRow(item)
-                        }
+                    ForEach(vm.groupedItems) { group in
+                        examDateSection(group)
                     }
                 }
             }
@@ -57,6 +55,32 @@ struct ExamReportListView: View {
         }
     }
 
+    /// 按日期分组的体检卡片
+    private func examDateSection(_ group: ExamDateGroup) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 日期标题
+            HStack {
+                Image(systemName: "calendar")
+                    .foregroundColor(.appPrimary)
+                Text(group.displayDate)
+                    .font(.subheadline).bold()
+                    .foregroundColor(.appText)
+                Spacer()
+                Text("\(group.items.count) 份报告")
+                    .font(.caption)
+                    .foregroundColor(.appMuted)
+            }
+
+            // 该日期下的所有文档
+            ForEach(group.items) { item in
+                NavigationLink(destination: ExamReportDetailView(docId: item.id)) {
+                    examRow(item)
+                }
+            }
+        }
+        .cardStyle()
+    }
+
     /// CODE-01: 使用共享标签组件
     private func examRow(_ item: HealthDocument) -> some View {
         HStack {
@@ -79,7 +103,6 @@ struct ExamReportListView: View {
                 Text("删除").font(.caption).foregroundColor(.appDanger)
             }
         }
-        .cardStyle()
     }
 }
 
