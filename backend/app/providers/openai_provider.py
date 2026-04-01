@@ -160,6 +160,12 @@ def _build_messages(
         has_real_data = True
         ctx_parts.append(f"体检报告数据:\n{health_text}")
 
+    # AI health summary from uploaded health documents (体检报告)
+    health_summary = context.get("health_summary_text", "")
+    if health_summary:
+        has_real_data = True
+        ctx_parts.append(f"用户健康总结(基于历年体检报告):\n{health_summary}")
+
     # Omics analysis results
     omics = context.get("omics_analyses") or []
     if omics:
@@ -204,43 +210,95 @@ def _build_messages(
     return messages
 
 
+def _fix_json_string(text: str) -> str:
+    """Fix common LLM JSON issues: unescaped newlines/tabs inside string values."""
+    # Replace actual newlines/tabs inside JSON string values with escape sequences
+    # Strategy: process char-by-char, track whether we're inside a JSON string
+    result = []
+    in_string = False
+    i = 0
+    while i < len(text):
+        ch = text[i]
+        if ch == '"' and (i == 0 or text[i - 1] != '\\'):
+            in_string = not in_string
+            result.append(ch)
+        elif in_string and ch == '\n':
+            result.append('\\n')
+        elif in_string and ch == '\r':
+            result.append('\\r')
+        elif in_string and ch == '\t':
+            result.append('\\t')
+        else:
+            result.append(ch)
+        i += 1
+    return ''.join(result)
+
+
+def _try_parse_json(text: str) -> dict | None:
+    """Try to parse JSON, with fallback to fix unescaped newlines."""
+    # Direct parse
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict) and "summary" in data:
+            return data
+    except json.JSONDecodeError:
+        pass
+    # Fix unescaped newlines and retry
+    try:
+        fixed = _fix_json_string(text)
+        data = json.loads(fixed)
+        if isinstance(data, dict) and "summary" in data:
+            return data
+    except json.JSONDecodeError:
+        pass
+    return None
+
+
 def _parse_structured_response(raw: str) -> dict:
     """Parse GPT's JSON response into summary + analysis.
 
     Falls back gracefully if GPT doesn't follow the JSON format.
     """
     text = raw.strip()
-    # Try direct JSON parse
-    try:
-        data = json.loads(text)
-        if "summary" in data and "analysis" in data:
-            return data
-    except json.JSONDecodeError:
-        pass
 
-    # Try extracting JSON from markdown code block
+    # Strategy 1: Direct JSON parse
+    result = _try_parse_json(text)
+    if result:
+        return result
+
+    # Strategy 2: Extract from markdown code block
     if "```" in text:
         try:
             block = text.split("```json")[-1].split("```")[0].strip() if "```json" in text else text.split("```")[1].split("```")[0].strip()
-            data = json.loads(block)
-            if "summary" in data and "analysis" in data:
-                return data
-        except (json.JSONDecodeError, IndexError):
+            result = _try_parse_json(block)
+            if result:
+                return result
+        except IndexError:
             pass
 
-    # Try to find JSON object in the text
+    # Strategy 3: Find outermost JSON object
     start = text.find("{")
     end = text.rfind("}")
     if start != -1 and end > start:
-        try:
-            data = json.loads(text[start:end + 1])
-            if "summary" in data and "analysis" in data:
-                return data
-        except json.JSONDecodeError:
-            pass
+        result = _try_parse_json(text[start:end + 1])
+        if result:
+            return result
 
-    # Fallback: use entire response as both summary and analysis (no truncation)
-    return {"summary": text, "analysis": text, "followups": [], "profile_extracted": {}}
+    # Strategy 4: Regex extraction as last resort
+    summary_m = re.search(r'"summary"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+    analysis_m = re.search(r'"analysis"\s*:\s*"((?:[^"\\]|\\.)*)"', text)
+    if summary_m:
+        return {
+            "summary": summary_m.group(1).replace("\\n", "\n").replace('\\"', '"'),
+            "analysis": analysis_m.group(1).replace("\\n", "\n").replace('\\"', '"') if analysis_m else "",
+            "followups": [],
+            "profile_extracted": {},
+        }
+
+    # Fallback: use entire response as summary (strip markdown fences)
+    clean = re.sub(r'```json\s*', '', text)
+    clean = re.sub(r'```\s*', '', clean)
+    return {"summary": clean, "analysis": clean, "followups": [], "profile_extracted": {}}
 
 
 

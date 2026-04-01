@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.conversation import ChatMessage, Conversation
+from app.models.health_document import HealthSummary
 from app.models.meal import Meal
 from app.models.omics import OmicsUpload
 from app.models.symptom import Symptom
@@ -42,6 +43,9 @@ def build_user_context(db: Session, user_id: str) -> dict:
     # Build health report text for Liver subjects
     health_report_text = _get_health_report_text(profile_info)
 
+    # Also fetch AI health summary from health_summaries (for uploaded 体检报告)
+    health_summary_text = _get_health_summary_text(db, user_id)
+
     return {
         "profile": {},
         "glucose_summary": {
@@ -73,6 +77,7 @@ def build_user_context(db: Session, user_id: str) -> dict:
         "agent_features": _get_agent_features(db, user_id),
         "user_profile_info": profile_info,
         "health_report_text": health_report_text,
+        "health_summary_text": health_summary_text,
         "omics_analyses": _get_omics_analyses(db, user_id),
         "recent_conversation_summaries": _get_recent_conversation_summaries(db, user_id),
     }
@@ -125,6 +130,19 @@ def _get_health_report_text(profile_info: dict) -> str:
     except Exception:
         logger.warning("Failed to build health report text for chat context", exc_info=True)
         return ""
+
+
+def _get_health_summary_text(db: Session, user_id: str) -> str:
+    """Fetch the AI-generated health summary from uploaded health documents."""
+    row = db.execute(
+        select(HealthSummary)
+        .where(HealthSummary.user_id == user_id)
+        .order_by(HealthSummary.updated_at.desc())
+        .limit(1)
+    ).scalars().first()
+    if row and row.summary_text:
+        return row.summary_text[:2000]  # Cap length for context window
+    return ""
 
 
 def _get_omics_analyses(db: Session, user_id: str) -> list[dict]:

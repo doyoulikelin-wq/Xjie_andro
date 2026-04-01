@@ -116,7 +116,8 @@ final class ChatViewModel: ObservableObject {
             )
 
             // answer_markdown 可能是 JSON 字符串 (来自 mock provider)
-            let content = res.summary ?? res.answer_markdown ?? "..."
+            let rawContent = res.summary ?? res.answer_markdown ?? "..."
+            let content = Self.cleanContent(rawContent)
 
             if let tid = res.thread_id {
                 threadId = tid
@@ -136,7 +137,7 @@ final class ChatViewModel: ObservableObject {
                 do {
                     let _: ConsentResponse = try await api.patch("/api/users/consent", body: ConsentUpdate(allow_ai_chat: true))
                     let res: ChatResponse = try await api.post("/api/chat", body: ChatRequest(message: msg, thread_id: threadId), timeout: APIConstants.llmTimeout)
-                    let content = res.summary ?? res.answer_markdown ?? "..."
+                    let content = Self.cleanContent(res.summary ?? res.answer_markdown ?? "...")
                     if let tid = res.thread_id { threadId = tid }
                     messages.append(ChatMessageItem(role: "assistant", content: content, analysis: res.analysis, confidence: res.confidence, followups: res.followups))
                     return
@@ -160,5 +161,31 @@ final class ChatViewModel: ObservableObject {
         isViewingHistory = false
         savedMessages = []
         savedThreadId = nil
+    }
+
+    /// Strip raw JSON/markdown fences that may leak from LLM responses
+    static func cleanContent(_ text: String) -> String {
+        var s = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        // If it looks like raw JSON starting with { "summary", extract the summary value
+        if s.hasPrefix("{") && s.contains("\"summary\"") {
+            if let data = s.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let summary = json["summary"] as? String {
+                return summary
+            }
+        }
+        // Strip ```json fences
+        if s.hasPrefix("```") {
+            s = s.replacingOccurrences(of: "```json", with: "")
+            s = s.replacingOccurrences(of: "```", with: "")
+            s = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Try JSON parse after stripping fences
+            if s.hasPrefix("{"), let data = s.data(using: .utf8),
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let summary = json["summary"] as? String {
+                return summary
+            }
+        }
+        return s
     }
 }
