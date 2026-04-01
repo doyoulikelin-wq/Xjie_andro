@@ -18,12 +18,12 @@ actor APIService: APIServiceProtocol {
 
     // MARK: - 便捷方法
 
-    func get<T: Decodable>(_ path: String) async throws -> T {
-        try await request(path, method: "GET")
+    func get<T: Decodable>(_ path: String, timeout: TimeInterval? = nil) async throws -> T {
+        try await request(path, method: "GET", timeout: timeout)
     }
 
-    func post<T: Decodable>(_ path: String, body: Encodable? = nil) async throws -> T {
-        try await request(path, method: "POST", body: body)
+    func post<T: Decodable>(_ path: String, body: Encodable? = nil, timeout: TimeInterval? = nil) async throws -> T {
+        try await request(path, method: "POST", body: body, timeout: timeout)
     }
 
     func patch<T: Decodable>(_ path: String, body: Encodable? = nil) async throws -> T {
@@ -52,6 +52,7 @@ actor APIService: APIServiceProtocol {
         _ path: String,
         method: String,
         body: Encodable? = nil,
+        timeout: TimeInterval? = nil,
         retried: Bool = false,
         retryCount: Int = 0
     ) async throws -> T {
@@ -71,7 +72,7 @@ actor APIService: APIServiceProtocol {
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = method
         // NET-04: 请求超时
-        urlRequest.timeoutInterval = APIConstants.requestTimeout
+        urlRequest.timeoutInterval = timeout ?? APIConstants.requestTimeout
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !token.isEmpty {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -93,7 +94,7 @@ actor APIService: APIServiceProtocol {
                 let delay = UInt64(pow(2.0, Double(retryCount))) * 1_000_000_000
                 AppLogger.network.warning("Retry \(retryCount + 1) for \(path) after \(error.code.rawValue)")
                 try await Task.sleep(nanoseconds: delay)
-                return try await request(path, method: method, body: body, retried: retried, retryCount: retryCount + 1)
+                return try await request(path, method: method, body: body, timeout: timeout, retried: retried, retryCount: retryCount + 1)
             }
             throw error
         }
@@ -106,7 +107,7 @@ actor APIService: APIServiceProtocol {
         // ERR-02: 401 自动刷新 Token，使用 refreshTask 合并并发请求
         if httpResponse.statusCode == 401 && !retried {
             try await ensureTokenRefreshed()
-            return try await request(path, method: method, body: body, retried: true, retryCount: retryCount)
+            return try await request(path, method: method, body: body, timeout: timeout, retried: true, retryCount: retryCount)
         }
 
         // NET-02: 5xx 服务端错误自动重试
@@ -114,7 +115,7 @@ actor APIService: APIServiceProtocol {
             let delay = UInt64(pow(2.0, Double(retryCount))) * 1_000_000_000
             AppLogger.network.warning("Retry \(retryCount + 1) for \(path) (HTTP \(httpResponse.statusCode))")
             try await Task.sleep(nanoseconds: delay)
-            return try await request(path, method: method, body: body, retried: retried, retryCount: retryCount + 1)
+            return try await request(path, method: method, body: body, timeout: timeout, retried: retried, retryCount: retryCount + 1)
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {

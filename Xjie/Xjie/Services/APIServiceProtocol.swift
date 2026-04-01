@@ -2,8 +2,8 @@ import Foundation
 
 /// API 服务协议 — ARCH-01: 支持依赖注入和测试 Mock
 protocol APIServiceProtocol: Sendable {
-    func get<T: Decodable>(_ path: String) async throws -> T
-    func post<T: Decodable>(_ path: String, body: Encodable?) async throws -> T
+    func get<T: Decodable>(_ path: String, timeout: TimeInterval?) async throws -> T
+    func post<T: Decodable>(_ path: String, body: Encodable?, timeout: TimeInterval?) async throws -> T
     func patch<T: Decodable>(_ path: String, body: Encodable?) async throws -> T
     func delete<T: Decodable>(_ path: String) async throws -> T
     func postVoid(_ path: String, body: Encodable?) async throws
@@ -14,8 +14,11 @@ protocol APIServiceProtocol: Sendable {
 
 /// 提供默认 body=nil 的便捷方法，避免调用方每次传 nil
 extension APIServiceProtocol {
-    func post<T: Decodable>(_ path: String) async throws -> T {
-        try await post(path, body: nil)
+    func get<T: Decodable>(_ path: String) async throws -> T {
+        try await get(path, timeout: nil)
+    }
+    func post<T: Decodable>(_ path: String, body: Encodable? = nil, timeout: TimeInterval? = nil) async throws -> T {
+        try await post(path, body: body, timeout: timeout)
     }
     func postVoid(_ path: String) async throws {
         try await postVoid(path, body: nil)

@@ -111,7 +111,8 @@ final class ChatViewModel: ObservableObject {
             // 如果后端 LLM 未部署，此请求会返回 mock/stub 响应
             let res: ChatResponse = try await api.post(
                 "/api/chat",
-                body: ChatRequest(message: msg, thread_id: threadId)
+                body: ChatRequest(message: msg, thread_id: threadId),
+                timeout: APIConstants.llmTimeout
             )
 
             // answer_markdown 可能是 JSON 字符串 (来自 mock provider)
@@ -134,7 +135,7 @@ final class ChatViewModel: ObservableObject {
             if case .httpError(403, _) = error {
                 do {
                     let _: ConsentResponse = try await api.patch("/api/users/consent", body: ConsentUpdate(allow_ai_chat: true))
-                    let res: ChatResponse = try await api.post("/api/chat", body: ChatRequest(message: msg, thread_id: threadId))
+                    let res: ChatResponse = try await api.post("/api/chat", body: ChatRequest(message: msg, thread_id: threadId), timeout: APIConstants.llmTimeout)
                     let content = res.summary ?? res.answer_markdown ?? "..."
                     if let tid = res.thread_id { threadId = tid }
                     messages.append(ChatMessageItem(role: "assistant", content: content, analysis: res.analysis, confidence: res.confidence, followups: res.followups))

@@ -20,6 +20,7 @@ enum ChartConstants {
 enum APIConstants {
     static let requestTimeout: TimeInterval = 15
     static let uploadTimeout: TimeInterval = 60
+    static let llmTimeout: TimeInterval = 90
     static let maxRetries = 2
     static let pageSize = 20
 }

@@ -37,11 +37,11 @@ actor MockAPIService: APIServiceProtocol {
         return try JSONDecoder().decode(T.self, from: data)
     }
 
-    func get<T: Decodable>(_ path: String) async throws -> T {
+    func get<T: Decodable>(_ path: String, timeout: TimeInterval?) async throws -> T {
         try resolve(path)
     }
 
-    func post<T: Decodable>(_ path: String, body: Encodable?) async throws -> T {
+    func post<T: Decodable>(_ path: String, body: Encodable?, timeout: TimeInterval?) async throws -> T {
         try resolve(path)
     }
 
