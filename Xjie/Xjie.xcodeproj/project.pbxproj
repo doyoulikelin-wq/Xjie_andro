@@ -81,6 +81,8 @@
 		AF1F40F78195A1B7A92830D2 /* AdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC54489E8651D647068A1AF4 /* AdminView.swift */; };
 		'A10070' = {isa = PBXBuildFile; fileRef = B10070; };
 		'A10071' = {isa = PBXBuildFile; fileRef = B10071; };
+		'A10072' = {isa = PBXBuildFile; fileRef = B10072; };
+		'A10073' = {isa = PBXBuildFile; fileRef = B10073; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -171,6 +173,8 @@
 		EC54489E8651D647068A1AF4 /* AdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AdminView.swift; path = Xjie/Views/Admin/AdminView.swift; sourceTree = SOURCE_ROOT; };
 		'B10070' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
 		'B10071' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		'B10072' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlagModels.swift; sourceTree = "<group>"; };
+		'B10073' = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeatureFlagService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -248,6 +252,7 @@
 				B10027,
 				B10028,
 				B10029,
+				B10072,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -260,6 +265,7 @@
 				B10022,
 				B10023,
 				B10070,
+				B10073,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -627,6 +633,8 @@
 				AF1F40F78195A1B7A92830D2 /* AdminView.swift in Sources */,
 				'A10070',
 				'A10071',
+				'A10072',
+				'A10073',
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
