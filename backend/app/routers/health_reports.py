@@ -361,7 +361,7 @@ def health_ai_summary(
                 model=provider.text_model,
                 messages=messages,
                 max_tokens=16000,
-                temperature=1.0,
+                temperature=0.6,
                 stream=True,
                 stream_options={"include_usage": True},
             )
