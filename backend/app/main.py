@@ -41,6 +41,11 @@ def create_app() -> FastAPI:
             except Exception:
                 conn.rollback()
 
+        # Start background glucose sync from glucose_timeseries → glucose_readings
+        import asyncio
+        from app.services.glucose_sync import start_glucose_sync_loop
+        asyncio.get_event_loop().create_task(start_glucose_sync_loop())
+
     @app.get("/healthz")
     def healthz():
         return {"ok": True}
