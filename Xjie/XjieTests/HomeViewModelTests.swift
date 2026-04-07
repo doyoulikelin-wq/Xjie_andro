@@ -9,12 +9,12 @@ final class HomeViewModelTests: XCTestCase {
         let mock = MockAPIService()
         let dashboard = DashboardHealth(
             glucose: GlucoseDashboard(
-                last_24h: GlucoseSummary(avg: 110, tir_70_180_pct: 85, min: 65, max: 180, variability: 20),
+                last_24h: GlucoseSummary(window: "24h", avg: 110, tir_70_180_pct: 85, min: 65, max: 180, variability: "low", gaps_hours: 0),
                 last_7d: nil
             ),
             kcal_today: 1500,
             meals_today: nil,
-            data_quality: "good"
+            data_quality: DataQuality(glucose_gaps_hours: 0, variability: "low")
         )
         try await mock.setResponse(for: "/api/dashboard/health", value: dashboard)
 

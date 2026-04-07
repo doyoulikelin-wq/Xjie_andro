@@ -70,7 +70,7 @@ struct GlucoseView: View {
             Spacer()
             MetricItemView(value: s.tir_70_180_pct != nil ? Utils.toFixed(s.tir_70_180_pct) + "%" : "--", label: "TIR", color: .appSuccess)
             Spacer()
-            MetricItemView(value: Utils.toFixed(s.variability), label: "变异性")
+            MetricItemView(value: s.variability ?? "--", label: "变异性")
             Spacer()
             MetricItemView(value: "\(vm.points.count)", label: "数据点")
         }
