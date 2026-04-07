@@ -91,15 +91,25 @@ struct GlucoseView: View {
                     .foregroundColor(.appMuted)
                     .frame(maxWidth: .infinity, minHeight: 220)
             } else {
-                GlucoseChartCanvas(chartData: vm.chartData)
-                    .frame(height: 220)
+                GlucoseChartCanvas(chartData: vm.chartData, window: vm.window)
+                    .frame(height: 240)
 
                 // 图例
-                HStack(spacing: 16) {
-                    legendItem(color: Color.green.opacity(0.15), label: "目标范围 70-180")
-                    legendItem(color: .appPrimary, label: "血糖值")
+                if vm.window == "24h" {
+                    HStack(spacing: 10) {
+                        legendItem(color: Color.green.opacity(0.15), label: "目标 70-180")
+                        legendItem(color: .gray, label: "过去")
+                        legendItem(color: .appPrimary, label: "当前")
+                        legendItem(color: .orange, label: "基线均值")
+                    }
+                    .font(.caption2)
+                } else {
+                    HStack(spacing: 16) {
+                        legendItem(color: Color.green.opacity(0.15), label: "目标范围 70-180")
+                        legendItem(color: .appPrimary, label: "血糖值")
+                    }
+                    .font(.caption2)
                 }
-                .font(.caption2)
             }
         }
         .cardStyle()
@@ -116,15 +126,14 @@ struct GlucoseView: View {
 // MARK: - 血糖图表 Canvas (对应 glucose.js 的 drawChart)
 
 struct GlucoseChartCanvas: View {
-    /// PERF-02: 接收预计算好的 (Date, Double) 数据，Canvas 内不再做日期解析
     let chartData: [(date: Date, value: Double)]
+    var window: String = "24h"
 
     var body: some View {
         GeometryReader { geo in
             Canvas { ctx, size in
                 let w = size.width
                 let h = size.height
-                // CODE-02: 使用常量替代 magic number
                 let padLeft = ChartConstants.padLeft
                 let padRight = ChartConstants.padRight
                 let padTop = ChartConstants.padTop
@@ -135,11 +144,11 @@ struct GlucoseChartCanvas: View {
                 let values = chartData.map { $0.value }
                 let minVal = min(values.min() ?? 50, 50)
                 let maxVal = max(values.max() ?? 200, 200)
-                let range = maxVal - minVal == 0 ? 1 : maxVal - minVal
+                let valRange = maxVal - minVal == 0 ? 1 : maxVal - minVal
 
                 // 目标范围背景
-                let y180 = padTop + chartH * (1 - (ChartConstants.targetHigh - minVal) / range)
-                let y70 = padTop + chartH * (1 - (ChartConstants.targetLow - minVal) / range)
+                let y180 = padTop + chartH * (1 - (ChartConstants.targetHigh - minVal) / valRange)
+                let y70 = padTop + chartH * (1 - (ChartConstants.targetLow - minVal) / valRange)
                 let targetRect = CGRect(
                     x: padLeft,
                     y: max(y180, padTop),
@@ -148,9 +157,9 @@ struct GlucoseChartCanvas: View {
                 )
                 ctx.fill(Path(targetRect), with: .color(.green.opacity(0.08)))
 
-                // 参考线 — CODE-02: 使用 ChartConstants.refLines
+                // Y 轴参考线
                 for refVal in ChartConstants.refLines {
-                    let y = padTop + chartH * (1 - (refVal - minVal) / range)
+                    let y = padTop + chartH * (1 - (refVal - minVal) / valRange)
                     var linePath = Path()
                     linePath.move(to: CGPoint(x: padLeft, y: y))
                     linePath.addLine(to: CGPoint(x: w - padRight, y: y))
@@ -158,21 +167,82 @@ struct GlucoseChartCanvas: View {
                     ctx.draw(Text("\(Int(refVal))").font(.system(size: ChartConstants.labelFontSize)).foregroundColor(.gray), at: CGPoint(x: 18, y: y))
                 }
 
-                // 曲线 — 直接使用预计算的 Date
                 guard chartData.count > 1 else { return }
                 let timestamps = chartData.map { $0.date.timeIntervalSince1970 }
                 let minT = timestamps.min() ?? 0
                 let maxT = timestamps.max() ?? 1
                 let tRange = maxT - minT == 0 ? 1 : maxT - minT
 
-                var curvePath = Path()
-                for (i, pt) in chartData.enumerated() {
-                    let x = padLeft + chartW * CGFloat((timestamps[i] - minT) / tRange)
-                    let y = padTop + chartH * CGFloat(1 - (pt.value - minVal) / range)
-                    if i == 0 { curvePath.move(to: CGPoint(x: x, y: y)) }
-                    else { curvePath.addLine(to: CGPoint(x: x, y: y)) }
+                // X 轴时间标签
+                let tickCount = window == "24h" ? 6 : (window == "7d" ? 7 : 5)
+                let timeFmt = DateFormatter()
+                timeFmt.dateFormat = window == "24h" ? "HH:mm" : "M/d"
+                for i in 0...tickCount {
+                    let frac = Double(i) / Double(tickCount)
+                    let x = padLeft + chartW * CGFloat(frac)
+                    let tickDate = Date(timeIntervalSince1970: minT + tRange * frac)
+                    ctx.draw(
+                        Text(timeFmt.string(from: tickDate))
+                            .font(.system(size: ChartConstants.labelFontSize))
+                            .foregroundColor(.gray),
+                        at: CGPoint(x: x, y: h - 6)
+                    )
                 }
-                ctx.stroke(curvePath, with: .color(.appPrimary), lineWidth: ChartConstants.lineWidth)
+
+                // 数据点 → 画布坐标
+                func pointAt(_ i: Int) -> CGPoint {
+                    let x = padLeft + chartW * CGFloat((timestamps[i] - minT) / tRange)
+                    let y = padTop + chartH * CGFloat(1 - (chartData[i].value - minVal) / valRange)
+                    return CGPoint(x: x, y: y)
+                }
+
+                if window == "24h" {
+                    // 基线均值 — 橘色虚线
+                    let avgVal = values.reduce(0, +) / Double(values.count)
+                    let yAvg = padTop + chartH * CGFloat(1 - (avgVal - minVal) / valRange)
+                    var baselinePath = Path()
+                    baselinePath.move(to: CGPoint(x: padLeft, y: yAvg))
+                    baselinePath.addLine(to: CGPoint(x: w - padRight, y: yAvg))
+                    ctx.stroke(baselinePath, with: .color(.orange), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                    ctx.draw(
+                        Text("\(Int(avgVal))").font(.system(size: ChartConstants.labelFontSize)).foregroundColor(.orange),
+                        at: CGPoint(x: 18, y: yAvg)
+                    )
+
+                    // 按 12 小时分割: 过去 / 当前
+                    let boundary = Date().addingTimeInterval(-12 * 3600).timeIntervalSince1970
+                    let splitIdx = timestamps.firstIndex { $0 >= boundary } ?? chartData.count
+
+                    // 过去段 — 灰色
+                    if splitIdx > 0 {
+                        var pastPath = Path()
+                        pastPath.move(to: pointAt(0))
+                        for i in 1..<min(splitIdx + 1, chartData.count) {
+                            pastPath.addLine(to: pointAt(i))
+                        }
+                        ctx.stroke(pastPath, with: .color(.gray), lineWidth: ChartConstants.lineWidth)
+                    }
+
+                    // 当前段 — 蓝色加粗
+                    let startIdx = splitIdx > 0 ? splitIdx - 1 : 0
+                    if startIdx < chartData.count - 1 {
+                        var curPath = Path()
+                        curPath.move(to: pointAt(startIdx))
+                        for i in (startIdx + 1)..<chartData.count {
+                            curPath.addLine(to: pointAt(i))
+                        }
+                        ctx.stroke(curPath, with: .color(.appPrimary), lineWidth: ChartConstants.lineWidth + 0.5)
+                    }
+                } else {
+                    // 7d / 全部 — 单色曲线
+                    var curvePath = Path()
+                    for i in chartData.indices {
+                        let pt = pointAt(i)
+                        if i == 0 { curvePath.move(to: pt) }
+                        else { curvePath.addLine(to: pt) }
+                    }
+                    ctx.stroke(curvePath, with: .color(.appPrimary), lineWidth: ChartConstants.lineWidth)
+                }
             }
         }
     }

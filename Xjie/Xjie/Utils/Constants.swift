@@ -8,7 +8,7 @@ enum ChartConstants {
     static let padLeft: CGFloat = 40
     static let padRight: CGFloat = 8
     static let padTop: CGFloat = 8
-    static let padBottom: CGFloat = 20
+    static let padBottom: CGFloat = 28
     static let targetLow: Double = 70
     static let targetHigh: Double = 180
     static let refLines: [Double] = [70, 140, 180]
