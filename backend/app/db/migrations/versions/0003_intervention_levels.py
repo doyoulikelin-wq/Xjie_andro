@@ -36,11 +36,13 @@ def upgrade() -> None:
         "agent_actions",
         sa.Column("payload_version", sa.String(16), nullable=False, server_default="1.0.0"),
     )
+    actionstatus = postgresql.ENUM("valid", "invalid", "degraded", name="actionstatus", create_type=False)
+    actionstatus.create(op.get_bind(), checkfirst=True)
     op.add_column(
         "agent_actions",
         sa.Column(
             "status",
-            sa.Enum("valid", "invalid", "degraded", name="actionstatus"),
+            actionstatus,
             nullable=False,
             server_default="valid",
         ),
