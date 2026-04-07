@@ -18,6 +18,7 @@ struct MedicalRecordListView: View {
                     .background(Color.appPrimary.opacity(0.1))
                     .cornerRadius(10)
                 }
+                .disabled(vm.uploading)
 
                 if vm.items.isEmpty && !vm.loading {
                     emptyState
@@ -37,7 +38,46 @@ struct MedicalRecordListView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { await vm.fetchList() }
         .refreshable { await vm.fetchList() }
-        .overlay { if vm.loading { ProgressView() } }
+        .overlay { if vm.loading && !vm.uploading { ProgressView() } }
+        .overlay {
+            if vm.uploading {
+                ZStack {
+                    Color.black.opacity(0.3).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.3)
+                            .tint(.white)
+                        Text(vm.uploadStage)
+                            .font(.subheadline).bold()
+                            .foregroundColor(.white)
+                    }
+                    .padding(32)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(16)
+                }
+            }
+        }
+        .overlay {
+            if let msg = vm.successMessage {
+                VStack {
+                    Spacer()
+                    Text(msg)
+                        .font(.subheadline).bold()
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24).padding(.vertical, 12)
+                        .background(Color.appPrimary)
+                        .cornerRadius(20)
+                        .padding(.bottom, 40)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        withAnimation { vm.successMessage = nil }
+                    }
+                }
+            }
+        }
+        .animation(.easeInOut, value: vm.successMessage)
         .sheet(isPresented: $vm.showDocumentPicker) {
             DocumentPickerView { data, fileName in
                 Task { await vm.uploadRecord(data: data, fileName: fileName) }
@@ -80,6 +120,14 @@ struct MedicalRecordListView: View {
                 }
             }
             Spacer()
+            Button {
+                vm.deleteItem(id: item.id)
+            } label: {
+                Image(systemName: "trash")
+                    .font(.caption)
+                    .foregroundColor(.appDanger.opacity(0.7))
+            }
+            .buttonStyle(.plain)
             Image(systemName: "chevron.right")
                 .font(.caption)
                 .foregroundColor(.appMuted)
@@ -87,8 +135,7 @@ struct MedicalRecordListView: View {
         .cardStyle()
         .contextMenu {
             Button(role: .destructive) {
-                vm.deleteId = item.id
-                vm.showDeleteAlert = true
+                vm.deleteItem(id: item.id)
             } label: {
                 Label("删除", systemImage: "trash")
             }

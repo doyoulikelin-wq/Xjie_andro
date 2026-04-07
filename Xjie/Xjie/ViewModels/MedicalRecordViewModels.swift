@@ -3,11 +3,14 @@ import Foundation
 @MainActor
 final class MedicalRecordListViewModel: ObservableObject {
     @Published var loading = false
+    @Published var uploading = false
+    @Published var uploadStage: String = ""
     @Published var items: [HealthDocument] = []
     @Published var showDocumentPicker = false
     @Published var showDeleteAlert = false
     @Published var deleteId: String?
     @Published var errorMessage: String?
+    @Published var successMessage: String?
 
     private let repository: HealthDataRepositoryProtocol
 
@@ -29,12 +32,27 @@ final class MedicalRecordListViewModel: ObservableObject {
     }
 
     func uploadRecord(data: Data, fileName: String) async {
+        uploading = true
+        uploadStage = "正在上传文件…"
+        defer { uploading = false; uploadStage = "" }
         do {
+            uploadStage = "AI 正在识别内容…"
             try await repository.uploadDocument(data: data, fileName: fileName, docType: "record")
+            successMessage = "病例上传成功"
             await fetchList()
         } catch {
-            errorMessage = error.localizedDescription
+            if error.localizedDescription.contains("not a valid medical") ||
+               error.localizedDescription.contains("无法识别") {
+                errorMessage = "上传的文件不是有效的病例文档，请重新选择"
+            } else {
+                errorMessage = error.localizedDescription
+            }
         }
+    }
+
+    func deleteItem(id: String) {
+        deleteId = id
+        showDeleteAlert = true
     }
 
     func confirmDelete() async {

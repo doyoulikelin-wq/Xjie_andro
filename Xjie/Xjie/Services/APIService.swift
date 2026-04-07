@@ -1,5 +1,6 @@
 import Foundation
 import os
+import Security
 
 /// API 请求封装 — 自动携带 JWT Token，401 时自动刷新
 /// SEC-02: 消除所有 force unwrap
@@ -12,6 +13,15 @@ actor APIService: APIServiceProtocol {
     static let shared = APIService()
 
     private let baseURL: String = AppEnvironment.apiBaseURL
+
+    /// 自定义 URLSession，信任服务器自签证书（其他模块可通过 APIService.shared.trustedSession 访问）
+    nonisolated let trustedSession: URLSession = {
+        let delegate = SelfSignedCertDelegate()
+        let config = URLSessionConfiguration.default
+        return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+    }()
+
+    private var session: URLSession { trustedSession }
 
     // ERR-02: Token 刷新任务，防止并发 401 触发多次刷新
     private var refreshTask: Task<Void, Error>?
@@ -88,7 +98,7 @@ actor APIService: APIServiceProtocol {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: urlRequest)
+            (data, response) = try await session.data(for: urlRequest)
         } catch let error as URLError where retryCount < APIConstants.maxRetries {
             if error.code == .timedOut || error.code == .networkConnectionLost || error.code == .notConnectedToInternet {
                 let delay = UInt64(pow(2.0, Double(retryCount))) * 1_000_000_000
@@ -170,7 +180,7 @@ actor APIService: APIServiceProtocol {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.httpBody = try JSONEncoder().encode(RefreshBody(refresh_token: rt))
 
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        let (data, response) = try await session.data(for: urlRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
@@ -219,13 +229,14 @@ actor APIService: APIServiceProtocol {
 
         urlRequest.httpBody = body
 
-        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        let (data, response) = try await session.data(for: urlRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw APIError.httpError(httpResponse.statusCode, "上传失败")
+            let detail = try? JSONDecoder().decode(ErrorDetail.self, from: data)
+            throw APIError.httpError(httpResponse.statusCode, detail?.detail ?? "上传失败")
         }
         return data
     }
@@ -266,5 +277,43 @@ private struct AnyEncodable: Encodable {
     }
     func encode(to encoder: Encoder) throws {
         try _encode(encoder)
+    }
+}
+
+// MARK: - 自签证书信任代理
+
+/// 仅信任指定服务器 IP 的自签证书
+final class SelfSignedCertDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegate {
+    private let trustedHost = "8.130.213.44"
+
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        handleChallenge(challenge, completionHandler: completionHandler)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        handleChallenge(challenge, completionHandler: completionHandler)
+    }
+
+    private func handleChallenge(
+        _ challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+              challenge.protectionSpace.host == trustedHost,
+              let serverTrust = challenge.protectionSpace.serverTrust else {
+            completionHandler(.performDefaultHandling, nil)
+            return
+        }
+        let credential = URLCredential(trust: serverTrust)
+        completionHandler(.useCredential, credential)
     }
 }

@@ -29,7 +29,7 @@ struct CachedAsyncImage<Placeholder: View>: View {
             isLoading = true
             defer { isLoading = false }
             do {
-                let (data, _) = try await URLSession.shared.data(from: url)
+                let (data, _) = try await APIService.shared.trustedSession.data(from: url)
                 guard !Task.isCancelled else { return }
                 if let img = UIImage(data: data) {
                     ImageCacheManager.shared.store(img, for: url)

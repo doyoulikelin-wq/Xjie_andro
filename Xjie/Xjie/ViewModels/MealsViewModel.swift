@@ -75,7 +75,7 @@ final class MealsViewModel: ObservableObject {
                 req.httpMethod = "PUT"
                 req.httpBody = data
                 req.setValue("image/jpeg", forHTTPHeaderField: "Content-Type")
-                _ = try await URLSession.shared.data(for: req)
+                _ = try await APIService.shared.trustedSession.data(for: req)
             } else {
                 _ = try await api.uploadFile(
                     "/api/meals/photo/upload", fileData: data, fileName: "meal.jpg", mimeType: "image/jpeg", formData: [:]

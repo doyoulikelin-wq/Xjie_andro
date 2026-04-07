@@ -450,6 +450,26 @@ def upload_document(
     else:
         csv_data, abnormal_flags = _extract_exam_from_image(file_bytes, filename)
 
+    # Validate extraction result — reject documents that LLM could not recognise
+    if csv_data and csv_data.get("rows"):
+        first_row = csv_data["rows"][0]
+        if first_row and str(first_row[0]).startswith("提取失败"):
+            raise HTTPException(
+                status_code=422,
+                detail="无法识别该文件内容，请确认上传的是有效的医疗文档照片",
+            )
+        # Also reject if all content cells are "未提及" (nothing readable)
+        if doc_type == "record" and len(csv_data["rows"]) > 0:
+            content_values = [
+                str(r[1]) for r in csv_data["rows"]
+                if len(r) > 1 and str(r[1]).strip() not in ("", "未提及")
+            ]
+            if not content_values:
+                raise HTTPException(
+                    status_code=422,
+                    detail="无法识别该文件内容，请确认上传的是有效的医疗文档照片",
+                )
+
     # Try to extract date from doc_name
     doc_date = datetime.utcnow()
     date_match = re.search(r"(\d{4}[-/]\d{1,2}[-/]\d{1,2})", doc_name)
