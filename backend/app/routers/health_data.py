@@ -7,13 +7,15 @@ import csv
 import io
 import json
 import logging
+import os
 import re
 import threading
 from collections import defaultdict
 from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from openai import OpenAI
 from sqlalchemy import select, func as sa_func, delete
 from sqlalchemy.orm import Session
@@ -143,7 +145,20 @@ def _generate_doc_summary(csv_data: dict | None, abnormal_flags: list | None, do
     return "", ""
 
 
+def _save_original_file(user_id: int, doc_id: int, filename: str, file_bytes: bytes) -> str:
+    """Save the original uploaded file to LOCAL_STORAGE_DIR and return the relative path."""
+    safe_name = re.sub(r'[^\w.\-]', '_', filename)
+    rel_path = f"{user_id}/{doc_id}_{safe_name}"
+    full_path = Path(settings.LOCAL_STORAGE_DIR) / rel_path
+    full_path.parent.mkdir(parents=True, exist_ok=True)
+    full_path.write_bytes(file_bytes)
+    return rel_path
+
+
 def _doc_to_out(doc: HealthDocument) -> HealthDocumentOut:
+    file_url = None
+    if doc.original_file_path and not doc.original_file_path.startswith("data:"):
+        file_url = f"/api/health-data/documents/{doc.id}/file"
     return HealthDocumentOut(
         id=str(doc.id),
         doc_type=doc.doc_type,
@@ -157,6 +172,7 @@ def _doc_to_out(doc: HealthDocument) -> HealthDocumentOut:
         ai_summary=doc.ai_summary,
         extraction_status=doc.extraction_status,
         created_at=doc.created_at,
+        file_url=file_url,
     )
 
 
@@ -536,6 +552,11 @@ def upload_document(
         db.add(doc)
         db.commit()
         db.refresh(doc)
+        # Save original CSV file
+        rel = _save_original_file(user_id, doc.id, filename, file_bytes)
+        doc.original_file_path = rel
+        db.commit()
+        db.refresh(doc)
         return _doc_to_out(doc)
 
     # For images: save immediately with pending status, process in background
@@ -548,6 +569,10 @@ def upload_document(
     db.add(doc)
     db.commit()
     db.refresh(doc)
+    # Save original file to disk
+    rel = _save_original_file(user_id, doc.id, filename, file_bytes)
+    doc.original_file_path = rel
+    db.commit()
 
     logger.info("Health document created (pending): id=%d, user=%s", doc.id, str(user_id)[:8])
 
@@ -610,6 +635,33 @@ def get_document(
             db.refresh(doc)
 
     return _doc_to_out(doc)
+
+
+@router.get("/documents/{doc_id}/file")
+def get_document_file(
+    doc_id: str,
+    user_id: int = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Serve the original uploaded file (image/CSV/PDF)."""
+    doc = db.execute(
+        select(HealthDocument).where(
+            HealthDocument.id == int(doc_id),
+            HealthDocument.user_id == user_id,
+        )
+    ).scalars().first()
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    if not doc.original_file_path or doc.original_file_path.startswith("data:"):
+        raise HTTPException(status_code=404, detail="Original file not available")
+
+    full_path = Path(settings.LOCAL_STORAGE_DIR) / doc.original_file_path
+    if not full_path.is_file():
+        raise HTTPException(status_code=404, detail="File not found on disk")
+
+    return FileResponse(str(full_path))
 
 
 @router.delete("/documents/{doc_id}")

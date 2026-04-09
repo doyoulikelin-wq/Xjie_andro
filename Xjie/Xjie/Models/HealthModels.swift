@@ -34,6 +34,7 @@ struct HealthDocument: Decodable, Identifiable {
     let abnormal_flags: [AbnormalFlag]?
     let ai_brief: String?
     let ai_summary: String?
+    let file_url: String?
 }
 
 struct CSVData: Decodable {

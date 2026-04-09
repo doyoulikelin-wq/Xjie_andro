@@ -29,6 +29,7 @@ class HealthDocumentOut(BaseModel):
     ai_summary: str | None = None
     extraction_status: str
     created_at: datetime
+    file_url: str | None = None
 
 
 class HealthDocumentCreate(BaseModel):

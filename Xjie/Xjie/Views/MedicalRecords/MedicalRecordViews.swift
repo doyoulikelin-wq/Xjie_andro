@@ -193,7 +193,7 @@ struct MedicalRecordDetailView: View {
                     }
 
                     // 查看原件按钮
-                    if let csv = doc.csv_data, csv.columns != nil {
+                    if doc.file_url != nil || (doc.csv_data?.columns != nil) {
                         Button {
                             withAnimation { showOriginal.toggle() }
                         } label: {
@@ -209,8 +209,14 @@ struct MedicalRecordDetailView: View {
                             .cornerRadius(8)
                         }
 
-                        if showOriginal, let columns = csv.columns, let rows = csv.rows {
-                            CSVTableView(title: "病例数据", icon: "tablecells", columns: columns, rows: rows)
+                        if showOriginal {
+                            if let fileUrl = doc.file_url {
+                                OriginalFileView(fileUrl: fileUrl)
+                            }
+
+                            if let csv = doc.csv_data, let columns = csv.columns, let rows = csv.rows {
+                                CSVTableView(title: "病例数据", icon: "tablecells", columns: columns, rows: rows)
+                            }
                         }
                     }
                 }

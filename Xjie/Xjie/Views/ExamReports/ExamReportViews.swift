@@ -227,7 +227,7 @@ struct ExamReportDetailView: View {
                     }
 
                     // 查看原件按钮
-                    if let csv = doc.csv_data, csv.columns != nil {
+                    if doc.file_url != nil || (doc.csv_data?.columns != nil) {
                         Button {
                             withAnimation { showOriginal.toggle() }
                         } label: {
@@ -244,6 +244,11 @@ struct ExamReportDetailView: View {
                         }
 
                         if showOriginal {
+                            // 显示原始上传文件（图片）
+                            if let fileUrl = doc.file_url {
+                                OriginalFileView(fileUrl: fileUrl)
+                            }
+
                             // 异常详情
                             if let flags = doc.abnormal_flags, !flags.isEmpty {
                                 VStack(alignment: .leading, spacing: 8) {
@@ -267,7 +272,7 @@ struct ExamReportDetailView: View {
                                 .cardStyle()
                             }
 
-                            if let columns = csv.columns, let rows = csv.rows {
+                            if let csv = doc.csv_data, let columns = csv.columns, let rows = csv.rows {
                                 CSVTableView(title: "体检数据", icon: "tablecells", columns: columns, rows: rows, highlightAbnormal: true)
                             }
                         }
