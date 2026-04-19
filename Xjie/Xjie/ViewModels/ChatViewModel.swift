@@ -8,6 +8,16 @@ struct ChatMessageItem: Identifiable {
     let analysis: String?     // 详细分析 (Markdown)
     let confidence: Double?
     let followups: [String]?
+    let citations: [Citation]
+
+    init(role: String, content: String, analysis: String?, confidence: Double?, followups: [String]?, citations: [Citation] = []) {
+        self.role = role
+        self.content = content
+        self.analysis = analysis
+        self.confidence = confidence
+        self.followups = followups
+        self.citations = citations
+    }
 }
 
 @MainActor
@@ -70,7 +80,8 @@ final class ChatViewModel: ObservableObject {
             }
             messages = msgs.map {
                 ChatMessageItem(role: $0.role, content: $0.content,
-                                analysis: $0.analysis, confidence: nil, followups: nil)
+                                analysis: $0.analysis, confidence: nil, followups: nil,
+                                citations: $0.citations)
             }
             threadId = id
             isViewingHistory = true
@@ -128,7 +139,8 @@ final class ChatViewModel: ObservableObject {
                 content: content,
                 analysis: res.analysis,
                 confidence: res.confidence,
-                followups: res.followups
+                followups: res.followups,
+                citations: res.citations ?? []
             )
             messages.append(assistantMsg)
         } catch let error as APIError {
@@ -139,7 +151,7 @@ final class ChatViewModel: ObservableObject {
                     let res: ChatResponse = try await api.post("/api/chat", body: ChatRequest(message: msg, thread_id: threadId), timeout: APIConstants.llmTimeout)
                     let content = Self.cleanContent(res.summary ?? res.answer_markdown ?? "...")
                     if let tid = res.thread_id { threadId = tid }
-                    messages.append(ChatMessageItem(role: "assistant", content: content, analysis: res.analysis, confidence: res.confidence, followups: res.followups))
+                    messages.append(ChatMessageItem(role: "assistant", content: content, analysis: res.analysis, confidence: res.confidence, followups: res.followups, citations: res.citations ?? []))
                     return
                 } catch {
                     // 自动授权失败，显示错误

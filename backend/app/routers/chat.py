@@ -24,6 +24,7 @@ from app.schemas.chat import (
 )
 from app.services.context_builder import build_user_context
 from app.services.feature_service import build_skill_prompt, is_feature_enabled
+from app.services.literature.retrieval import build_citation_block, retrieve_claims
 from app.services.safety_service import detect_safety_flags, emergency_template
 from app.utils.hash import context_hash
 
@@ -178,12 +179,35 @@ def chat(
     # Build skill prompt based on user query
     skill_prompt = build_skill_prompt(payload.message, db)
 
+    # Literature RAG (soft constraint): retrieve top citations and append to prompt
+    citations = retrieve_claims(db, query=payload.message, top_k=5)
+    if citations:
+        block = build_citation_block(citations)
+        skill_prompt = (
+            (skill_prompt + "\n\n" if skill_prompt else "")
+            + "# 文献证据库（软约束）\n"
+            + "以下是与用户问题相关的已发表文献结论。如适用，请在 analysis 中以 [1][2] 角标自然引用，"
+            + "并在 analysis 末尾用一段不超过 60 字的「参考文献」小字标注（如：参考: [1] xxx; [2] yyy）。"
+            + "如证据不充分或不相关，可不引用，按通用知识回答即可。\n"
+            + block
+        )
+
     provider = get_provider()
     t0 = time.perf_counter()
     result = provider.generate_text(context, payload.message, history=history, skill_prompt=skill_prompt)
     latency_ms = int((time.perf_counter() - t0) * 1000)
 
-    _save_assistant_message(db, conv, result.summary, result.analysis, {"safety_flags": flags, "confidence": result.confidence})
+    _save_assistant_message(
+        db,
+        conv,
+        result.summary,
+        result.analysis,
+        {
+            "safety_flags": flags,
+            "confidence": result.confidence,
+            "citation_ids": [c.claim_id for c in citations],
+        },
+    )
     db.commit()
 
     # Auto-extract profile info from AI response
@@ -197,7 +221,7 @@ def chat(
     return ChatResult(summary=result.summary, analysis=result.analysis,
                       answer_markdown=result.answer_markdown, confidence=result.confidence,
                       followups=result.followups, safety_flags=flags + result.safety_flags, used_context=context,
-                      thread_id=str(conv.id))
+                      thread_id=str(conv.id), citations=citations)
 
 
 # ── POST /api/chat/stream (SSE) ─────────────────────────
@@ -243,6 +267,19 @@ def chat_stream(
     thread_id_str = str(conv.id)
     skill_prompt = build_skill_prompt(payload.message, db)
 
+    # Literature RAG
+    citations = retrieve_claims(db, query=payload.message, top_k=5)
+    if citations:
+        block = build_citation_block(citations)
+        skill_prompt = (
+            (skill_prompt + "\n\n" if skill_prompt else "")
+            + "# 文献证据库（软约束）\n"
+            + "以下是与用户问题相关的已发表文献结论。如适用，请在 analysis 中以 [1][2] 角标自然引用，"
+            + "并在 analysis 末尾用一段不超过 60 字的「参考文献」小字标注。"
+            + "如证据不充分，可不引用，按通用知识回答即可。\n"
+            + block
+        )
+
     def event_stream():
         started = time.perf_counter()
         emitted_parts: list[str] = []
@@ -257,7 +294,17 @@ def chat_stream(
         summary = parsed.get("summary", final_text[:60] + "…" if len(final_text) > 60 else final_text)
         analysis = parsed.get("analysis", final_text)
 
-        ast_msg = _save_assistant_message(db, conv, summary, analysis, {"safety_flags": flags, "confidence": 0.85})
+        ast_msg = _save_assistant_message(
+            db,
+            conv,
+            summary,
+            analysis,
+            {
+                "safety_flags": flags,
+                "confidence": 0.85,
+                "citation_ids": [c.claim_id for c in citations],
+            },
+        )
         db.commit()
         _save_audit(db, user_id, provider.provider_name, provider.text_model, latency_ms, context,
                     {"message": payload.message, "safety_flags": flags, "stream": True},
@@ -265,7 +312,8 @@ def chat_stream(
 
         done_payload = {"summary": summary, "analysis": analysis, "confidence": 0.85,
                         "followups": [], "safety_flags": flags,
-                        "thread_id": thread_id_str, "message_id": str(ast_msg.id)}
+                        "thread_id": thread_id_str, "message_id": str(ast_msg.id),
+                        "citations": [c.model_dump() for c in citations]}
         yield f"data: {json.dumps({'type': 'done', 'result': done_payload}, ensure_ascii=False)}\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
@@ -314,9 +362,52 @@ def get_conversation_messages(
     msgs = db.execute(
         select(ChatMessage).where(ChatMessage.conversation_id == cid).order_by(ChatMessage.seq.asc())
     ).scalars().all()
+
+    # Hydrate citations from stored claim ids in meta.
+    from app.models.literature import Claim
+    from app.services.literature.retrieval import format_short_ref
+
+    all_ids: set[int] = set()
+    for m in msgs:
+        for cid_val in (m.meta or {}).get("citation_ids") or []:
+            try:
+                all_ids.add(int(cid_val))
+            except (TypeError, ValueError):
+                continue
+    claim_map: dict[int, Claim] = {}
+    if all_ids:
+        rows = db.execute(select(Claim).where(Claim.id.in_(all_ids))).scalars().all()
+        claim_map = {c.id: c for c in rows}
+
+    def _citations_for(meta: dict) -> list:
+        bundles = []
+        for cid_val in (meta or {}).get("citation_ids") or []:
+            try:
+                cid_int = int(cid_val)
+            except (TypeError, ValueError):
+                continue
+            claim = claim_map.get(cid_int)
+            if not claim or not claim.enabled:
+                continue
+            lit = claim.literature
+            bundles.append({
+                "claim_id": claim.id,
+                "literature_id": lit.id,
+                "claim_text": claim.claim_text,
+                "evidence_level": claim.evidence_level,
+                "short_ref": format_short_ref(lit),
+                "journal": lit.journal,
+                "year": lit.year,
+                "sample_size": lit.sample_size,
+                "confidence": claim.confidence,
+                "score": None,
+            })
+        return bundles
+
     return [
         ChatMessageItem(id=str(m.id), seq=m.seq, role=m.role, content=m.content,
-                        analysis=m.analysis, created_at=m.created_at.isoformat() if m.created_at else "")
+                        analysis=m.analysis, created_at=m.created_at.isoformat() if m.created_at else "",
+                        citations=_citations_for(m.meta or {}))
         for m in msgs
     ]
 

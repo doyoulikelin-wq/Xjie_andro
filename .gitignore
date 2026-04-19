@@ -42,3 +42,4 @@ outputs/
 backend/uploads/
 certs/
 deploy_commands.txt
+*.db.bak.*

@@ -1,5 +1,23 @@
 import Foundation
 
+// MARK: - 文献引用
+
+/// 与后端 schemas/literature.py CitationBundle 对应
+struct Citation: Codable, Identifiable, Hashable, Equatable {
+    let claim_id: Int
+    let literature_id: Int
+    let claim_text: String
+    let evidence_level: String      // L1 / L2 / L3 / L4
+    let short_ref: String           // e.g. "Segal et al., Cell 2015"
+    let journal: String?
+    let year: Int?
+    let sample_size: Int?
+    let confidence: String          // high / medium / low
+    let score: Double?
+
+    var id: Int { claim_id }
+}
+
 // MARK: - 聊天
 
 struct ChatConversation: Codable, Identifiable {
@@ -18,17 +36,19 @@ struct ChatMessage: Decodable, Identifiable {
     let content: String
     let analysis: String?
     let created_at: String?
+    let citations: [Citation]
 
     enum CodingKeys: String, CodingKey {
-        case id, role, content, analysis, created_at
+        case id, role, content, analysis, created_at, citations
     }
 
-    init(id: String = UUID().uuidString, role: String, content: String, analysis: String? = nil, created_at: String? = nil) {
+    init(id: String = UUID().uuidString, role: String, content: String, analysis: String? = nil, created_at: String? = nil, citations: [Citation] = []) {
         self.id = id
         self.role = role
         self.content = content
         self.analysis = analysis
         self.created_at = created_at
+        self.citations = citations
     }
 
     init(from decoder: Decoder) throws {
@@ -38,6 +58,7 @@ struct ChatMessage: Decodable, Identifiable {
         self.content = try container.decode(String.self, forKey: .content)
         self.analysis = try? container.decode(String.self, forKey: .analysis)
         self.created_at = try? container.decode(String.self, forKey: .created_at)
+        self.citations = (try? container.decode([Citation].self, forKey: .citations)) ?? []
     }
 }
 
@@ -53,6 +74,23 @@ struct ChatResponse: Codable {
     let confidence: Double?
     let followups: [String]?
     let thread_id: String?
+    let citations: [Citation]?
+
+    init(summary: String? = nil,
+         analysis: String? = nil,
+         answer_markdown: String? = nil,
+         confidence: Double? = nil,
+         followups: [String]? = nil,
+         thread_id: String? = nil,
+         citations: [Citation]? = nil) {
+        self.summary = summary
+        self.analysis = analysis
+        self.answer_markdown = answer_markdown
+        self.confidence = confidence
+        self.followups = followups
+        self.thread_id = thread_id
+        self.citations = citations
+    }
 }
 
 // MARK: - 授权

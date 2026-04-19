@@ -160,6 +160,12 @@ struct ChatView: View {
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                 }
+
+                // 文献引用（小字脚注 + 点击展开）
+                if !isUser && !msg.citations.isEmpty {
+                    Divider()
+                    CitationFootnoteView(citations: msg.citations)
+                }
             }
             .padding(12)
             .background(isUser ? Color.appPrimary : Color.appCardBg)

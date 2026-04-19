@@ -1,0 +1,56 @@
+[
+  {
+    "query": "continuous glucose monitor[Title/Abstract] AND postprandial[Title/Abstract] AND (food OR meal OR diet)",
+    "topic": "ppgr",
+    "max": 80,
+    "min_year": 2018
+  },
+  {
+    "query": "personalized nutrition[Title/Abstract] AND glycemic response[Title/Abstract]",
+    "topic": "ppgr",
+    "max": 60,
+    "min_year": 2015
+  },
+  {
+    "query": "glycemic index[Title/Abstract] AND randomized controlled trial[Publication Type]",
+    "topic": "ppgr",
+    "max": 60,
+    "min_year": 2015
+  },
+  {
+    "query": "metabolomics[Title/Abstract] AND type 2 diabetes[Title/Abstract] AND risk[Title/Abstract]",
+    "topic": "omics",
+    "max": 80,
+    "min_year": 2018
+  },
+  {
+    "query": "metabolomics[Title/Abstract] AND (NAFLD OR MASLD OR non-alcoholic fatty liver)",
+    "topic": "omics",
+    "max": 60,
+    "min_year": 2018
+  },
+  {
+    "query": "metabolomics[Title/Abstract] AND cardiovascular disease[Title/Abstract] AND prediction",
+    "topic": "omics",
+    "max": 60,
+    "min_year": 2018
+  },
+  {
+    "query": "metabolomic age[Title/Abstract] OR metabolic aging clock[Title/Abstract]",
+    "topic": "omics",
+    "max": 40,
+    "min_year": 2018
+  },
+  {
+    "query": "Mediterranean diet[Title/Abstract] AND cardiometabolic[Title/Abstract] AND meta-analysis",
+    "topic": "diet",
+    "max": 40,
+    "min_year": 2015
+  },
+  {
+    "query": "time restricted eating[Title/Abstract] AND HbA1c",
+    "topic": "diet",
+    "max": 40,
+    "min_year": 2018
+  }
+]

@@ -23,6 +23,7 @@
 		A10009 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10009 /* LoginView.swift */; };
 		A10010 /* GlucoseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10010 /* GlucoseView.swift */; };
 		A10011 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10011 /* ChatView.swift */; };
+		A10076 /* CitationFootnoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10076 /* CitationFootnoteView.swift */; };
 		A10012 /* HealthDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012 /* HealthDataView.swift */; };
 		A10013 /* MedicalRecordViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013 /* MedicalRecordViews.swift */; };
 		A10014 /* ExamReportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014 /* ExamReportViews.swift */; };
@@ -112,6 +113,7 @@
 		B10009 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		B10010 /* GlucoseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseView.swift; sourceTree = "<group>"; };
 		B10011 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		B10076 /* CitationFootnoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CitationFootnoteView.swift; sourceTree = "<group>"; };
 		B10012 /* HealthDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataView.swift; sourceTree = "<group>"; };
 		B10013 /* MedicalRecordViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalRecordViews.swift; sourceTree = "<group>"; };
 		B10014 /* ExamReportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamReportViews.swift; sourceTree = "<group>"; };
@@ -339,6 +341,7 @@
 			isa = PBXGroup;
 			children = (
 				B10011 /* ChatView.swift */,
+				B10076 /* CitationFootnoteView.swift */,
 			);
 			path = Chat;
 			sourceTree = "<group>";
@@ -590,6 +593,7 @@
 				A10009 /* LoginView.swift in Sources */,
 				A10010 /* GlucoseView.swift in Sources */,
 				A10011 /* ChatView.swift in Sources */,
+				A10076 /* CitationFootnoteView.swift in Sources */,
 				A10012 /* HealthDataView.swift in Sources */,
 				A10013 /* MedicalRecordViews.swift in Sources */,
 				A10014 /* ExamReportViews.swift in Sources */,

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from app.schemas.literature import CitationBundle
+
 
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
@@ -17,6 +19,7 @@ class ChatResult(BaseModel):
     safety_flags: list[str] = []
     used_context: dict
     thread_id: str | None = None
+    citations: list[CitationBundle] = []
 
 
 class ChatStreamResult(BaseModel):
@@ -28,6 +31,7 @@ class ChatStreamResult(BaseModel):
     safety_flags: list[str] = []
     thread_id: str
     message_id: str
+    citations: list[CitationBundle] = []
 
 
 # ── Conversation list & history ──────────────────────────
@@ -47,4 +51,5 @@ class ChatMessageItem(BaseModel):
     content: str
     analysis: str | None = None
     created_at: str
+    citations: list[CitationBundle] = []
 

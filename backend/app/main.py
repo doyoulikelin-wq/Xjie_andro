@@ -9,7 +9,7 @@ from app.core.logging import setup_logging
 from app.core.middleware import RequestLoggingMiddleware
 from app.db.base import Base
 from app.db.session import engine
-from app.routers import activity, admin, agent, auth, cgm, chat, dashboard, etl, glucose, health_data, health_reports, me, meals, omics, push, users
+from app.routers import activity, admin, agent, auth, cgm, chat, dashboard, etl, glucose, health_data, health_reports, literature, me, meals, omics, push, users
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -65,6 +65,7 @@ def create_app() -> FastAPI:
     app.include_router(cgm.router, prefix="/api/integrations/cgm", tags=["integrations-cgm"])
     app.include_router(omics.router, prefix="/api/omics", tags=["omics"])
     app.include_router(push.router, prefix="/api/push", tags=["push"])
+    app.include_router(literature.router, prefix="/api/literature", tags=["literature"])
     app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
 
     # Public feature flags endpoint (authenticated, non-admin)
