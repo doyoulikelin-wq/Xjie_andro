@@ -94,7 +94,7 @@ struct HealthView: View {
             Label("当前血糖状态", systemImage: "chart.bar").font(.headline)
             HStack(spacing: 8) {
                 if let val = s.current_mgdl {
-                    Text("\(Int(val)) mg/dL")
+                    Text(Utils.formatGlucose(val))
                         .font(.title).bold()
                 }
                 if let trend = s.trend {

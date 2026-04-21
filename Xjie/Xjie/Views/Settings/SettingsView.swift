@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthManager
     @StateObject private var vm = SettingsViewModel()
+    @ObservedObject private var units = UnitsSettings.shared
 
     var body: some View {
         ScrollView {
@@ -13,6 +14,9 @@ struct SettingsView: View {
 
                 // 干预级别
                 interventionCard
+
+                // 血糖单位
+                glucoseUnitCard
 
                 // 隐私同意
                 consentCard
@@ -162,6 +166,27 @@ struct SettingsView: View {
             Spacer()
             Text(value).font(.subheadline)
         }
+    }
+
+    // MARK: - 血糖单位
+
+    private var glucoseUnitCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("血糖单位", systemImage: "drop").font(.headline)
+            Text("中国临床惯用 mmol/L，欧美多用 mg/dL。1 mmol/L = 18.018 mg/dL。")
+                .font(.caption).foregroundColor(.appMuted)
+            Picker("单位", selection: Binding(
+                get: { units.glucoseUnit },
+                set: { newValue in
+                    Task { await vm.updateGlucoseUnit(newValue) }
+                }
+            )) {
+                Text("mmol/L").tag(GlucoseUnit.mmol)
+                Text("mg/dL").tag(GlucoseUnit.mgdl)
+            }
+            .pickerStyle(.segmented)
+        }
+        .cardStyle()
     }
 }
 

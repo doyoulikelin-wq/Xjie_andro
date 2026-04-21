@@ -27,6 +27,8 @@
 		A10080 /* MoodModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10080 /* MoodModels.swift */; };
 		A10081 /* MoodViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10081 /* MoodViewModel.swift */; };
 		A10082 /* MoodLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10082 /* MoodLogView.swift */; };
+		A10083 /* Units.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10083 /* Units.swift */; };
+		A10084 /* AssistantAvatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10084 /* AssistantAvatar.swift */; };
 		A10012 /* HealthDataView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10012 /* HealthDataView.swift */; };
 		A10013 /* MedicalRecordViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10013 /* MedicalRecordViews.swift */; };
 		A10014 /* ExamReportViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10014 /* ExamReportViews.swift */; };
@@ -120,6 +122,8 @@
 		B10080 /* MoodModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodModels.swift; sourceTree = "<group>"; };
 		B10081 /* MoodViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodViewModel.swift; sourceTree = "<group>"; };
 		B10082 /* MoodLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoodLogView.swift; sourceTree = "<group>"; };
+		B10083 /* Units.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Units.swift; sourceTree = "<group>"; };
+		B10084 /* AssistantAvatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssistantAvatar.swift; sourceTree = "<group>"; };
 		B10012 /* HealthDataView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataView.swift; sourceTree = "<group>"; };
 		B10013 /* MedicalRecordViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicalRecordViews.swift; sourceTree = "<group>"; };
 		B10014 /* ExamReportViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExamReportViews.swift; sourceTree = "<group>"; };
@@ -264,6 +268,7 @@
 				B10029 /* SettingsModels.swift */,
 				B10072 /* FeatureFlagModels.swift */,
 				B10080 /* MoodModels.swift */,
+				B10083 /* Units.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -447,6 +452,7 @@
 				B10051 /* ErrorStateView.swift */,
 				B10052 /* SplashView.swift */,
 				B10054 /* CachedAsyncImage.swift */,
+				B10084 /* AssistantAvatar.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -606,6 +612,8 @@
 				A10080 /* MoodModels.swift in Sources */,
 				A10081 /* MoodViewModel.swift in Sources */,
 				A10082 /* MoodLogView.swift in Sources */,
+				A10083 /* Units.swift in Sources */,
+				A10084 /* AssistantAvatar.swift in Sources */,
 				A10012 /* HealthDataView.swift in Sources */,
 				A10013 /* MedicalRecordViews.swift in Sources */,
 				A10014 /* ExamReportViews.swift in Sources */,
