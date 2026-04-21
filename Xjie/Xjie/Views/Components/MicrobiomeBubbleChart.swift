@@ -98,60 +98,113 @@ private struct _PlacedBubble {
     let radius: CGFloat
 }
 
-/// 极简贪心布局：按丰度降序，每个气泡尝试在一组候选位置中放下不重叠。
+/// 按丰度降序贪心布局，并保证气泡之间不重叠。
+/// 策略：1) 细粒度网格找最靠近中心的空位；2) 若找不到则逐步缩小半径重试；3) 最后用松弛一次驱散残余重叠。
 private func _placeBubbles(taxa: [MicrobiomeTaxon], size: CGSize) -> [_PlacedBubble] {
+    guard size.width > 0, size.height > 0, !taxa.isEmpty else { return [] }
     let sorted = taxa.sorted { $0.relative_abundance > $1.relative_abundance }
-    let area = Double(size.width) * Double(size.height) * 0.55
+    // 初始面积预算（留 35% 空白以容纳间隙）
     let totalAbundance = sorted.map { $0.relative_abundance }.reduce(0, +)
-    let scale = totalAbundance > 0 ? area / totalAbundance : 1.0
-    var placed: [_PlacedBubble] = []
-    let padding: CGFloat = 4
-    for t in sorted {
+    let availableArea = Double(size.width) * Double(size.height) * 0.55
+    var scale = totalAbundance > 0 ? availableArea / totalAbundance : 1.0
+    let maxRadius = min(size.width, size.height) * 0.30
+    let minRadius: CGFloat = 16
+    let padding: CGFloat = 5
+    let cc = CGPoint(x: size.width / 2, y: size.height / 2)
+
+    func radiusFor(_ t: MicrobiomeTaxon, scale: Double) -> CGFloat {
         let r = CGFloat(sqrt(max(0.001, t.relative_abundance) * scale / .pi))
-        let radius = max(16, min(r, min(size.width, size.height) * 0.34))
-        var center = CGPoint(x: size.width / 2, y: size.height / 2)
-        var placedOK = false
-        // Candidate grid
-        var candidates: [CGPoint] = []
-        let stepX = max(20, radius * 0.9)
-        let stepY = max(20, radius * 0.9)
-        var y = radius + padding
-        while y < size.height - radius - padding {
-            var x = radius + padding
-            while x < size.width - radius - padding {
-                candidates.append(CGPoint(x: x, y: y))
-                x += stepX
-            }
-            y += stepY
-        }
-        // Prefer candidates nearer to the center
-        let cc = CGPoint(x: size.width / 2, y: size.height / 2)
-        candidates.sort {
-            hypot($0.x - cc.x, $0.y - cc.y) < hypot($1.x - cc.x, $1.y - cc.y)
-        }
-        for cand in candidates {
-            var ok = true
-            for p in placed {
-                let d = hypot(cand.x - p.center.x, cand.y - p.center.y)
-                if d < radius + p.radius + padding {
-                    ok = false
-                    break
+        return max(minRadius, min(r, maxRadius))
+    }
+
+    // 自适应：若第一次放置失败率过高，会缩小 scale 重试最多 3 次
+    for attempt in 0..<3 {
+        var placed: [_PlacedBubble] = []
+        var allOK = true
+        for t in sorted {
+            let radius = radiusFor(t, scale: scale)
+            var bestCenter: CGPoint? = nil
+            // 细网格：步长 = min(radius, 12)，保证候选足够密
+            let step: CGFloat = max(8, min(radius * 0.35, 14))
+            var bestDist = CGFloat.infinity
+            var y = radius + padding
+            while y <= size.height - radius - padding {
+                var x = radius + padding
+                while x <= size.width - radius - padding {
+                    let cand = CGPoint(x: x, y: y)
+                    var ok = true
+                    for p in placed {
+                        let d = hypot(cand.x - p.center.x, cand.y - p.center.y)
+                        if d < radius + p.radius + padding { ok = false; break }
+                    }
+                    if ok {
+                        let dc = hypot(cand.x - cc.x, cand.y - cc.y)
+                        if dc < bestDist { bestDist = dc; bestCenter = cand }
+                    }
+                    x += step
                 }
+                y += step
             }
-            if ok {
-                center = cand
-                placedOK = true
+            if let c = bestCenter {
+                placed.append(_PlacedBubble(taxon: t, center: c, radius: radius))
+            } else {
+                allOK = false
                 break
             }
         }
-        if !placedOK {
-            // Fallback: push outside
-            center = CGPoint(x: CGFloat.random(in: radius...(size.width - radius)),
-                             y: CGFloat.random(in: radius...(size.height - radius)))
+        if allOK {
+            return _relax(placed: placed, size: size, padding: padding)
         }
-        placed.append(_PlacedBubble(taxon: t, center: center, radius: radius))
+        // 缩小尺寸后重试
+        scale *= 0.75
+        if attempt == 2 {
+            // 最后一次无论如何都输出，再用松弛驱散重叠
+            var placed: [_PlacedBubble] = []
+            for t in sorted {
+                let radius = radiusFor(t, scale: scale)
+                let c = CGPoint(
+                    x: CGFloat.random(in: radius...(max(radius, size.width - radius))),
+                    y: CGFloat.random(in: radius...(max(radius, size.height - radius)))
+                )
+                placed.append(_PlacedBubble(taxon: t, center: c, radius: radius))
+            }
+            return _relax(placed: placed, size: size, padding: padding)
+        }
     }
-    return placed
+    return []
+}
+
+/// 弹性松弛：多次扫描，两两重叠时沿连线方向推开。
+private func _relax(placed: [_PlacedBubble], size: CGSize, padding: CGFloat) -> [_PlacedBubble] {
+    var arr = placed
+    for _ in 0..<60 {
+        var moved = false
+        for i in 0..<arr.count {
+            for j in (i + 1)..<arr.count {
+                let a = arr[i], b = arr[j]
+                let dx = b.center.x - a.center.x
+                let dy = b.center.y - a.center.y
+                let dist = max(0.001, hypot(dx, dy))
+                let want = a.radius + b.radius + padding
+                if dist < want {
+                    let overlap = (want - dist) / 2
+                    let ux = dx / dist, uy = dy / dist
+                    var ac = CGPoint(x: a.center.x - ux * overlap, y: a.center.y - uy * overlap)
+                    var bc = CGPoint(x: b.center.x + ux * overlap, y: b.center.y + uy * overlap)
+                    // clamp to bounds
+                    ac.x = min(max(ac.x, a.radius + padding), size.width - a.radius - padding)
+                    ac.y = min(max(ac.y, a.radius + padding), size.height - a.radius - padding)
+                    bc.x = min(max(bc.x, b.radius + padding), size.width - b.radius - padding)
+                    bc.y = min(max(bc.y, b.radius + padding), size.height - b.radius - padding)
+                    arr[i] = _PlacedBubble(taxon: a.taxon, center: ac, radius: a.radius)
+                    arr[j] = _PlacedBubble(taxon: b.taxon, center: bc, radius: b.radius)
+                    moved = true
+                }
+            }
+        }
+        if !moved { break }
+    }
+    return arr
 }
 
 #Preview {
