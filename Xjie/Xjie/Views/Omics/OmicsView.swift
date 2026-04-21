@@ -209,16 +209,17 @@ struct OmicsView: View {
                 if let mi = vm.demoMicrobiome {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Label("肠道菌群（附加）", systemImage: "leaf.fill")
+                            Label("肠道菌群分布", systemImage: "leaf.fill")
                                 .font(.subheadline.bold())
                                 .foregroundColor(.appPrimary)
                             Spacer()
-                            Text("Shannon \(String(format: "%.2f", mi.shannon))")
+                            Text("多样性 \(String(format: "%.2f", mi.shannon))")
                                 .font(.caption).foregroundColor(.appMuted)
                         }
                         MicrobiomeBubbleChart(taxa: mi.taxa) { t in
+                            let zh = zhNameForTaxon(t.name)
                             activeStory = ActiveStory(
-                                title: t.name,
+                                title: zh == t.name ? t.name : "\(zh)（\(t.name)）",
                                 value: "\(Int(t.relative_abundance * 100))%",
                                 unit: "相对丰度",
                                 reference: t.reference,

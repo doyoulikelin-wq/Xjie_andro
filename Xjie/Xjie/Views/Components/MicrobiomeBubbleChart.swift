@@ -1,5 +1,36 @@
 import SwiftUI
 
+/// 将常见肠道菌属拉丁名映射为中文名（未命中则回退原名）。
+func zhNameForTaxon(_ name: String) -> String {
+    let key = (name.split(separator: " ").first.map(String.init) ?? name).lowercased()
+    let map: [String: String] = [
+        "akkermansia": "阿克曼氏菌",
+        "faecalibacterium": "粪杆菌",
+        "bacteroides": "拟杆菌",
+        "prevotella": "普雷沃氏菌",
+        "bifidobacterium": "双歧杆菌",
+        "bifido": "双歧杆菌",
+        "roseburia": "罗斯氏菌",
+        "blautia": "布劳特氏菌",
+        "eubacterium": "真杆菌",
+        "ruminococcus": "瘤胃球菌",
+        "clostridium": "梭菌",
+        "enterococcus": "肠球菌",
+        "escherichia": "大肠杆菌",
+        "lactobacillus": "乳杆菌",
+        "streptococcus": "链球菌",
+        "veillonella": "韦荣氏菌",
+        "fusobacterium": "梭杆菌",
+        "dialister": "小杆菌",
+        "coprococcus": "粪球菌",
+        "parabacteroides": "副拟杆菌",
+        "collinsella": "柯林斯氏菌",
+        "dorea": "多里氏菌",
+        "megamonas": "巨单胞菌"
+    ]
+    return map[key] ?? name
+}
+
 /// 肠道菌群"气泡"分布 — 圆面积 ∝ 相对丰度，点击弹出详情。
 struct MicrobiomeBubbleChart: View {
     let taxa: [MicrobiomeTaxon]
@@ -20,10 +51,11 @@ struct MicrobiomeBubbleChart: View {
                             Circle()
                                 .strokeBorder(colorFor(t), lineWidth: 1.2)
                             VStack(spacing: 2) {
-                                Text(t.name.split(separator: " ").first.map(String.init) ?? t.name)
-                                    .font(.system(size: max(9, placed.radius * 0.22), weight: .semibold))
+                                Text(zhNameForTaxon(t.name))
+                                    .font(.system(size: max(9, placed.radius * 0.20), weight: .semibold))
                                     .foregroundColor(.appText)
                                     .lineLimit(1)
+                                    .minimumScaleFactor(0.6)
                                 if placed.radius >= 28 {
                                     Text("\(Int(t.relative_abundance * 100))%")
                                         .font(.system(size: max(8, placed.radius * 0.18), weight: .medium))
