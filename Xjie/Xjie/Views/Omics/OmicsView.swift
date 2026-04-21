@@ -100,16 +100,16 @@ struct OmicsView: View {
     private var metabolomicsScene: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Label("代谢指纹", systemImage: "flask.fill")
+                Label("代谢健康", systemImage: "chart.pie.fill")
                     .font(.headline).foregroundColor(.appPrimary)
                 Spacer()
                 if demo.omicsDemoEnabled { DemoBadge() }
             }
 
             if let m = vm.demoMetabolomics, demo.omicsDemoEnabled {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 10) {
                     MetabolicFingerprintView(items: m.items, metabolicAgeDelta: m.metabolic_age_delta_years)
-                        .frame(height: 320)
+                    Divider()
                     Text(m.summary)
                         .font(.subheadline)
                         .foregroundColor(.appText)
@@ -118,17 +118,10 @@ struct OmicsView: View {
                 .cardStyle()
 
                 if let t = vm.demoTriad {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         Label("代谢 × 血糖 × 心率", systemImage: "circle.hexagongrid.fill")
                             .font(.headline).foregroundColor(.appPrimary)
                         OmicsTriadView(insight: t)
-                            .frame(height: 220)
-                        ForEach(Array(t.insights.enumerated()), id: \.offset) { _, insight in
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "sparkle").foregroundColor(.appPrimary)
-                                Text(insight).font(.caption).foregroundColor(.appText)
-                            }
-                        }
                     }
                     .cardStyle()
                 }
