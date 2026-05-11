@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Xjie 健捷 · 演示版</title>
+  <link rel="icon" href="assets/logo.png" />
+  <link rel="stylesheet" href="style.css?v=12" />
+</head>
+<body>
+  <!-- 登录遮罩 -->
+  <div id="login" class="login-wrap">
+    <div class="login-card">
+      <img src="assets/logo.png" alt="Xjie" class="login-logo" />
+      <div class="brand-title">Xjie · 健捷</div>
+      <div class="login-sub">AI 健康管家 · 网页演示版</div>
+      <label>手机号</label>
+      <input id="phone" autocomplete="username" placeholder="请输入手机号" />
+      <label>密码</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+      <button id="loginBtn" class="primary-btn">登录</button>
+      <div id="loginErr" class="err"></div>
+      <div class="disclaimer">
+        网页演示版连接生产后端 <code>jianjieaitech.com</code>，所有数据来自真实接口。
+      </div>
+    </div>
+  </div>
+
+  <!-- 主应用 -->
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="assets/logo.png" alt="logo" />
+        <div>
+          <div class="brand-title">Xjie · 健捷</div>
+          <div class="brand-sub">AI 健康管家</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-tab="home">🏠 首页</button>
+        <button class="nav-item" data-tab="health">🧬 健康数据</button>
+        <button class="nav-item" data-tab="meals">🍚 餐食与血糖</button>
+        <button class="nav-item" data-tab="omics">🔬 多组学</button>
+        <button class="nav-item" data-tab="chat">💬 AI 对话</button>
+        <button class="nav-item" data-tab="mood">😊 心情</button>
+        <button class="nav-item" data-tab="settings">⚙️ 账户设置</button>
+      </nav>
+      <div class="user-card">
+        <div id="userSubject" class="user-name">--</div>
+        <div class="user-phone">已登录</div>
+        <button id="logoutBtn" class="ghost-btn">退出</button>
+      </div>
+      <div class="sidebar-foot">Demo v1.0</div>
+    </aside>
+
+    <main class="main">
+      <!-- 顶部主动提醒 -->
+      <header class="topbar">
+        <div class="proactive" id="proactive">
+          <img src="assets/logo.png" alt="" />
+          <div class="proactive-text" id="proactiveText">正在加载提醒…</div>
+        </div>
+      </header>
+
+      <!-- 首页 -->
+      <section class="tab" data-tab="home">
+        <h2 class="page-title">今日总览</h2>
+        <div id="agentToday" class="card agent-card">加载中…</div>
+        <div class="grid-3">
+          <div class="card metric">
+            <div class="metric-label">24h 平均血糖</div>
+            <div class="metric-value" id="mAvg">--</div>
+            <div class="metric-unit">mg/dL</div>
+          </div>
+          <div class="card metric">
+            <div class="metric-label">24h 目标范围(70–180)</div>
+            <div class="metric-value" id="mTir">--</div>
+            <div class="metric-unit">%</div>
+          </div>
+          <div class="card metric">
+            <div class="metric-label">今日摄入</div>
+            <div class="metric-value" id="mKcal">--</div>
+            <div class="metric-unit">kcal</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">24 小时血糖曲线</div>
+          <canvas id="glucoseCanvas" height="260"></canvas>
+          <div class="legend">
+            <span class="dot ok"></span> 70–180 目标区间
+            <span class="dot low"></span> 低血糖 &lt; 70
+            <span class="dot high"></span> 高血糖 &gt; 180
+          </div>
+        </div>
+      </section>
+
+      <!-- 健康数据 -->
+      <section class="tab" data-tab="health" hidden>
+        <h2 class="page-title">健康数据 · AI 摘要</h2>
+        <div class="card">
+          <div class="card-title">AI 生成的体检综合摘要</div>
+          <div id="healthSummary" class="markdown">加载中…</div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">关注指标趋势</div>
+            <div id="watchedList" class="watched-list">加载中…</div>
+          </div>
+          <div class="card">
+            <div class="card-title">最近上传的体检 / 化验单</div>
+            <div id="docList" class="doc-list">加载中…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 餐食 -->
+      <section class="tab" data-tab="meals" hidden>
+        <h2 class="page-title">餐食 × 血糖响应</h2>
+        <div class="card">
+          <div class="card-title">最近 7 天餐食记录</div>
+          <div id="mealsList" class="meal-list">加载中…</div>
+        </div>
+      </section>
+
+      <!-- 多组学 -->
+      <section class="tab" data-tab="omics" hidden>
+        <h2 class="page-title">多组学三联视角</h2>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">代谢-CGM-心率 综合耦合</div>
+            <div id="triadScores" class="triad">加载中…</div>
+          </div>
+          <div class="card">
+            <div class="card-title">AI 解读</div>
+            <div id="triadInsights" class="insights">加载中…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- AI 对话 -->
+      <section class="tab" data-tab="chat" hidden>
+        <h2 class="page-title">AI 健康顾问</h2>
+        <div class="card chat-card">
+          <div id="chatMsgs" class="chat-msgs">
+            <div class="msg assistant">你好，我是 Xjie 健康顾问。可以问我关于饮食 / 血糖 / 体检指标的任何问题。</div>
+          </div>
+          <div class="chat-input">
+            <input id="chatInput" placeholder="输入问题，回车发送，如：帮我解读最近的甘油三酯趋势" />
+            <button id="chatSend" class="primary-btn">发送</button>
+          </div>
+          <div class="hint">消息会经过真实后端 LLM（Moonshot Kimi），生成可能需要几秒。</div>
+        </div>
+      </section>
+
+      <!-- 心情 -->
+      <section class="tab" data-tab="mood" hidden>
+        <h2 class="page-title">心情 · 最近 14 天</h2>
+        <div class="card">
+          <div id="moodGrid" class="mood-grid">加载中…</div>
+          <div class="hint">数字 1 低迷 · 5 愉悦，留空表示未记录。</div>
+        </div>
+      </section>
+
+      <!-- 设置 -->
+      <section class="tab" data-tab="settings" hidden>
+        <h2 class="page-title">账户设置</h2>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-title">账户信息</div>
+            <div id="accountInfo" class="kv">加载中…</div>
+          </div>
+          <div class="card">
+            <div class="card-title">同意与干预级别</div>
+            <div id="consentInfo" class="kv">加载中…</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js?v=12"></script>
+</body>
+</html>

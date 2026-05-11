@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">小捷健康</string>
+
+    <!-- 通用 -->
+    <string name="common_loading">加载中…</string>
+    <string name="common_retry">重试</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_confirm">确认</string>
+    <string name="common_save">保存</string>
+    <string name="common_delete">删除</string>
+    <string name="common_empty">暂无数据</string>
+    <string name="network_offline">网络已断开，正在显示缓存</string>
+
+    <!-- 标签栏 -->
+    <string name="tab_home">首页</string>
+    <string name="tab_glucose">血糖</string>
+    <string name="tab_meals">饮食</string>
+    <string name="tab_health">健康</string>
+
+    <!-- 登录 -->
+    <string name="login_title">欢迎使用小捷健康</string>
+    <string name="login_mode_subject">研究受试者登录</string>
+    <string name="login_mode_phone">手机号登录 / 注册</string>
+    <string name="login_mode_wechat">微信登录</string>
+    <string name="login_phone">手机号</string>
+    <string name="login_username">用户名</string>
+    <string name="login_password">密码（至少 8 位）</string>
+    <string name="login_action_login">登录</string>
+    <string name="login_action_signup">注册</string>
+    <string name="login_action_continue">进入</string>
+    <string name="login_subject_pick">选择受试者编号</string>
+
+    <!-- 设置 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_glucose_unit">血糖单位</string>
+    <string name="settings_intervention_level">干预等级</string>
+    <string name="settings_consent_ai">允许 AI 对话</string>
+    <string name="settings_consent_data">允许数据上传</string>
+    <string name="settings_logout">退出登录</string>
+
+    <!-- 同意书 -->
+    <string name="consent_required">需先在设置中开启 AI 对话</string>
+
+    <!-- 健康数据 -->
+    <string name="health_data_title">健康数据</string>
+    <string name="health_data_records">历史病例</string>
+    <string name="health_data_exams">历史体检</string>
+    <string name="health_data_upload">拍照 / 文件上传</string>
+    <string name="health_data_ai_summary">AI 健康总结</string>
+
+    <!-- 聊天 -->
+    <string name="chat_title">AI 助手</string>
+    <string name="chat_placeholder">输入消息...</string>
+    <string name="chat_history">历史对话</string>
+    <string name="chat_new">新对话</string>
+    <string name="chat_thinking">AI 正在思考...</string>
+
+    <!-- 组学 -->
+    <string name="omics_title">多组学洞察（演示）</string>
+
+    <!-- 管理 -->
+    <string name="admin_title">管理后台</string>
+
+    <!-- 情绪 -->
+    <string name="mood_title">情绪日记</string>
+</resources>

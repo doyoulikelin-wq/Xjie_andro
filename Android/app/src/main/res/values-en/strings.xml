@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Xjie Health</string>
+
+    <string name="common_loading">Loading…</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_confirm">Confirm</string>
+    <string name="common_save">Save</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_empty">No data</string>
+    <string name="network_offline">Offline — showing cached data</string>
+
+    <string name="tab_home">Home</string>
+    <string name="tab_glucose">Glucose</string>
+    <string name="tab_meals">Meals</string>
+    <string name="tab_health">Health</string>
+
+    <string name="login_title">Welcome to Xjie Health</string>
+    <string name="login_mode_subject">Research subject login</string>
+    <string name="login_mode_phone">Phone login / sign up</string>
+    <string name="login_mode_wechat">WeChat login</string>
+    <string name="login_phone">Phone number</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password (8+ chars)</string>
+    <string name="login_action_login">Log in</string>
+    <string name="login_action_signup">Sign up</string>
+    <string name="login_action_continue">Continue</string>
+    <string name="login_subject_pick">Pick subject ID</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_glucose_unit">Glucose unit</string>
+    <string name="settings_intervention_level">Intervention level</string>
+    <string name="settings_consent_ai">Allow AI chat</string>
+    <string name="settings_consent_data">Allow data upload</string>
+    <string name="settings_logout">Log out</string>
+
+    <string name="consent_required">Please enable AI chat in Settings first.</string>
+
+    <string name="health_data_title">Health Data</string>
+    <string name="health_data_records">Medical Records</string>
+    <string name="health_data_exams">Exam Reports</string>
+    <string name="health_data_upload">Photo / File Upload</string>
+    <string name="health_data_ai_summary">AI Health Summary</string>
+
+    <string name="chat_title">AI Assistant</string>
+    <string name="chat_placeholder">Type a message...</string>
+    <string name="chat_history">History</string>
+    <string name="chat_new">New chat</string>
+    <string name="chat_thinking">Thinking...</string>
+
+    <string name="omics_title">Multi-omics (Demo)</string>
+
+    <string name="admin_title">Admin Console</string>
+
+    <string name="mood_title">Mood Journal</string>
+</resources>

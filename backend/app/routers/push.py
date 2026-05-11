@@ -13,7 +13,9 @@ router = APIRouter()
 
 class RegisterTokenRequest(BaseModel):
     token: str
-    platform: str = "ios"
+    platform: str = "ios"  # "ios" | "android"
+    provider: str | None = None  # apns | fcm | hms | mipush | oppo | vivo | meizu
+    extras: str | None = None
 
 
 class RegisterTokenResponse(BaseModel):
@@ -26,8 +28,11 @@ def register_device_token(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    """Register or update an APNs device token for push notifications."""
+    """Register or update a device token for push notifications (iOS APNs / Android multi-vendor)."""
     uid = int(user_id)
+
+    # Default provider when not provided (legacy iOS clients)
+    provider = payload.provider or ("apns" if payload.platform == "ios" else None)
 
     # Check if this token already exists
     existing = db.scalars(
@@ -39,9 +44,17 @@ def register_device_token(
         existing.user_id = uid
         existing.is_active = True
         existing.platform = payload.platform
+        existing.provider = provider
+        existing.extras = payload.extras
         db.add(existing)
     else:
-        dt = DeviceToken(user_id=uid, token=payload.token, platform=payload.platform)
+        dt = DeviceToken(
+            user_id=uid,
+            token=payload.token,
+            platform=payload.platform,
+            provider=provider,
+            extras=payload.extras,
+        )
         db.add(dt)
 
     db.commit()

@@ -48,3 +48,18 @@ deploy_commands.txt
 Xjie/build/
 **/xcuserdata/
 *.xcarchive/
+
+# Android build artifacts
+Android/.gradle/
+Android/build/
+Android/app/build/
+Android/local.properties
+
+# IDE settings
+.idea/
+
+# User food photos (personal data)
+饮食照片/
+
+# Test data - health reports (sensitive)
+test_data/体检报告/
