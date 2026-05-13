@@ -41,19 +41,6 @@ def create_app() -> FastAPI:
             except Exception:
                 conn.rollback()
 
-        # Migrate: add Android push columns to device_tokens if missing
-        with engine.connect() as conn:
-            from sqlalchemy import text
-            for ddl in (
-                "ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS provider VARCHAR(16)",
-                "ALTER TABLE device_tokens ADD COLUMN IF NOT EXISTS extras VARCHAR(255)",
-            ):
-                try:
-                    conn.execute(text(ddl))
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
-
         # Start background glucose sync from glucose_timeseries → glucose_readings
         import asyncio
         from app.services.glucose_sync import start_glucose_sync_loop
