@@ -62,8 +62,16 @@ class MealsRepository @Inject constructor(
     }
 
     suspend fun uploadPhoto(uri: Uri, filename: String = "meal.jpg"): MealPhoto {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-            ?: throw IllegalStateException("无法读取图片")
+        val bytes = try {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: throw IllegalStateException("无法读取拍照文件（请重试）")
+        } catch (e: SecurityException) {
+            throw IllegalStateException("访问拍照文件被拒绝：${e.message}")
+        } catch (e: Exception) {
+            throw IllegalStateException("读取拍照失败：${e.message}")
+        }
+        if (bytes.isEmpty()) throw IllegalStateException("拍照文件为空，请重拍。")
+        android.util.Log.i("MealsRepository", "uploadPhoto bytes=${bytes.size} filename=$filename")
         return uploadPhotoBytes(bytes, filename)
     }
 
@@ -71,6 +79,8 @@ class MealsRepository @Inject constructor(
         val ticket: MealUploadTicket = safeApiCall(json) {
             api.requestUploadUrl(PhotoUploadBody(filename, "image/jpeg"))
         }
+        android.util.Log.i("MealsRepository",
+            "ticket upload_url=${ticket.upload_url} object_key=${ticket.object_key}")
         val uploadUrl = ticket.upload_url
         if (!uploadUrl.isNullOrBlank()) {
             uploadToSignedUrl(uploadUrl, bytes, filename)
@@ -100,10 +110,12 @@ class MealsRepository @Inject constructor(
                 bytes.toRequestBody("image/jpeg".toMediaTypeOrNull()),
             ).build()
         val req = Request.Builder().url(fullUrl).put(multipart).build()
+        android.util.Log.i("MealsRepository", "PUT $fullUrl bytes=${bytes.size}")
         okHttpClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) {
-                val body = runCatching { resp.body?.string()?.take(200) }.getOrNull()
-                throw IllegalStateException("上传失败: ${resp.code} ${body ?: ""}")
+                val body = runCatching { resp.body?.string()?.take(300) }.getOrNull()
+                android.util.Log.e("MealsRepository", "PUT failed: ${resp.code} body=$body url=$fullUrl")
+                throw IllegalStateException("上传失败 HTTP ${resp.code} - ${body ?: ""}")
             }
         }
     }

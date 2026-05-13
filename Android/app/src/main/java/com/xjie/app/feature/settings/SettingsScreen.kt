@@ -39,6 +39,7 @@ fun SettingsScreen(
     val unit by vm.glucoseUnit.collectAsState()
     val demo by vm.omicsDemo.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    var showChangePwd by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(state.error) {
@@ -96,15 +97,27 @@ fun SettingsScreen(
                 }
             }
             OutlinedButton(
-                onClick = { vm.showLogoutAlert(true) },
+                onClick = { showChangePwd = true },
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Icon(Icons.Filled.Lock, null)
+                Spacer(Modifier.width(6.dp))
+                Text("修改密码")
+            }
+            OutlinedButton(
+                onClick = { vm.showLogoutAlert(true) },
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                 shape = RoundedCornerShape(8.dp),
             ) { Text("退出登录") }
         }
     }
 
-    if (state.showLogoutAlert) {
-        AlertDialog(
+    if (showChangePwd) {
+        ChangePasswordDialog(onDismiss = { showChangePwd = false })
+    }
+
+    if (state.showLogoutAlert) {        AlertDialog(
             onDismissRequest = { vm.showLogoutAlert(false) },
             title = { Text("确认退出") },
             text = { Text("确定要退出登录吗？") },

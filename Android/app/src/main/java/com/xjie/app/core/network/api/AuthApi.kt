@@ -31,4 +31,13 @@ interface AuthApi {
 
     @POST("api/auth/logout")
     suspend fun logout()
+
+    @POST("api/auth/password/change")
+    suspend fun changePassword(@Body body: com.xjie.app.core.model.PasswordChangeBody)
+
+    @POST("api/auth/password/reset/request")
+    suspend fun requestPasswordReset(@Body body: com.xjie.app.core.model.PasswordResetRequestBody): com.xjie.app.core.model.SimpleOk
+
+    @POST("api/auth/password/reset/confirm")
+    suspend fun confirmPasswordReset(@Body body: com.xjie.app.core.model.PasswordResetConfirmBody): com.xjie.app.core.model.SimpleOk
 }

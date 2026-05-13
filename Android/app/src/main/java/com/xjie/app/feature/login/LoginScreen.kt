@@ -31,6 +31,7 @@ fun LoginScreen(
 ) {
     val state by vm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showReset by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.loadSubjects() }
 
@@ -74,9 +75,13 @@ fun LoginScreen(
                     onWeightChange = vm::setWeightKg,
                     onToggleSignup = vm::toggleSignup,
                     onSubmit = vm::loginPhone,
+                    onForgot = { showReset = true },
                 )
             }
         }
+    }
+    if (showReset) {
+        PasswordResetDialog(onDismiss = { showReset = false })
     }
 }
 
@@ -226,6 +231,7 @@ private fun PhoneSection(
     onWeightChange: (Int) -> Unit,
     onToggleSignup: () -> Unit,
     onSubmit: () -> Unit,
+    onForgot: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -291,6 +297,11 @@ private fun PhoneSection(
                 if (state.isSignup) "已有账号？去登录" else "没有账号？去注册",
                 color = MaterialTheme.colorScheme.primary,
             )
+        }
+        if (!state.isSignup) {
+            TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) {
+                Text("忘记密码？", color = MaterialTheme.colorScheme.primary)
+            }
         }
     }
 }

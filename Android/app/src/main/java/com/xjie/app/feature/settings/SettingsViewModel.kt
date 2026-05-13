@@ -58,10 +58,21 @@ class SettingsViewModel @Inject constructor(
         age: Int?,
         heightCm: Double?,
         weightKg: Double?,
-    ) = launchOp {
-        repo.updateProfile(sex, age, heightCm, weightKg)
-        _state.update { it.copy(showProfileEdit = false) }
-        load()
+        displayName: String? = null,
+    ) = viewModelScope.launch {
+        runCatching {
+            repo.updateProfile(sex, age, heightCm, weightKg, displayName)
+        }.onSuccess { updated ->
+            // 直接以 PATCH 返回的 profile 更新本地状态，避免 me() 二次拉取导致“跳回原始数据”
+            _state.update { st ->
+                val user = st.user?.copy(profile = updated)
+                st.copy(showProfileEdit = false, user = user, error = null)
+            }
+        }.onFailure { e ->
+            _state.update {
+                it.copy(error = (e as? ApiException)?.message ?: e.message ?: "保存失败")
+            }
+        }
     }
     fun confirmLogout() = viewModelScope.launch { repo.logout() }
     fun clearError() = _state.update { it.copy(error = null) }

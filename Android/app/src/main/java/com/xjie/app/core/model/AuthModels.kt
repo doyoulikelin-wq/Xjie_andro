@@ -50,6 +50,7 @@ data class UserProfile(
     val age: Int? = null,
     val height_cm: Double? = null,
     val weight_kg: Double? = null,
+    val display_name: String? = null,
 )
 
 @Serializable
@@ -58,6 +59,7 @@ data class UpdateProfileBody(
     val age: Int? = null,
     val height_cm: Double? = null,
     val weight_kg: Double? = null,
+    val display_name: String? = null,
 )
 
 @Serializable

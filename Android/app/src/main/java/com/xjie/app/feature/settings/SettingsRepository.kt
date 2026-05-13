@@ -56,6 +56,7 @@ class SettingsRepository @Inject constructor(
         age: Int?,
         heightCm: Double?,
         weightKg: Double?,
+        displayName: String? = null,
     ): UserProfile = safeApiCall(json) {
         userApi.updateProfile(
             UpdateProfileBody(
@@ -63,6 +64,7 @@ class SettingsRepository @Inject constructor(
                 age = age,
                 height_cm = heightCm,
                 weight_kg = weightKg,
+                display_name = displayName,
             )
         )
     }

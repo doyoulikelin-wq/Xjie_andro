@@ -43,6 +43,7 @@ fun IndicatorTrendSection(
 ) {
     val state by vm.state.collectAsState()
     var showSelector by remember { mutableStateOf(false) }
+    var showManual by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.fetchIndicators() }
 
@@ -59,9 +60,12 @@ fun IndicatorTrendSection(
                 style = MaterialTheme.typography.titleSmall,
             )
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = { showSelector = true }) {
+            TextButton(onClick = { showManual = true }) {
                 Icon(Icons.Filled.AddCircle, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
+                Text("手动录入", style = MaterialTheme.typography.labelMedium)
+            }
+            TextButton(onClick = { showSelector = true }) {
                 Text("管理", style = MaterialTheme.typography.labelMedium)
             }
         }
@@ -125,6 +129,12 @@ fun IndicatorTrendSection(
                 vm.applySelection(names)
             },
             onDismiss = { showSelector = false },
+        )
+    }
+    if (showManual) {
+        ManualIndicatorDialog(
+            onDismiss = { showManual = false },
+            onSaved = { vm.fetchIndicators() },
         )
     }
 }

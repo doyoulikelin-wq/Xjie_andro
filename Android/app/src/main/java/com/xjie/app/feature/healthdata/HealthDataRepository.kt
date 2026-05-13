@@ -6,12 +6,16 @@ import com.xjie.app.core.model.HealthDataSummary
 import com.xjie.app.core.model.HealthDocument
 import com.xjie.app.core.model.IndicatorExplanation
 import com.xjie.app.core.model.IndicatorInfo
+import com.xjie.app.core.model.IndicatorSearchItem
 import com.xjie.app.core.model.IndicatorTrend
+import com.xjie.app.core.model.ManualIndicatorBody
+import com.xjie.app.core.model.ManualIndicatorItem
 import com.xjie.app.core.model.PatientHistoryProfile
 import com.xjie.app.core.model.PatientHistoryUpdateBody
 import com.xjie.app.core.model.SummaryTaskResponse
 import com.xjie.app.core.model.WatchedIndicatorItem
 import com.xjie.app.core.network.api.HealthDataApi
+import com.xjie.app.core.network.api.IndicatorExtraApi
 import com.xjie.app.core.network.api.WatchBody
 import com.xjie.app.core.network.safeApiCall
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +29,7 @@ import javax.inject.Singleton
 @Singleton
 class HealthDataRepository @Inject constructor(
     private val api: HealthDataApi,
+    private val extraApi: IndicatorExtraApi,
     private val json: Json,
     @ApplicationContext private val context: Context,
 ) {
@@ -91,4 +96,17 @@ class HealthDataRepository @Inject constructor(
 
     suspend fun savePatientHistory(body: PatientHistoryUpdateBody): PatientHistoryProfile =
         safeApiCall(json) { api.savePatientHistory(body) }
+
+    // ── Indicator extras ──
+    suspend fun searchIndicators(q: String, limit: Int = 20): List<IndicatorSearchItem> =
+        safeApiCall(json) { extraApi.search(q, limit) }.items
+
+    suspend fun listManualIndicators(name: String? = null): List<ManualIndicatorItem> =
+        safeApiCall(json) { extraApi.listManual(name) }.items
+
+    suspend fun createManualIndicator(body: ManualIndicatorBody): ManualIndicatorItem =
+        safeApiCall(json) { extraApi.createManual(body) }
+
+    suspend fun deleteManualIndicator(id: Long) =
+        safeApiCall(json) { extraApi.deleteManual(id) }
 }

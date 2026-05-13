@@ -92,15 +92,16 @@ class MealsViewModel @Inject constructor(
                     _state.update { it.copy(uploading = false, error = e.message ?: "上传失败") }
                 }
                 .onSuccess { photo ->
-                    val isFood = isLikelyFood(photo)
-                    if (!isFood) {
+                    val verdict = classifyPhoto(photo)
+                    if (verdict == FoodVerdict.NOT_FOOD) {
                         _state.update {
                             it.copy(
                                 uploading = false,
-                                error = "未识别到食物，请拍摄含有餐号的照片。",
+                                error = "未识别到食物，请拍摄含有餐食的清晰照片。",
                             )
                         }
                     } else {
+                        // ACCEPTED 或 UNCERTAIN 都视为成功（避免后端识别返回 null 时误报失败）
                         _state.update { it.copy(uploading = false, toast = "上传成功") }
                     }
                     fetchData()
@@ -108,11 +109,19 @@ class MealsViewModel @Inject constructor(
         }
     }
 
-    private fun isLikelyFood(photo: com.xjie.app.core.model.MealPhoto): Boolean {
-        // \u4f18\u5148\u770b\u540e\u7aef\u660e\u786e\u7684 is_food \u5224\u5b9a
-        photo.vision_json?.is_food?.let { return it }
-        if (photo.status == "failed") return false
-        val totalKcal = photo.calorie_estimate_kcal ?: 0.0
-        return totalKcal > 0
+    private enum class FoodVerdict { ACCEPTED, UNCERTAIN, NOT_FOOD }
+
+    private fun classifyPhoto(photo: com.xjie.app.core.model.MealPhoto): FoodVerdict {
+        // 1) 后端明确判定 is_food=false → NOT_FOOD
+        val isFood = photo.vision_json?.is_food
+        if (isFood == false) return FoodVerdict.NOT_FOOD
+        // 2) 状态明确失败 → NOT_FOOD
+        if (photo.status == "failed") return FoodVerdict.NOT_FOOD
+        // 3) 后端肯定是食物 → ACCEPTED
+        if (isFood == true) return FoodVerdict.ACCEPTED
+        // 4) 估算热量 > 0 → ACCEPTED
+        if ((photo.calorie_estimate_kcal ?: 0.0) > 0) return FoodVerdict.ACCEPTED
+        // 5) 其他情况：视觉识别可能仍在进行中，按通过处理
+        return FoodVerdict.UNCERTAIN
     }
 }

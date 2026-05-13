@@ -71,6 +71,8 @@ fun HomeScreen(
 
         MealsCard(state.dashboard)
 
+        com.xjie.app.feature.exercise.ExerciseCard()
+
         QuickGrid(
             onOpenGlucose = onOpenGlucose,
             onOpenMeals = onOpenMeals,
