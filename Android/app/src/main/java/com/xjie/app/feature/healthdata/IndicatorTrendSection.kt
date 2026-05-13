@@ -74,6 +74,7 @@ fun IndicatorTrendSection(
                 ) { CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp) }
             }
             state.trends.isEmpty() -> {
+                val hasIndicators = state.allIndicators.isNotEmpty()
                 Column(
                     Modifier.fillMaxWidth().padding(vertical = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -85,12 +86,21 @@ fun IndicatorTrendSection(
                         modifier = Modifier.size(36.dp),
                     )
                     Text(
-                        "暂未关注任何指标",
+                        if (hasIndicators) "暂未关注任何指标" else "还没有可关注的指标",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (!hasIndicators) {
+                        Text(
+                            "请先在「健康数据」中上传体检报告，AI 识别完成后指标会自动出现。",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
                     TextButton(onClick = { showSelector = true }) {
-                        Text("添加关注指标")
+                        Text(if (hasIndicators) "添加关注指标" else "查看可选指标")
                     }
                 }
             }
@@ -514,6 +524,39 @@ private fun IndicatorSelectorDialog(
         onDismissRequest = onDismiss,
         title = { Text("选择关注指标") },
         text = {
+            if (allIndicators.isEmpty()) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        Icons.Filled.Info, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(36.dp),
+                    )
+                    Text(
+                        "还没有可关注的指标",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "请先在「健康数据」页面上传体检报告（PDF / 图片）。\nAI 识别完成后，那些带有数值的指标（如 ALT、血糖、胆固醇等）会自动出现在这里。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                    Text(
+                        "提示：“偏高/偏低”等定性描述的项目不会计入趋势，只有数值型结果才会进入指标库。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    )
+                }
+                return@AlertDialog
+            }
             LazyColumn(modifier = Modifier.heightIn(max = 420.dp)) {
                 grouped.forEach { (cat, items) ->
                     item {

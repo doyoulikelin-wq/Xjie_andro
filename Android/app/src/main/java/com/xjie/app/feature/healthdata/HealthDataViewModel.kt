@@ -25,6 +25,11 @@ data class HealthDataUiState(
     val uploading: Boolean = false,
     val uploadStage: String = "",
     val uploadDocType: String = "record",
+    /**
+     * 上传任务已交后台处理，可关闭横幅但任务仍在进行。
+     * 用于「AI 正在后台识别…」提示条。
+     */
+    val backgroundTaskHint: String? = null,
     val toast: String? = null,
     val error: String? = null,
 )
@@ -55,23 +60,68 @@ class HealthDataViewModel @Inject constructor(
     fun setUploadDocType(t: String) = _state.update { it.copy(uploadDocType = t) }
 
     fun uploadFile(uri: Uri, filename: String) = viewModelScope.launch {
-        _state.update { it.copy(uploading = true, uploadStage = "正在上传文件…") }
+        _state.update {
+            it.copy(
+                uploading = true,
+                uploadStage = "正在上传文件…",
+                backgroundTaskHint = null,
+            )
+        }
         runCatching { repo.uploadDocument(uri, filename, _state.value.uploadDocType) }
             .onSuccess { doc ->
+                // 上传完成后：立即结束阻塞性 UI，给出「后台识别中」提示，用户可继续操作
                 if (doc.extraction_status == "pending") {
-                    _state.update { it.copy(uploadStage = "AI 正在识别内容…") }
+                    _state.update {
+                        it.copy(
+                            uploading = false,
+                            uploadStage = "",
+                            toast = "上传成功，AI 正在后台识别",
+                            backgroundTaskHint = "AI 正在后台识别文件内容，您可以离开此页继续使用。识别完成后会自动出现在「关注指标趋势」中。",
+                        )
+                    }
+                    // 异步轮询：不阻塞 UI，仅用于完成后刷新计数 & 自动消除横幅
                     val status = pollDoc(doc.id)
                     if (status == "failed") {
-                        _state.update { it.copy(error = "AI 无法识别该文件") }
+                        _state.update {
+                            it.copy(
+                                error = "AI 无法识别该文件，请重新拍照或换张更清晰的图片。",
+                                backgroundTaskHint = null,
+                            )
+                        }
+                    } else {
+                        _state.update {
+                            it.copy(
+                                backgroundTaskHint = null,
+                                toast = "AI 识别完成",
+                            )
+                        }
                     }
+                    fetchAll()
+                } else {
+                    _state.update {
+                        it.copy(
+                            uploading = false,
+                            uploadStage = "",
+                            toast = "上传成功",
+                        )
+                    }
+                    fetchAll()
                 }
-                _state.update { it.copy(uploading = false, uploadStage = "", toast = "上传成功") }
-                fetchAll()
             }
             .onFailure { e ->
-                _state.update { it.copy(uploading = false, uploadStage = "", error = e.message) }
+                _state.update {
+                    it.copy(
+                        uploading = false,
+                        uploadStage = "",
+                        backgroundTaskHint = null,
+                        error = e.message ?: "上传失败",
+                    )
+                }
             }
     }
+
+    /** 用户手动关闭后台任务提示横幅（任务在后端继续）。 */
+    fun dismissBackgroundHint() = _state.update { it.copy(backgroundTaskHint = null) }
 
     private suspend fun pollDoc(id: String): String {
         repeat(45) {
@@ -84,7 +134,14 @@ class HealthDataViewModel @Inject constructor(
 
     fun generateSummary() = viewModelScope.launch {
         if (_state.value.generating) return@launch
-        _state.update { it.copy(generating = true, progress = 0f, stage = "提交任务...") }
+        _state.update {
+            it.copy(
+                generating = true,
+                progress = 0f,
+                stage = "提交任务...",
+                toast = "AI 报告生成已开始，您可以继续使用其他功能",
+            )
+        }
         runCatching {
             val task = repo.startSummaryTask()
             pollTask(task.task_id)
