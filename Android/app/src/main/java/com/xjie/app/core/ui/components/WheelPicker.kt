@@ -66,13 +66,17 @@ fun WheelPicker(
         }
     }
 
-    // 滚动结束后回报中心项
-    LaunchedEffect(state, items) {
-        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+    // 滚动结束后回报中心项：监听 isScrollInProgress 由 true→false 的瞬间，读取当前停留位置
+    LaunchedEffect(state, items, selectedIndex) {
+        snapshotFlow { state.isScrollInProgress }
             .distinctUntilChanged()
-            .collect { (idx, offset) ->
-                if (!state.isScrollInProgress) {
-                    val centerIdx = (idx + if (offset > 0) 1 else 0)
+            .collect { scrolling ->
+                if (!scrolling) {
+                    val idx = state.firstVisibleItemIndex
+                    val offset = state.firstVisibleItemScrollOffset
+                    // snap 完成后 offset 通常为 0；若有微小残余则按半项阈值四舍五入
+                    val itemPx = itemHeight.value.toInt().coerceAtLeast(1)
+                    val centerIdx = (idx + if (offset > itemPx / 2) 1 else 0)
                         .coerceIn(0, (items.size - 1).coerceAtLeast(0))
                     if (centerIdx != selectedIndex) onSelected(centerIdx)
                 }

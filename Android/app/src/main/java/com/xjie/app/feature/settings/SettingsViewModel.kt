@@ -1,5 +1,6 @@
 package com.xjie.app.feature.settings
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.model.GlucoseUnit
@@ -60,15 +61,18 @@ class SettingsViewModel @Inject constructor(
         weightKg: Double?,
         displayName: String? = null,
     ) = viewModelScope.launch {
+        Log.i("XJieProfile", "PATCH request sex=$sex age=$age h=$heightCm w=$weightKg name=$displayName")
         runCatching {
             repo.updateProfile(sex, age, heightCm, weightKg, displayName)
         }.onSuccess { updated ->
-            // 直接以 PATCH 返回的 profile 更新本地状态，避免 me() 二次拉取导致“跳回原始数据”
+            Log.i("XJieProfile", "PATCH success -> $updated")
+            // 直接以 PATCH 返回的 profile 更新本地状态，避免 me() 二次拉取导致"跳回原始数据"
             _state.update { st ->
                 val user = st.user?.copy(profile = updated)
                 st.copy(showProfileEdit = false, user = user, error = null)
             }
         }.onFailure { e ->
+            Log.e("XJieProfile", "PATCH failed", e)
             _state.update {
                 it.copy(error = (e as? ApiException)?.message ?: e.message ?: "保存失败")
             }
