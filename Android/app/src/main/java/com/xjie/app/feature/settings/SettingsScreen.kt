@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material3.*
@@ -34,6 +35,7 @@ fun SettingsScreen(
     onBack: (() -> Unit)? = null,
     onOpenAdmin: () -> Unit = {},
     onOpenElderlyHistory: () -> Unit = {},
+    onOpenMedications: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -74,6 +76,26 @@ fun SettingsScreen(
             )
             InterventionCard(state.settings?.intervention_level, vm::updateLevel)
             GlucoseUnitCard(unit, vm::updateGlucoseUnit)
+            Surface(
+                onClick = onOpenMedications,
+                modifier = Modifier.cardStyle(),
+                color = Color.Transparent,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.MedicalServices, null, tint = XjiePalette.Primary)
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("我的用药", fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "拍照识别 / 手动添加，按疗程定时提醒",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Filled.ChevronRight, null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
             ElderlyModeCard(
                 enabled = state.settings?.elderly_mode == true,
                 intervalMin = state.settings?.elderly_checkin_interval_min ?: 180,

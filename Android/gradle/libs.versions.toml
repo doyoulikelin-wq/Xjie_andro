@@ -29,6 +29,7 @@ mockk = "1.13.13"
 turbine = "1.2.0"
 mockwebserver = "4.12.0"
 timber = "5.0.1"
+mlkit-text-recognition-chinese = "16.0.1"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
@@ -88,6 +89,9 @@ accompanist-permissions = { module = "com.google.accompanist:accompanist-permiss
 
 # Logging
 timber = { module = "com.jakewharton.timber:timber", version.ref = "timber" }
+
+# ML Kit
+mlkit-text-recognition-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "mlkit-text-recognition-chinese" }
 
 # Testing
 junit = { module = "junit:junit", version.ref = "junit" }

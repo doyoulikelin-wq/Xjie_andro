@@ -137,6 +137,9 @@ dependencies {
     // Logging
     implementation(libs.timber)
 
+    // ML Kit text recognition (Chinese)
+    implementation(libs.mlkit.text.recognition.chinese)
+
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

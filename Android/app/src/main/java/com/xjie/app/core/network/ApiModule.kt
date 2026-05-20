@@ -14,6 +14,7 @@ import com.xjie.app.core.network.api.IndicatorExtraApi
 import com.xjie.app.core.network.api.HealthReportsApi
 import com.xjie.app.core.network.api.LiteratureApi
 import com.xjie.app.core.network.api.MealsApi
+import com.xjie.app.core.network.api.MedicationApi
 import com.xjie.app.core.network.api.MoodApi
 import com.xjie.app.core.network.api.OmicsApi
 import com.xjie.app.core.network.api.PushApi
@@ -46,4 +47,5 @@ object ApiModule {
     @Provides @Singleton fun indicatorExtraApi(r: Retrofit): IndicatorExtraApi = r.create(IndicatorExtraApi::class.java)
     @Provides @Singleton fun exerciseApi(r: Retrofit): ExerciseApi = r.create(ExerciseApi::class.java)
     @Provides @Singleton fun elderlyApi(r: Retrofit): ElderlyApi = r.create(ElderlyApi::class.java)
+    @Provides @Singleton fun medicationApi(@LlmClient r: Retrofit): MedicationApi = r.create(MedicationApi::class.java)
 }

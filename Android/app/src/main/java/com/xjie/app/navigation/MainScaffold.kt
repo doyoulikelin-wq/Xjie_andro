@@ -198,6 +198,12 @@ fun MainScaffold(
                         onBack = { navController.popBackStack() },
                         onOpenAdmin = { navController.navigate(Route.Admin.path) },
                         onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
+                        onOpenMedications = { navController.navigate(Route.Medications.path) },
+                    )
+                }
+                composable(Route.Medications.path) {
+                    com.xjie.app.feature.medication.MedicationListScreen(
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.ElderlyHistory.path) {

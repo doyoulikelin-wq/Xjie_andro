@@ -8,6 +8,7 @@ import com.xjie.app.core.model.UserInfo
 import com.xjie.app.core.model.UserSettings
 import com.xjie.app.core.network.ApiException
 import com.xjie.app.core.storage.PreferencesStore
+import com.xjie.app.feature.medication.MedicationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,6 +32,7 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     prefs: PreferencesStore,
+    private val scheduler: MedicationScheduler,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SettingsUiState())
     val state: StateFlow<SettingsUiState> = _state.asStateFlow()
@@ -50,10 +52,14 @@ class SettingsViewModel @Inject constructor(
     fun updateLevel(level: String) = launchOp { _state.update { it.copy(settings = repo.updateLevel(level)) } }
     fun updateGlucoseUnit(u: GlucoseUnit) = launchOp { _state.update { st -> st.copy(settings = repo.updateGlucoseUnit(u)) }; load() }
     fun updateElderlyMode(enabled: Boolean) = launchOp {
-        _state.update { st -> st.copy(settings = repo.updateElderlyMode(enabled)) }
+        val s = repo.updateElderlyMode(enabled)
+        _state.update { st -> st.copy(settings = s) }
+        scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
     }
     fun updateElderlyInterval(min: Int) = launchOp {
-        _state.update { st -> st.copy(settings = repo.updateElderlyInterval(min)) }
+        val s = repo.updateElderlyInterval(min)
+        _state.update { st -> st.copy(settings = s) }
+        scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
     }
     fun toggleAiChat() = launchOp { repo.toggleAiChat(state.value.user?.consent?.allow_ai_chat ?: false); load() }
     fun toggleDataUpload() = launchOp { repo.toggleDataUpload(state.value.user?.consent?.allow_data_upload ?: false); load() }
