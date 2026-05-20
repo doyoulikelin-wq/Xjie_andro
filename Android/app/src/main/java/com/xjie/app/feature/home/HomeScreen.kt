@@ -63,10 +63,13 @@ fun HomeScreen(
     ) {
         WelcomeBar(subjectId = subjectId, onOpenSettings = onOpenSettings)
 
-        // 主动提醒：后端有真实文案时展示后端内容；否则轮播 18 条默认关怀文案
-        ProactiveCard(state.proactive, onOpenChat = onOpenChat)
-
-        com.xjie.app.feature.elderly.ElderlyCareCard(onOpenHistory = onOpenElderlyHistory)
+        if (state.elderlyMode) {
+            // 老年模式：“关怀复查”取代主动提醒 + 干预滑块
+            com.xjie.app.feature.elderly.ElderlyCareCard(onOpenHistory = onOpenElderlyHistory)
+        } else {
+            // 主动提醒：后端有真实文案时展示后端内容；否则轮播 18 条默认关怀文案
+            ProactiveCard(state.proactive, onOpenChat = onOpenChat)
+        }
 
         state.dashboard?.glucose?.last_24h?.let { g ->
             GlucoseCard(g, unit = unit)
@@ -83,10 +86,12 @@ fun HomeScreen(
             onOpenHealth = onOpenHealth,
         )
 
-        InterventionCard(
-            index = state.interventionIndex,
-            onChange = vm::setInterventionIndex,
-        )
+        if (!state.elderlyMode) {
+            InterventionCard(
+                index = state.interventionIndex,
+                onChange = vm::setInterventionIndex,
+            )
+        }
 
         if (state.loading && state.dashboard == null) {
             Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
@@ -238,8 +243,15 @@ private fun RotatingProactiveText(modifier: Modifier = Modifier) {
 
 @Composable
 private fun InterventionCard(index: Int, onChange: (Int) -> Unit) {
-    val labels = listOf("温和", "标准", "积极")
-    val descs = listOf("仅高风险时提醒", "中等风险时提醒", "主动积极提醒")
+    val labels = listOf("温和", "标准", "积极", "强化", "全场景")
+    val descs = listOf(
+        "仅高风险时提醒（1条/日）",
+        "高风险提醒 + 每日复查（2条/日）",
+        "中风险提醒 + 餐后建议（4条/日）",
+        "低风险提醒 + 餐后复查 + 运动提醒（6条/日）",
+        "错餐推送 + 夜间安眠 + 服药提醒（10条/日）",
+    )
+    val safeIdx = index.coerceIn(0, 4)
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.NotificationsActive, contentDescription = null,
@@ -253,7 +265,7 @@ private fun InterventionCard(index: Int, onChange: (Int) -> Unit) {
                 contentColor = MaterialTheme.colorScheme.primary,
             ) {
                 Text(
-                    labels[index.coerceIn(0, 2)],
+                    labels[safeIdx],
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                     fontWeight = FontWeight.SemiBold,
                     style = MaterialTheme.typography.labelMedium,
@@ -261,18 +273,29 @@ private fun InterventionCard(index: Int, onChange: (Int) -> Unit) {
             }
         }
         Slider(
-            value = index.toFloat(),
-            onValueChange = { onChange(it.toInt().coerceIn(0, 2)) },
-            valueRange = 0f..2f,
-            steps = 1,
+            value = safeIdx.toFloat(),
+            onValueChange = { onChange(it.toInt().coerceIn(0, 4)) },
+            valueRange = 0f..4f,
+            steps = 3,
             colors = SliderDefaults.colors(
                 thumbColor = MaterialTheme.colorScheme.primary,
                 activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
             ),
         )
+        Row(Modifier.fillMaxWidth()) {
+            labels.forEachIndexed { i, name ->
+                Text(
+                    name,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (i == safeIdx) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Text(
-            descs[index.coerceIn(0, 2)],
+            descs[safeIdx],
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

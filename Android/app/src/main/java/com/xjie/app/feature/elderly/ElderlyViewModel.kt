@@ -21,6 +21,7 @@ data class ElderlyUiState(
     val history: List<ElderlyCheckin> = emptyList(),
     val showSheet: Boolean = false,
     val sheetSource: String = "auto_prompt",
+    val sheetPresetActivity: String? = null,
     val autoPromptShown: Boolean = false,
     val error: String? = null,
 )
@@ -60,10 +61,10 @@ class ElderlyViewModel @Inject constructor(
             .onFailure { e -> _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) } }
     }
 
-    fun openSheet(source: String = "manual") =
-        _state.update { it.copy(showSheet = true, sheetSource = source) }
+    fun openSheet(source: String = "manual", presetActivity: String? = null) =
+        _state.update { it.copy(showSheet = true, sheetSource = source, sheetPresetActivity = presetActivity) }
 
-    fun closeSheet() = _state.update { it.copy(showSheet = false) }
+    fun closeSheet() = _state.update { it.copy(showSheet = false, sheetPresetActivity = null) }
 
     fun submit(
         activity: String?,

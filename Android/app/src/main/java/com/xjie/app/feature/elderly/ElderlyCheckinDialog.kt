@@ -26,8 +26,9 @@ fun ElderlyCheckinDialog(
     vm: ElderlyViewModel,
     source: String,
     onDismiss: () -> Unit,
+    initialActivity: String? = null,
 ) {
-    var activity by remember { mutableStateOf("") }
+    var activity by remember { mutableStateOf(initialActivity ?: "") }
     var body by remember { mutableStateOf<BodyFeeling?>(null) }
     var mood by remember { mutableStateOf<MoodChoice?>(null) }
     var note by remember { mutableStateOf("") }

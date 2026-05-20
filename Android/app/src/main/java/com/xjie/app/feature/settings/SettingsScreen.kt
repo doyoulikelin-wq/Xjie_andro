@@ -283,9 +283,11 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun InterventionCard(currentLevel: String?, onSelect: (String) -> Unit) {
     val items = listOf(
-        Triple("L1", "温和", "仅在高风险时提醒，每天最多 1 条"),
-        Triple("L2", "标准", "中等风险时提醒，每天最多 2 条（默认）"),
+        Triple("L1", "温和", "仅高风险提醒，每天最多 1 条"),
+        Triple("L2", "标准", "中风险提醒，每天最多 2 条（默认）"),
         Triple("L3", "积极", "主动提醒，每天最多 4 条"),
+        Triple("L4", "强化", "餐后复查+运动提醒，每天最多 6 条"),
+        Triple("L5", "全场景", "错餐推送+夜间安眠+服药提醒，每天最多 10 条"),
     )
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(Icons.Filled.Bolt, "干预级别")

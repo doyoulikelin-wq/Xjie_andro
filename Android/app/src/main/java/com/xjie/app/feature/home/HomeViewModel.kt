@@ -24,7 +24,8 @@ data class HomeUiState(
     val dashboard: DashboardHealth? = null,
     val proactive: ProactiveMessage? = null,
     val isOffline: Boolean = false,
-    val interventionIndex: Int = 1,   // 0=L1, 1=L2, 2=L3
+    val interventionIndex: Int = 1,   // 0..4 对应 L1..L5
+    val elderlyMode: Boolean = false,
     val error: String? = null,
 )
 
@@ -61,6 +62,8 @@ class HomeViewModel @Inject constructor(
             val idx = when (settings?.intervention_level) {
                 "L1" -> 0
                 "L3" -> 2
+                "L4" -> 3
+                "L5" -> 4
                 else -> 1
             }
             _state.update {
@@ -71,6 +74,7 @@ class HomeViewModel @Inject constructor(
                     proactive = proactive,
                     isOffline = fromCache,
                     interventionIndex = idx,
+                    elderlyMode = settings?.elderly_mode == true,
                 )
             }
         }
@@ -79,7 +83,13 @@ class HomeViewModel @Inject constructor(
     fun setInterventionIndex(i: Int) {
         _state.update { it.copy(interventionIndex = i) }
         viewModelScope.launch {
-            val level = when (i) { 0 -> "L1"; 2 -> "L3"; else -> "L2" }
+            val level = when (i) {
+                0 -> "L1"
+                2 -> "L3"
+                3 -> "L4"
+                4 -> "L5"
+                else -> "L2"
+            }
             runCatching { repo.updateInterventionLevel(level) }
                 .onFailure { AppLogger.ui.w(it, "update intervention failed") }
         }
