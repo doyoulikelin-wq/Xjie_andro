@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
+import com.xjie.app.core.model.ElderlyCheckinKind
 
 /**
  * 首页"关怀复查"卡片。由父视图根据 elderlyMode 决定是否渲染；卡片自身负责加载今日状态。
@@ -29,10 +30,10 @@ fun ElderlyCareCard(
 
     val status = state.status
     val quickReviews = listOf(
-        QuickReview("💊", "用药签到", "已按时服药"),
-        QuickReview("😴", "睡眠复查", "昨夜睡眠"),
-        QuickReview("💧", "饮水复查", "饮水充足"),
-        QuickReview("🚶", "活动复查", "今日散步"),
+        QuickReview(ElderlyCheckinKind.MEDICATION, "已按时服药"),
+        QuickReview(ElderlyCheckinKind.SLEEP,      "睡得很好"),
+        QuickReview(ElderlyCheckinKind.WATER,      "饮水充足"),
+        QuickReview(ElderlyCheckinKind.ACTIVITY,   "今日散步"),
     )
 
     Column(Modifier.cardStyle()) {
@@ -70,11 +71,17 @@ fun ElderlyCareCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { q ->
                         OutlinedButton(
-                            onClick = { vm.openSheet("manual_${q.label}", presetActivity = q.activity) },
+                            onClick = {
+                                vm.openSheet(
+                                    source = "manual",
+                                    presetActivity = q.activity,
+                                    kind = q.kind,
+                                )
+                            },
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Text("${q.emoji} ${q.label}", fontSize = 15.sp)
+                            Text("${q.kind.emoji} ${q.kind.displayName}复查", fontSize = 15.sp)
                         }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))
@@ -107,10 +114,11 @@ fun ElderlyCareCard(
         ElderlyCheckinDialog(
             vm = vm,
             source = state.sheetSource,
+            kind = state.sheetKind,
             initialActivity = state.sheetPresetActivity,
             onDismiss = { vm.closeSheet() },
         )
     }
 }
 
-private data class QuickReview(val emoji: String, val label: String, val activity: String)
+private data class QuickReview(val kind: ElderlyCheckinKind, val activity: String)

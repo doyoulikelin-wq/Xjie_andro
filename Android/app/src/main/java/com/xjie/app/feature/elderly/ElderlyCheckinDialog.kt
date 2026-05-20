@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.xjie.app.core.model.BodyFeeling
 import com.xjie.app.core.model.COMMON_ACTIVITIES
+import com.xjie.app.core.model.ElderlyCheckinKind
 import com.xjie.app.core.model.MoodChoice
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,6 +28,7 @@ fun ElderlyCheckinDialog(
     source: String,
     onDismiss: () -> Unit,
     initialActivity: String? = null,
+    kind: ElderlyCheckinKind = ElderlyCheckinKind.COMBINED,
 ) {
     var activity by remember { mutableStateOf(initialActivity ?: "") }
     var body by remember { mutableStateOf<BodyFeeling?>(null) }
@@ -38,41 +40,56 @@ fun ElderlyCheckinDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(
-                "现在感觉如何？",
-                fontSize = 26.sp,
-                fontWeight = FontWeight.Bold,
-            )
+            Column {
+                Text(
+                    "${kind.emoji} ${kind.title}",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    kind.subtitle,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                SectionLabel("您正在做什么？")
-                ActivityGrid(selected = activity, onSelect = { activity = if (activity == it) "" else it })
+                SectionLabel(kind.activitySection)
+                ActivityGrid(
+                    options = kind.options,
+                    selected = activity,
+                    onSelect = { activity = if (activity == it) "" else it },
+                )
                 OutlinedTextField(
                     value = activity,
                     onValueChange = { activity = it.take(60) },
-                    label = { Text("或输入活动", fontSize = 17.sp) },
+                    label = { Text("或输入其他...", fontSize = 17.sp) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
                 )
 
-                SectionLabel("身体感觉")
-                EmojiRow(
-                    items = BodyFeeling.entries.map { Triple(it.raw, it.emoji, it.label) },
-                    selected = body?.raw,
-                    onSelect = { raw -> body = BodyFeeling.fromRaw(raw).takeUnless { it == body } },
-                )
+                if (kind.showBodyFeeling) {
+                    SectionLabel(if (kind == ElderlyCheckinKind.MEDICATION) "服药后身体感觉" else "身体感觉")
+                    EmojiRow(
+                        items = BodyFeeling.entries.map { Triple(it.raw, it.emoji, it.label) },
+                        selected = body?.raw,
+                        onSelect = { raw -> body = BodyFeeling.fromRaw(raw).takeUnless { it == body } },
+                    )
+                }
 
-                SectionLabel("此刻心情")
-                EmojiRow(
-                    items = MoodChoice.entries.map { Triple(it.raw, it.emoji, it.label) },
-                    selected = mood?.raw,
-                    onSelect = { raw -> mood = MoodChoice.fromRaw(raw).takeUnless { it == mood } },
-                )
+                if (kind.showMood) {
+                    SectionLabel(if (kind == ElderlyCheckinKind.SLEEP) "醒来后心情" else "此刻心情")
+                    EmojiRow(
+                        items = MoodChoice.entries.map { Triple(it.raw, it.emoji, it.label) },
+                        selected = mood?.raw,
+                        onSelect = { raw -> mood = MoodChoice.fromRaw(raw).takeUnless { it == mood } },
+                    )
+                }
 
                 OutlinedTextField(
                     value = note,
@@ -92,6 +109,7 @@ fun ElderlyCheckinDialog(
                         mood = mood?.raw,
                         note = note,
                         source = source,
+                        promptType = kind.apiValue,
                     )
                 },
                 enabled = canSubmit && !submitting,
@@ -116,9 +134,9 @@ private fun SectionLabel(text: String) {
 }
 
 @Composable
-private fun ActivityGrid(selected: String, onSelect: (String) -> Unit) {
+private fun ActivityGrid(options: List<String>, selected: String, onSelect: (String) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        COMMON_ACTIVITIES.chunked(4).forEach { row ->
+        options.chunked(3).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 row.forEach { label ->
                     val isSel = selected == label
@@ -140,7 +158,7 @@ private fun ActivityGrid(selected: String, onSelect: (String) -> Unit) {
                         }
                     }
                 }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
     }

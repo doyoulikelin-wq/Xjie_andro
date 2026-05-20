@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.core.model.BodyFeeling
 import com.xjie.app.core.model.ElderlyCheckin
+import com.xjie.app.core.model.ElderlyCheckinKind
 import com.xjie.app.core.model.MoodChoice
 import com.xjie.app.core.ui.theme.cardStyle
 
@@ -33,7 +34,7 @@ fun ElderlyHistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("健康签到历史", fontSize = 20.sp) },
+                title = { Text("关怀记录", fontSize = 20.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
@@ -53,19 +54,37 @@ fun ElderlyHistoryScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "暂无签到记录",
+                    "暂无关怀记录",
                     fontSize = 18.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         } else {
+            val groupOrder = listOf(
+                ElderlyCheckinKind.MEDICATION,
+                ElderlyCheckinKind.SLEEP,
+                ElderlyCheckinKind.WATER,
+                ElderlyCheckinKind.ACTIVITY,
+                ElderlyCheckinKind.COMBINED,
+            )
+            val grouped: Map<ElderlyCheckinKind, List<ElderlyCheckin>> =
+                state.history.groupBy { ElderlyCheckinKind.fromApi(it.prompt_type) }
+
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.padding(inner),
             ) {
-                items(state.history, key = { it.id }) { item ->
-                    HistoryRow(item = item, onDelete = { vm.delete(item.id) })
+                groupOrder.forEach { kind ->
+                    val items = grouped[kind].orEmpty()
+                    if (items.isNotEmpty()) {
+                        item(key = "header_${kind.apiValue}") {
+                            GroupHeader(kind = kind, count = items.size)
+                        }
+                        items(items, key = { "row_${it.id}" }) { item ->
+                            HistoryRow(item = item, kind = kind, onDelete = { vm.delete(item.id) })
+                        }
+                    }
                 }
             }
         }
@@ -75,6 +94,8 @@ fun ElderlyHistoryScreen(
         ElderlyCheckinDialog(
             vm = vm,
             source = state.sheetSource,
+            kind = state.sheetKind,
+            initialActivity = state.sheetPresetActivity,
             onDismiss = { vm.closeSheet() },
         )
     }
@@ -90,7 +111,19 @@ fun ElderlyHistoryScreen(
 }
 
 @Composable
-private fun HistoryRow(item: ElderlyCheckin, onDelete: () -> Unit) {
+private fun GroupHeader(kind: ElderlyCheckinKind, count: Int) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+    ) {
+        Text("${kind.emoji}  ${kind.displayName}", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.width(6.dp))
+        Text("($count)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun HistoryRow(item: ElderlyCheckin, kind: ElderlyCheckinKind, onDelete: () -> Unit) {
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -99,6 +132,7 @@ private fun HistoryRow(item: ElderlyCheckin, onDelete: () -> Unit) {
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Text(kind.emoji, fontSize = 22.sp, modifier = Modifier.padding(end = 10.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val title = listOfNotNull(
                     item.activity?.takeIf { it.isNotBlank() },

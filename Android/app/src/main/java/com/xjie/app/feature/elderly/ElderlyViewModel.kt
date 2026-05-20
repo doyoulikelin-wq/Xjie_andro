@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.model.ElderlyCheckin
 import com.xjie.app.core.model.ElderlyCheckinBody
+import com.xjie.app.core.model.ElderlyCheckinKind
 import com.xjie.app.core.model.ElderlyTodayStatus
 import com.xjie.app.core.network.ApiException
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +23,7 @@ data class ElderlyUiState(
     val showSheet: Boolean = false,
     val sheetSource: String = "auto_prompt",
     val sheetPresetActivity: String? = null,
+    val sheetKind: ElderlyCheckinKind = ElderlyCheckinKind.COMBINED,
     val autoPromptShown: Boolean = false,
     val error: String? = null,
 )
@@ -61,10 +63,27 @@ class ElderlyViewModel @Inject constructor(
             .onFailure { e -> _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) } }
     }
 
-    fun openSheet(source: String = "manual", presetActivity: String? = null) =
-        _state.update { it.copy(showSheet = true, sheetSource = source, sheetPresetActivity = presetActivity) }
+    fun openSheet(
+        source: String = "manual",
+        presetActivity: String? = null,
+        kind: ElderlyCheckinKind = ElderlyCheckinKind.COMBINED,
+    ) =
+        _state.update {
+            it.copy(
+                showSheet = true,
+                sheetSource = source,
+                sheetPresetActivity = presetActivity,
+                sheetKind = kind,
+            )
+        }
 
-    fun closeSheet() = _state.update { it.copy(showSheet = false, sheetPresetActivity = null) }
+    fun closeSheet() = _state.update {
+        it.copy(
+            showSheet = false,
+            sheetPresetActivity = null,
+            sheetKind = ElderlyCheckinKind.COMBINED,
+        )
+    }
 
     fun submit(
         activity: String?,
@@ -72,6 +91,7 @@ class ElderlyViewModel @Inject constructor(
         mood: String?,
         note: String?,
         source: String = "manual",
+        promptType: String = "combined",
         onDone: (() -> Unit)? = null,
     ) = viewModelScope.launch {
         _state.update { it.copy(submitting = true) }
@@ -83,6 +103,7 @@ class ElderlyViewModel @Inject constructor(
                     mood = mood,
                     note = note?.takeIf { it.isNotBlank() },
                     source = source,
+                    prompt_type = promptType,
                 )
             )
         }.onSuccess {
