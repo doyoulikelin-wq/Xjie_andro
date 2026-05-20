@@ -206,7 +206,11 @@ class MedicationScheduler @Inject constructor(
 
     /** 安排一个 10 秒后触发的关怀闹钟，用于验证 AlarmManager 能否在后台/锁屏唤起。 */
     fun scheduleTestAlarm(delaySeconds: Int = 10) {
-        val triggerAt = System.currentTimeMillis() + delaySeconds * 1000L
+        scheduleCustomAlarm(System.currentTimeMillis() + delaySeconds * 1000L)
+    }
+
+    /** 安排一个用户指定时间触发的提醒闹钟（一次性）。 */
+    fun scheduleCustomAlarm(triggerAtMillis: Long) {
         val intent = Intent(context, ElderlyReminderReceiver::class.java).apply {
             action = ACTION_ELDERLY_REMINDER
         }
@@ -223,12 +227,12 @@ class MedicationScheduler @Inject constructor(
         )
         try {
             alarmManager.setAlarmClock(
-                AlarmManager.AlarmClockInfo(triggerAt, showPi), pi,
+                AlarmManager.AlarmClockInfo(triggerAtMillis, showPi), pi,
             )
-            Log.i(TAG, "scheduleTestAlarm in ${delaySeconds}s")
+            Log.i(TAG, "scheduleCustomAlarm at=$triggerAtMillis")
         } catch (e: SecurityException) {
-            Log.w(TAG, "scheduleTestAlarm fallback set()", e)
-            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pi)
+            Log.w(TAG, "scheduleCustomAlarm fallback set()", e)
+            alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAtMillis, pi)
         }
     }
 

@@ -1,5 +1,7 @@
 package com.xjie.app.feature.medication
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,10 +17,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.core.model.Medication
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,12 +36,51 @@ fun MedicationListScreen(
     var showEditor by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<Medication?>(null) }
 
+    val context = LocalContext.current
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(state.error) {
         state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
     }
     LaunchedEffect(state.message) {
         state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() }
+    }
+
+    val pickAlarm: () -> Unit = pick@{
+        val now = Calendar.getInstance()
+        DatePickerDialog(
+            context,
+            { _, y, m, d ->
+                val timeNow = Calendar.getInstance()
+                TimePickerDialog(
+                    context,
+                    { _, h, mm ->
+                        val cal = Calendar.getInstance().apply {
+                            set(Calendar.YEAR, y)
+                            set(Calendar.MONTH, m)
+                            set(Calendar.DAY_OF_MONTH, d)
+                            set(Calendar.HOUR_OF_DAY, h)
+                            set(Calendar.MINUTE, mm)
+                            set(Calendar.SECOND, 0)
+                            set(Calendar.MILLISECOND, 0)
+                        }
+                        if (cal.timeInMillis <= System.currentTimeMillis()) {
+                            // 不允许过去时间
+                            return@TimePickerDialog
+                        }
+                        val label = "%04d-%02d-%02d %02d:%02d".format(y, m + 1, d, h, mm)
+                        vm.scheduleCustomAlarm(cal.timeInMillis, label)
+                    },
+                    timeNow.get(Calendar.HOUR_OF_DAY),
+                    (timeNow.get(Calendar.MINUTE) + 1).coerceAtMost(59),
+                    true,
+                ).show()
+            },
+            now.get(Calendar.YEAR),
+            now.get(Calendar.MONTH),
+            now.get(Calendar.DAY_OF_MONTH),
+        ).apply {
+            datePicker.minDate = System.currentTimeMillis() - 1000
+        }.show()
     }
 
     Scaffold(
@@ -51,8 +94,7 @@ fun MedicationListScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { vm.fireTestNotification() }) { Text("测试通知") }
-                    TextButton(onClick = { vm.scheduleTestAlarm() }) { Text("10s闹钟") }
+                    TextButton(onClick = pickAlarm) { Text("设定闹钟") }
                     IconButton(onClick = { editing = null; showEditor = true }) {
                         Icon(Icons.Filled.Add, "新增")
                     }

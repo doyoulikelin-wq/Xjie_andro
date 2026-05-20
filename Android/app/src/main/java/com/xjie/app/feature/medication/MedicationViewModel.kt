@@ -85,4 +85,9 @@ class MedicationViewModel @Inject constructor(
         scheduler.scheduleTestAlarm(10)
         _state.update { it.copy(message = "已安排 10 秒后的测试闹钟，请保持手机点亮等待。") }
     }
+
+    fun scheduleCustomAlarm(triggerAtMillis: Long, label: String) {
+        scheduler.scheduleCustomAlarm(triggerAtMillis)
+        _state.update { it.copy(message = "已设定 $label 的提醒闹钟。") }
+    }
 }
