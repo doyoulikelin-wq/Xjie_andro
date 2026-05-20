@@ -6,6 +6,7 @@ import com.xjie.app.core.network.api.AuthApi
 import com.xjie.app.core.network.api.ChatApi
 import com.xjie.app.core.network.api.DashboardApi
 import com.xjie.app.core.network.api.ExerciseApi
+import com.xjie.app.core.network.api.ElderlyApi
 import com.xjie.app.core.network.api.FeatureFlagsApi
 import com.xjie.app.core.network.api.GlucoseApi
 import com.xjie.app.core.network.api.HealthDataApi
@@ -44,4 +45,5 @@ object ApiModule {
     @Provides @Singleton fun adminApi(r: Retrofit): AdminApi = r.create(AdminApi::class.java)
     @Provides @Singleton fun indicatorExtraApi(r: Retrofit): IndicatorExtraApi = r.create(IndicatorExtraApi::class.java)
     @Provides @Singleton fun exerciseApi(r: Retrofit): ExerciseApi = r.create(ExerciseApi::class.java)
+    @Provides @Singleton fun elderlyApi(r: Retrofit): ElderlyApi = r.create(ElderlyApi::class.java)
 }

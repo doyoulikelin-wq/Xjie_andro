@@ -46,6 +46,7 @@ fun HomeScreen(
     onOpenMeals: () -> Unit = {},
     onOpenChat: () -> Unit = {},
     onOpenHealth: () -> Unit = {},
+    onOpenElderlyHistory: () -> Unit = {},
 ) {
     val state by vm.state.collectAsState()
     val subjectId by vm.subjectId.collectAsState()
@@ -64,6 +65,8 @@ fun HomeScreen(
 
         // 主动提醒：后端有真实文案时展示后端内容；否则轮播 18 条默认关怀文案
         ProactiveCard(state.proactive, onOpenChat = onOpenChat)
+
+        com.xjie.app.feature.elderly.ElderlyCareCard(onOpenHistory = onOpenElderlyHistory)
 
         state.dashboard?.glucose?.last_24h?.let { g ->
             GlucoseCard(g, unit = unit)

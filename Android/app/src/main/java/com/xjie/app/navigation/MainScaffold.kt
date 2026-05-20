@@ -123,6 +123,7 @@ fun MainScaffold(
                             }
                         },
                         onOpenHealth = { navController.navigate(Route.Health.path) },
+                        onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
                     )
                 }
                 composable(Route.Glucose.path) {
@@ -196,6 +197,12 @@ fun MainScaffold(
                     com.xjie.app.feature.settings.SettingsScreen(
                         onBack = { navController.popBackStack() },
                         onOpenAdmin = { navController.navigate(Route.Admin.path) },
+                        onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
+                    )
+                }
+                composable(Route.ElderlyHistory.path) {
+                    com.xjie.app.feature.elderly.ElderlyHistoryScreen(
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.Admin.path) {

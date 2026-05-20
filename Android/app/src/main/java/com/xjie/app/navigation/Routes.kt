@@ -22,6 +22,7 @@ sealed class Route(val path: String) {
     data object Admin : Route("admin")
     data object MedicalRecords : Route("medical_records")
     data object ExamReports : Route("exam_reports")
+    data object ElderlyHistory : Route("elderly_history")
 
     data class HealthDataFocus(val focus: String) : Route("health_data_focus/$focus") {
         companion object { const val PATTERN = "health_data_focus/{focus}" }

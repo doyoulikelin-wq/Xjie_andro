@@ -33,6 +33,7 @@ import com.xjie.app.core.ui.theme.cardStyle
 fun SettingsScreen(
     onBack: (() -> Unit)? = null,
     onOpenAdmin: () -> Unit = {},
+    onOpenElderlyHistory: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -73,6 +74,13 @@ fun SettingsScreen(
             )
             InterventionCard(state.settings?.intervention_level, vm::updateLevel)
             GlucoseUnitCard(unit, vm::updateGlucoseUnit)
+            ElderlyModeCard(
+                enabled = state.settings?.elderly_mode == true,
+                intervalMin = state.settings?.elderly_checkin_interval_min ?: 180,
+                onToggle = vm::updateElderlyMode,
+                onIntervalChange = vm::updateElderlyInterval,
+                onOpenHistory = onOpenElderlyHistory,
+            )
             DemoModeCard(demo, vm::toggleOmicsDemo)
             ConsentCard(
                 aiChat = state.user?.consent?.allow_ai_chat ?: false,
@@ -326,6 +334,61 @@ private fun GlucoseUnitCard(unit: GlucoseUnit, onSelect: (GlucoseUnit) -> Unit) 
                     onClick = { onSelect(u) },
                     shape = SegmentedButtonDefaults.itemShape(i, GlucoseUnit.entries.size),
                 ) { Text(u.label) }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ElderlyModeCard(
+    enabled: Boolean,
+    intervalMin: Int,
+    onToggle: (Boolean) -> Unit,
+    onIntervalChange: (Int) -> Unit,
+    onOpenHistory: () -> Unit,
+) {
+    Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        SectionHeader(Icons.Filled.Person, "老年人关怀模式")
+        Text(
+            "开启后，应用会定期主动询问您的活动、身体感觉与心情，并在首页显示大字号关怀卡片。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("启用老年人关怀模式", Modifier.weight(1f))
+            Switch(checked = enabled, onCheckedChange = onToggle)
+        }
+        if (enabled) {
+            Text("主动询问间隔", style = MaterialTheme.typography.labelMedium)
+            val options = listOf(60 to "1 小时", 120 to "2 小时", 180 to "3 小时", 240 to "4 小时", 360 to "6 小时")
+            var expanded by remember { mutableStateOf(false) }
+            val currentLabel = options.firstOrNull { it.first == intervalMin }?.second ?: "$intervalMin 分钟"
+            ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+                OutlinedTextField(
+                    value = currentLabel,
+                    onValueChange = {},
+                    readOnly = true,
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier.fillMaxWidth().menuAnchor(),
+                )
+                ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                    options.forEach { (min, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = { onIntervalChange(min); expanded = false },
+                        )
+                    }
+                }
+            }
+            OutlinedButton(
+                onClick = onOpenHistory,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Text("查看签到历史")
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Filled.ChevronRight, null)
             }
         }
     }

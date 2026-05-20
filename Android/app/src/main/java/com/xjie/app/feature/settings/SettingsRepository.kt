@@ -43,6 +43,14 @@ class SettingsRepository @Inject constructor(
         }
     }
 
+    suspend fun updateElderlyMode(enabled: Boolean): UserSettings = safeApiCall(json) {
+        userApi.updateSettings(UpdateSettingsBody(elderly_mode = enabled))
+    }
+
+    suspend fun updateElderlyInterval(min: Int): UserSettings = safeApiCall(json) {
+        userApi.updateSettings(UpdateSettingsBody(elderly_checkin_interval_min = min))
+    }
+
     suspend fun toggleAiChat(current: Boolean) = safeApiCall(json) {
         userApi.updateConsent(UpdateConsentBody(allow_ai_chat = !current))
     }

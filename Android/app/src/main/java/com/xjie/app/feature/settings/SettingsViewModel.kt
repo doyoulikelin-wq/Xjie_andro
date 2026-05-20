@@ -49,6 +49,12 @@ class SettingsViewModel @Inject constructor(
 
     fun updateLevel(level: String) = launchOp { _state.update { it.copy(settings = repo.updateLevel(level)) } }
     fun updateGlucoseUnit(u: GlucoseUnit) = launchOp { _state.update { st -> st.copy(settings = repo.updateGlucoseUnit(u)) }; load() }
+    fun updateElderlyMode(enabled: Boolean) = launchOp {
+        _state.update { st -> st.copy(settings = repo.updateElderlyMode(enabled)) }
+    }
+    fun updateElderlyInterval(min: Int) = launchOp {
+        _state.update { st -> st.copy(settings = repo.updateElderlyInterval(min)) }
+    }
     fun toggleAiChat() = launchOp { repo.toggleAiChat(state.value.user?.consent?.allow_ai_chat ?: false); load() }
     fun toggleDataUpload() = launchOp { repo.toggleDataUpload(state.value.user?.consent?.allow_data_upload ?: false); load() }
     fun toggleOmicsDemo(v: Boolean) = viewModelScope.launch { repo.setOmicsDemo(v) }

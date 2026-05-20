@@ -7,12 +7,16 @@ data class UserSettings(
     val intervention_level: String? = null,
     val daily_reminder_limit: Int? = null,
     val glucose_unit: String? = null,
+    val elderly_mode: Boolean = false,
+    val elderly_checkin_interval_min: Int = 180,
 )
 
 @Serializable
 data class UpdateSettingsBody(
     val intervention_level: String? = null,
     val glucose_unit: String? = null,
+    val elderly_mode: Boolean? = null,
+    val elderly_checkin_interval_min: Int? = null,
 )
 
 @Serializable
