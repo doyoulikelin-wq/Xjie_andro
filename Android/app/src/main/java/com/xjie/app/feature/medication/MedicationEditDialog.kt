@@ -1,39 +1,21 @@
 package com.xjie.app.feature.medication
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.chinese.ChineseTextRecognizerOptions
 import com.xjie.app.core.model.Medication
 import com.xjie.app.core.model.MedicationBody
-import java.io.File
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,8 +25,6 @@ fun MedicationEditDialog(
     vm: MedicationViewModel,
 ) {
     val state by vm.state.collectAsState()
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
     var name by remember(editing) { mutableStateOf(editing?.name.orEmpty()) }
     var dosage by remember(editing) { mutableStateOf(editing?.dosage.orEmpty()) }
@@ -56,84 +36,6 @@ fun MedicationEditDialog(
     var courseStart by remember(editing) { mutableStateOf(editing?.course_start.orEmpty()) }
     var courseEnd by remember(editing) { mutableStateOf(editing?.course_end.orEmpty()) }
     var enabled by remember(editing) { mutableStateOf(editing?.enabled ?: true) }
-
-    var ocrBanner by remember { mutableStateOf<String?>(null) }
-    var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
-
-    // Auto-fill empty fields after recognize success
-    LaunchedEffect(state.recognized) {
-        state.recognized?.let { r ->
-            if (name.isBlank()) r.name?.let { name = it }
-            if (dosage.isBlank()) r.dosage?.let { dosage = it }
-            if (frequency.isBlank()) r.frequency?.let { frequency = it }
-            if (instructions.isBlank()) r.instructions?.let { instructions = it }
-            if (times.isEmpty() && r.schedule_times.isNotEmpty()) {
-                times = r.schedule_times.toMutableList()
-            }
-            ocrBanner = "已自动填充，请核对"
-        }
-    }
-    LaunchedEffect(state.recognizeError) {
-        state.recognizeError?.let { ocrBanner = "结构化失败：$it" }
-    }
-
-    fun runOcrOnUri(uri: Uri) {
-        scope.launch {
-            runCatching {
-                val image = InputImage.fromFilePath(context, uri)
-                val recognizer = TextRecognition.getClient(
-                    ChineseTextRecognizerOptions.Builder().build()
-                )
-                val result = kotlinx.coroutines.suspendCancellableCoroutine<String?> { cont ->
-                    recognizer.process(image)
-                        .addOnSuccessListener { t -> cont.resume(t.text, null) }
-                        .addOnFailureListener { cont.resume(null, null) }
-                }
-                result
-            }.onSuccess { txt ->
-                if (txt.isNullOrBlank()) {
-                    ocrBanner = "未识别到文字，请重新拍摄或手动填写"
-                } else {
-                    vm.recognize(txt)
-                }
-            }.onFailure {
-                ocrBanner = "图片处理失败：${it.message ?: "未知错误"}"
-            }
-        }
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetContent(),
-    ) { uri -> uri?.let { runOcrOnUri(it) } }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture(),
-    ) { success ->
-        val uri = pendingCameraUri
-        pendingCameraUri = null
-        if (success && uri != null) runOcrOnUri(uri)
-    }
-
-    fun launchCamera() {
-        val dir = File(context.cacheDir, "med_photos").apply { mkdirs() }
-        val file = File(dir, "med_${System.currentTimeMillis()}.jpg")
-        val uri = FileProvider.getUriForFile(
-            context, "${context.packageName}.fileprovider", file,
-        )
-        pendingCameraUri = uri
-        cameraLauncher.launch(uri)
-    }
-
-    val cameraPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted -> if (granted) launchCamera() else ocrBanner = "需要相机权限才能拍照识别" }
-
-    fun onPickCamera() {
-        val granted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.CAMERA,
-        ) == PackageManager.PERMISSION_GRANTED
-        if (granted) launchCamera() else cameraPermission.launch(Manifest.permission.CAMERA)
-    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -159,37 +61,6 @@ fun MedicationEditDialog(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
-                            onClick = { onPickCamera() },
-                            modifier = Modifier.weight(1f),
-                            enabled = !state.recognizing,
-                        ) {
-                            Icon(Icons.Filled.CameraAlt, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("拍照识别")
-                        }
-                        OutlinedButton(
-                            onClick = { galleryLauncher.launch("image/*") },
-                            modifier = Modifier.weight(1f),
-                            enabled = !state.recognizing,
-                        ) {
-                            Icon(Icons.Filled.PhotoLibrary, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("从相册选择")
-                        }
-                    }
-                    if (state.recognizing) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                            Text("正在识别…", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                    ocrBanner?.let {
-                        AssistChip(onClick = { ocrBanner = null }, label = { Text(it) })
-                    }
-
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },

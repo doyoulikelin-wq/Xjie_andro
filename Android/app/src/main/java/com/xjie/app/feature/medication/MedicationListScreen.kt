@@ -86,7 +86,7 @@ fun MedicationListScreen(
     if (showEditor) {
         MedicationEditDialog(
             editing = editing,
-            onDismiss = { showEditor = false; vm.clearRecognized() },
+            onDismiss = { showEditor = false },
             vm = vm,
         )
     }

@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.model.Medication
 import com.xjie.app.core.model.MedicationBody
-import com.xjie.app.core.model.MedicationRecognizeResult
 import com.xjie.app.core.network.ApiException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,10 +16,7 @@ import javax.inject.Inject
 data class MedicationUiState(
     val loading: Boolean = false,
     val saving: Boolean = false,
-    val recognizing: Boolean = false,
     val items: List<Medication> = emptyList(),
-    val recognized: MedicationRecognizeResult? = null,
-    val recognizeError: String? = null,
     val error: String? = null,
     val message: String? = null,
 )
@@ -73,22 +69,10 @@ class MedicationViewModel @Inject constructor(
     }
 
     fun recognize(rawText: String) = viewModelScope.launch {
-        _state.update { it.copy(recognizing = true, recognized = null, recognizeError = null) }
-        runCatching { repo.recognize(rawText) }
-            .onSuccess { r -> _state.update { it.copy(recognizing = false, recognized = r) } }
-            .onFailure { e ->
-                _state.update {
-                    it.copy(
-                        recognizing = false,
-                        recognizeError = (e as? ApiException)?.message ?: e.message,
-                    )
-                }
-            }
+        // 已废弃：拍照识别功能已移除。
     }
 
-    fun clearRecognized() = _state.update {
-        it.copy(recognized = null, recognizeError = null)
-    }
+    fun clearRecognized() = Unit
     fun clearError() = _state.update { it.copy(error = null) }
     fun clearMessage() = _state.update { it.copy(message = null) }
 
