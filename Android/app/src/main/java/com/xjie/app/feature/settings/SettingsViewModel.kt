@@ -47,6 +47,10 @@ class SettingsViewModel @Inject constructor(
         val u = repo.me()
         val s = repo.settings()
         _state.update { it.copy(loading = false, user = u, settings = s) }
+        // 启动 / 进入设置页时按当前设置重新调度关怀提醒，避免重启后失效
+        if (s != null) {
+            scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
+        }
     }
 
     fun updateLevel(level: String) = launchOp { _state.update { it.copy(settings = repo.updateLevel(level)) } }

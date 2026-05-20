@@ -51,6 +51,8 @@ fun MedicationListScreen(
                     }
                 },
                 actions = {
+                    TextButton(onClick = { vm.fireTestNotification() }) { Text("测试通知") }
+                    TextButton(onClick = { vm.scheduleTestAlarm() }) { Text("10s闹钟") }
                     IconButton(onClick = { editing = null; showEditor = true }) {
                         Icon(Icons.Filled.Add, "新增")
                     }

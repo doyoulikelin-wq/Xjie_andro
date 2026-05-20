@@ -91,4 +91,14 @@ class MedicationViewModel @Inject constructor(
     }
     fun clearError() = _state.update { it.copy(error = null) }
     fun clearMessage() = _state.update { it.copy(message = null) }
+
+    fun fireTestNotification() {
+        scheduler.fireTestNotification()
+        _state.update { it.copy(message = "已发送测试通知，请下拉通知中心查看。若没看到，请到系统设置打开 Xjie 的通知权限。") }
+    }
+
+    fun scheduleTestAlarm() {
+        scheduler.scheduleTestAlarm(10)
+        _state.update { it.copy(message = "已安排 10 秒后的测试闹钟，请保持手机点亮等待。") }
+    }
 }
