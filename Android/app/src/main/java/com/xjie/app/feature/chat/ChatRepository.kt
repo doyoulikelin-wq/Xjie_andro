@@ -31,8 +31,16 @@ class ChatRepository @Inject constructor(
         }
     }
 
-    suspend fun send(message: String, threadId: String?): ChatResponse =
-        safeApiCall(json) { chatApi.chat(ChatRequest(message = message, thread_id = threadId)) }
+    suspend fun send(message: String, threadId: String?, clientMessageId: String): ChatResponse =
+        safeApiCall(json) {
+            chatApi.chat(
+                ChatRequest(
+                    message = message,
+                    thread_id = threadId,
+                    client_message_id = clientMessageId,
+                )
+            )
+        }
 
     suspend fun enableAiChat() =
         safeApiCall(json) { userApi.updateConsent(UpdateConsentBody(allow_ai_chat = true)) }

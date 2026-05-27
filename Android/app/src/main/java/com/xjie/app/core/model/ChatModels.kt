@@ -39,6 +39,7 @@ data class ChatMessage(
 data class ChatRequest(
     val message: String,
     val thread_id: String? = null,
+    val client_message_id: String? = null,
 )
 
 @Serializable

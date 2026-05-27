@@ -139,7 +139,7 @@ fun ChatScreen(
                 item { WelcomeMessage(onOpenPatientHistory = onOpenPatientHistory) }
             }
             items(state.messages, key = { it.id }) { msg ->
-                MessageBubble(msg, onFollowup = vm::useFollowup)
+                MessageBubble(msg, onFollowup = vm::useFollowup, onRetry = vm::retry)
             }
             if (state.sending) {
                 item { ThinkingIndicator(hint = state.thinkingHint) }
@@ -218,7 +218,11 @@ private fun WelcomeMessage(onOpenPatientHistory: () -> Unit) {
 }
 
 @Composable
-private fun MessageBubble(msg: ChatMessageItem, onFollowup: (String) -> Unit) {
+private fun MessageBubble(
+    msg: ChatMessageItem,
+    onFollowup: (String) -> Unit,
+    onRetry: (String) -> Unit,
+) {
     val isUser = msg.role == "user"
     Row(
         Modifier.fillMaxWidth(),
@@ -237,6 +241,30 @@ private fun MessageBubble(msg: ChatMessageItem, onFollowup: (String) -> Unit) {
         ) {
             if (isUser) {
                 Text(msg.content, color = MaterialTheme.colorScheme.onPrimary)
+                msg.status?.let { status ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            status.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.78f),
+                        )
+                        if (status == ChatDeliveryStatus.Failed) {
+                            TextButton(
+                                onClick = { onRetry(msg.id) },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(
+                                    "重试",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                )
+                            }
+                        }
+                    }
+                }
             } else {
                 MarkdownText(msg.content)
                 msg.analysis?.takeIf { it.isNotBlank() }?.let { a ->

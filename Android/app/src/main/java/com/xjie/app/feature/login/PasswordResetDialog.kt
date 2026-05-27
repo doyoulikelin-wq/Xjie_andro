@@ -16,6 +16,8 @@ import com.xjie.app.core.model.PasswordResetRequestBody
 import com.xjie.app.core.network.api.AuthApi
 import com.xjie.app.core.network.safeApiCall
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,6 +31,7 @@ data class PasswordResetUiState(
     val code: String = "",
     val newPassword: String = "",
     val codeSent: Boolean = false,
+    val cooldownRemaining: Int = 0,
     val sending: Boolean = false,
     val confirming: Boolean = false,
     val message: String? = null,
@@ -42,20 +45,36 @@ class PasswordResetViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(PasswordResetUiState())
     val state: StateFlow<PasswordResetUiState> = _state.asStateFlow()
+    private var cooldownJob: Job? = null
 
     fun setPhone(v: String) = _state.update { it.copy(phone = v.filter { c -> c.isDigit() }.take(11)) }
     fun setCode(v: String) = _state.update { it.copy(code = v.filter { c -> c.isDigit() }.take(8)) }
     fun setNewPassword(v: String) = _state.update { it.copy(newPassword = v.take(64)) }
     fun clearMessage() = _state.update { it.copy(message = null) }
-    fun reset() = _state.update { PasswordResetUiState() }
+    fun reset() {
+        cooldownJob?.cancel()
+        cooldownJob = null
+        _state.update { PasswordResetUiState() }
+    }
 
     fun requestCode() = viewModelScope.launch {
         val phone = _state.value.phone
         if (phone.length < 11) { _state.update { it.copy(message = "请输入正确的手机号") }; return@launch }
+        if (_state.value.cooldownRemaining > 0) {
+            _state.update { it.copy(message = "验证码已发送，请 ${it.cooldownRemaining} 秒后再试") }
+            return@launch
+        }
         _state.update { it.copy(sending = true, message = null) }
         runCatching { safeApiCall(json) { authApi.requestPasswordReset(PasswordResetRequestBody(phone)) } }
-            .onSuccess {
-                _state.update { it.copy(sending = false, codeSent = true, message = "验证码已发送（开发模式：见后端日志）") }
+            .onSuccess { result ->
+                _state.update {
+                    it.copy(
+                        sending = false,
+                        codeSent = true,
+                        message = result.message ?: "验证码已发送，请留意短信或后端日志",
+                    )
+                }
+                startCooldown()
             }
             .onFailure { e -> _state.update { it.copy(sending = false, message = e.message ?: "发送失败") } }
     }
@@ -75,6 +94,25 @@ class PasswordResetViewModel @Inject constructor(
         }.onFailure { e ->
             _state.update { it.copy(confirming = false, message = e.message ?: "重置失败") }
         }
+    }
+
+    private fun startCooldown(seconds: Int = 60) {
+        cooldownJob?.cancel()
+        _state.update { it.copy(cooldownRemaining = seconds) }
+        cooldownJob = viewModelScope.launch {
+            while (_state.value.cooldownRemaining > 0) {
+                delay(1000)
+                _state.update { state ->
+                    state.copy(cooldownRemaining = (state.cooldownRemaining - 1).coerceAtLeast(0))
+                }
+            }
+            cooldownJob = null
+        }
+    }
+
+    override fun onCleared() {
+        cooldownJob?.cancel()
+        super.onCleared()
     }
 }
 
@@ -110,8 +148,17 @@ fun PasswordResetDialog(
                     )
                     TextButton(
                         onClick = { vm.requestCode() },
-                        enabled = !state.sending && state.phone.length == 11,
-                    ) { Text(if (state.sending) "发送中" else if (state.codeSent) "重新发送" else "获取验证码") }
+                        enabled = !state.sending && state.phone.length == 11 && state.cooldownRemaining == 0,
+                    ) {
+                        Text(
+                            when {
+                                state.sending -> "发送中"
+                                state.cooldownRemaining > 0 -> "${state.cooldownRemaining}s"
+                                state.codeSent -> "重新发送"
+                                else -> "获取验证码"
+                            }
+                        )
+                    }
                 }
                 OutlinedTextField(
                     value = state.newPassword,

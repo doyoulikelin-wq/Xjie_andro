@@ -13,16 +13,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
+enum class ChatDeliveryStatus(val label: String) {
+    Sending("发送中"),
+    Sent("已发送"),
+    Failed("发送失败，可重试"),
+}
+
 data class ChatMessageItem(
-    val id: Long,
+    val id: String,
     val role: String,           // user | assistant
     val content: String,
     val analysis: String? = null,
     val confidence: Double? = null,
     val followups: List<String>? = null,
     val citations: List<Citation> = emptyList(),
+    val status: ChatDeliveryStatus? = null,
+    val retryText: String? = null,
 )
 
 data class ChatUiState(
@@ -55,7 +64,6 @@ class ChatViewModel @Inject constructor(
 
     private var savedMessages: List<ChatMessageItem> = emptyList()
     private var savedThreadId: String? = null
-    private var nextId = 1L
     private val pageSize = 20
     private var thinkingJob: Job? = null
 
@@ -117,15 +125,15 @@ class ChatViewModel @Inject constructor(
                 }
                 _state.update {
                     it.copy(
-                        messages = msgs.map { m ->
+                        messages = dedupeMessages(msgs.map { m ->
                             ChatMessageItem(
-                                id = nextId++,
+                                id = "server-${m.id}",
                                 role = m.role,
                                 content = m.content,
                                 analysis = m.analysis,
                                 citations = m.citations,
                             )
-                        },
+                        }),
                         threadId = id,
                         isViewingHistory = true,
                         showHistory = false,
@@ -150,8 +158,15 @@ class ChatViewModel @Inject constructor(
     fun newChat() {
         savedMessages = emptyList()
         savedThreadId = null
+        stopThinkingTicker()
         _state.update {
-            it.copy(messages = emptyList(), threadId = null, isViewingHistory = false)
+            it.copy(
+                messages = emptyList(),
+                threadId = null,
+                isViewingHistory = false,
+                sending = false,
+                thinkingHint = "",
+            )
         }
     }
 
@@ -159,16 +174,47 @@ class ChatViewModel @Inject constructor(
         val cur = _state.value
         val msg = cur.input.trim()
         if (msg.isEmpty() || cur.sending) return@launch
+        sendMessage(msg, UUID.randomUUID().toString(), existingUserMessageId = null)
+    }
 
+    fun retry(id: String) = viewModelScope.launch {
+        val cur = _state.value
+        val item = cur.messages.firstOrNull { it.id == id && it.status == ChatDeliveryStatus.Failed }
+            ?: return@launch
+        if (cur.sending) return@launch
+        sendMessage(item.retryText ?: item.content, id, existingUserMessageId = id)
+    }
+
+    private suspend fun sendMessage(
+        msg: String,
+        clientMessageId: String,
+        existingUserMessageId: String?,
+    ) {
+        val cur = _state.value
         if (cur.isViewingHistory) {
             savedMessages = emptyList()
             savedThreadId = null
         }
 
-        val userItem = ChatMessageItem(id = nextId++, role = "user", content = msg)
+        val userItem = ChatMessageItem(
+            id = clientMessageId,
+            role = "user",
+            content = msg,
+            status = ChatDeliveryStatus.Sending,
+            retryText = msg,
+        )
         _state.update {
+            val updatedMessages = if (existingUserMessageId != null) {
+                it.messages.map { item ->
+                    if (item.id == existingUserMessageId) {
+                        item.copy(status = ChatDeliveryStatus.Sending, retryText = item.retryText ?: item.content)
+                    } else item
+                }
+            } else {
+                it.messages + userItem
+            }
             it.copy(
-                messages = it.messages + userItem,
+                messages = updatedMessages,
                 input = "",
                 sending = true,
                 isViewingHistory = false,
@@ -179,18 +225,18 @@ class ChatViewModel @Inject constructor(
 
         try {
             val res = try {
-                repo.send(msg, _state.value.threadId)
+                repo.send(msg, _state.value.threadId, clientMessageId)
             } catch (e: ApiException.HttpError) {
                 if (e.code == 403) {
                     runCatching { repo.enableAiChat() }
-                    repo.send(msg, _state.value.threadId)
+                    repo.send(msg, _state.value.threadId, clientMessageId)
                 } else throw e
             }
 
             val rawContent = res.summary ?: res.answer_markdown ?: "..."
             val content = cleanContent(rawContent)
             val assistantItem = ChatMessageItem(
-                id = nextId++,
+                id = "assistant-${UUID.randomUUID()}",
                 role = "assistant",
                 content = content,
                 analysis = res.analysis,
@@ -201,7 +247,9 @@ class ChatViewModel @Inject constructor(
             stopThinkingTicker()
             _state.update {
                 it.copy(
-                    messages = it.messages + assistantItem,
+                    messages = dedupeMessages(
+                        markUserMessage(it.messages, clientMessageId, ChatDeliveryStatus.Sent) + assistantItem
+                    ),
                     threadId = res.thread_id ?: it.threadId,
                     sending = false,
                     thinkingHint = "",
@@ -209,14 +257,16 @@ class ChatViewModel @Inject constructor(
             }
         } catch (e: Exception) {
             val errItem = ChatMessageItem(
-                id = nextId++,
+                id = "error-${UUID.randomUUID()}",
                 role = "assistant",
                 content = "请求失败: ${e.message ?: "未知错误"}",
             )
             stopThinkingTicker()
             _state.update {
                 it.copy(
-                    messages = it.messages + errItem,
+                    messages = dedupeMessages(
+                        markUserMessage(it.messages, clientMessageId, ChatDeliveryStatus.Failed) + errItem
+                    ),
                     sending = false,
                     error = e.message,
                     thinkingHint = "",
@@ -224,6 +274,16 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+
+    private fun markUserMessage(
+        messages: List<ChatMessageItem>,
+        id: String,
+        status: ChatDeliveryStatus,
+    ): List<ChatMessageItem> =
+        messages.map { item ->
+            if (item.id == id) item.copy(status = status, retryText = item.retryText ?: item.content)
+            else item
+        }
 
     private fun startThinkingTicker() {
         thinkingJob?.cancel()
@@ -269,6 +329,26 @@ class ChatViewModel @Inject constructor(
         val obj = (el as? kotlinx.serialization.json.JsonObject) ?: return null
         val v = obj["summary"] as? kotlinx.serialization.json.JsonPrimitive ?: return null
         return v.contentOrNull
+    }
+
+    private fun dedupeMessages(items: List<ChatMessageItem>): List<ChatMessageItem> {
+        val seenIds = mutableSetOf<String>()
+        val result = mutableListOf<ChatMessageItem>()
+        for (item in items) {
+            if (!seenIds.add(item.id)) continue
+            val last = result.lastOrNull()
+            if (
+                last != null &&
+                last.status == null &&
+                item.status == null &&
+                last.role == item.role &&
+                last.content.trim() == item.content.trim()
+            ) {
+                continue
+            }
+            result += item
+        }
+        return result
     }
 }
 
