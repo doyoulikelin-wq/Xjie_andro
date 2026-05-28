@@ -10,6 +10,7 @@ import com.xjie.app.core.network.api.ElderlyApi
 import com.xjie.app.core.network.api.FeatureFlagsApi
 import com.xjie.app.core.network.api.GlucoseApi
 import com.xjie.app.core.network.api.HealthDataApi
+import com.xjie.app.core.network.api.HealthPlanApi
 import com.xjie.app.core.network.api.IndicatorExtraApi
 import com.xjie.app.core.network.api.HealthReportsApi
 import com.xjie.app.core.network.api.LiteratureApi
@@ -38,6 +39,7 @@ object ApiModule {
     @Provides @Singleton fun chatApi(@LlmClient r: Retrofit): ChatApi = r.create(ChatApi::class.java)
     @Provides @Singleton fun moodApi(r: Retrofit): MoodApi = r.create(MoodApi::class.java)
     @Provides @Singleton fun healthDataApi(r: Retrofit): HealthDataApi = r.create(HealthDataApi::class.java)
+    @Provides @Singleton fun healthPlanApi(r: Retrofit): HealthPlanApi = r.create(HealthPlanApi::class.java)
     @Provides @Singleton fun healthReportsApi(r: Retrofit): HealthReportsApi = r.create(HealthReportsApi::class.java)
     @Provides @Singleton fun omicsApi(r: Retrofit): OmicsApi = r.create(OmicsApi::class.java)
     @Provides @Singleton fun literatureApi(r: Retrofit): LiteratureApi = r.create(LiteratureApi::class.java)

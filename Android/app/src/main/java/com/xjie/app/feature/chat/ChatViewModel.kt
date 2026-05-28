@@ -45,6 +45,8 @@ data class ChatUiState(
     val isViewingHistory: Boolean = false,
     val error: String? = null,
     val thinkingHint: String = "",
+    val planSavingMessageId: String? = null,
+    val savedPlanMessageIds: Set<String> = emptySet(),
 )
 
 private val THINKING_HINTS = listOf(
@@ -309,6 +311,35 @@ class ChatViewModel @Inject constructor(
         setInput(q)
     }
 
+    fun shouldOfferSavePlan(msg: ChatMessageItem): Boolean {
+        if (msg.role != "assistant") return false
+        if (_state.value.savedPlanMessageIds.contains(msg.id)) return false
+        return looksLikeHealthPlan("${msg.content}\n${msg.analysis.orEmpty()}")
+    }
+
+    fun saveAsHealthPlan(msg: ChatMessageItem) = viewModelScope.launch {
+        if (!shouldOfferSavePlan(msg) || _state.value.planSavingMessageId != null) return@launch
+        _state.update { it.copy(planSavingMessageId = msg.id) }
+        runCatching {
+            repo.savePlanFromChat(
+                content = msg.content,
+                analysis = msg.analysis,
+                conversationId = _state.value.threadId,
+                messageId = msg.id,
+            )
+        }.onSuccess {
+            _state.update {
+                it.copy(
+                    planSavingMessageId = null,
+                    savedPlanMessageIds = it.savedPlanMessageIds + msg.id,
+                    error = "已保存为健康计划，可在「计划」页查看。",
+                )
+            }
+        }.onFailure { e ->
+            _state.update { it.copy(planSavingMessageId = null, error = e.message) }
+        }
+    }
+
     private fun cleanContent(text: String): String {
         var s = text.trim()
         // Extract summary from raw JSON
@@ -350,6 +381,13 @@ class ChatViewModel @Inject constructor(
         }
         return result
     }
+}
+
+private fun looksLikeHealthPlan(text: String): Boolean {
+    val planWords = listOf("计划", "方案", "安排", "周期", "一周", "7天", "每日", "每天")
+    val healthWords = listOf("饮食", "运动", "康复", "用药", "服药", "控糖", "血糖", "热量", "恢复")
+    return planWords.any { text.contains(it, ignoreCase = true) } &&
+        healthWords.any { text.contains(it, ignoreCase = true) }
 }
 
 private val kotlinx.serialization.json.JsonPrimitive.contentOrNull: String?

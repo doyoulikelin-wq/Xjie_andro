@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -38,6 +39,7 @@ private data class TabItem(val route: Route, val label: String, val icon: ImageV
 private val tabs = listOf(
     TabItem(Route.Home, "首页", Icons.Default.Home),
     TabItem(Route.HealthData, "健康数据", Icons.Default.Favorite),
+    TabItem(Route.HealthPlan, "计划", Icons.Default.Assignment),
     TabItem(Route.Omics, "多组学", Icons.Default.Hub),
     TabItem(Route.Chat, "助手小捷", Icons.AutoMirrored.Filled.Chat),
 )
@@ -147,6 +149,9 @@ fun MainScaffold(
                         onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
                     )
+                }
+                composable(Route.HealthPlan.path) {
+                    com.xjie.app.feature.healthplan.HealthPlanScreen()
                 }
                 composable(
                     Route.HealthDataFocus.PATTERN,

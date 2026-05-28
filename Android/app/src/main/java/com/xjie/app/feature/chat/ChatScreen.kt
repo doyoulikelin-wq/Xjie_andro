@@ -28,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -139,7 +140,14 @@ fun ChatScreen(
                 item { WelcomeMessage(onOpenPatientHistory = onOpenPatientHistory) }
             }
             items(state.messages, key = { it.id }) { msg ->
-                MessageBubble(msg, onFollowup = vm::useFollowup, onRetry = vm::retry)
+                MessageBubble(
+                    msg = msg,
+                    onFollowup = vm::useFollowup,
+                    onRetry = vm::retry,
+                    showSavePlan = vm.shouldOfferSavePlan(msg),
+                    savingPlan = state.planSavingMessageId == msg.id,
+                    onSavePlan = { vm.saveAsHealthPlan(msg) },
+                )
             }
             if (state.sending) {
                 item { ThinkingIndicator(hint = state.thinkingHint) }
@@ -222,6 +230,9 @@ private fun MessageBubble(
     msg: ChatMessageItem,
     onFollowup: (String) -> Unit,
     onRetry: (String) -> Unit,
+    showSavePlan: Boolean,
+    savingPlan: Boolean,
+    onSavePlan: () -> Unit,
 ) {
     val isUser = msg.role == "user"
     Row(
@@ -303,6 +314,21 @@ private fun MessageBubble(
                     Text("置信度 ${(c * 100).toInt()}%",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                if (showSavePlan) {
+                    OutlinedButton(
+                        onClick = onSavePlan,
+                        enabled = !savingPlan,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (savingPlan) {
+                            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp)
+                        } else {
+                            Icon(Icons.Filled.Assignment, null, modifier = Modifier.size(15.dp))
+                        }
+                        Spacer(Modifier.width(6.dp))
+                        Text(if (savingPlan) "保存中..." else "保存为健康计划")
+                    }
                 }
             }
         }

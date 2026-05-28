@@ -169,6 +169,120 @@ data class WatchedIndicatorItem(
 data class WatchedListResponse(val items: List<WatchedIndicatorItem>)
 
 @Serializable
+data class HealthPlanListResponse(
+    val items: List<HealthPlan> = emptyList(),
+)
+
+@Serializable
+data class HealthPlan(
+    val id: String,
+    val title: String,
+    val goal: String? = null,
+    val background: String? = null,
+    val start_date: String,
+    val end_date: String,
+    val status: String,
+    val source_conversation_id: String? = null,
+    val source_message_id: String? = null,
+    val created_by: String,
+    val created_at: String,
+    val updated_at: String,
+    val task_count: Int = 0,
+    val completed_task_count: Int = 0,
+)
+
+@Serializable
+data class HealthPlanDetail(
+    val id: String,
+    val title: String,
+    val goal: String? = null,
+    val background: String? = null,
+    val start_date: String,
+    val end_date: String,
+    val status: String,
+    val source_conversation_id: String? = null,
+    val source_message_id: String? = null,
+    val created_by: String,
+    val created_at: String,
+    val updated_at: String,
+    val task_count: Int = 0,
+    val completed_task_count: Int = 0,
+    val raw_content: String? = null,
+    val tasks: List<PlanTask> = emptyList(),
+)
+
+@Serializable
+data class PlanTask(
+    val id: String,
+    val plan_id: String? = null,
+    val date: String,
+    val task_type: String,
+    val title: String,
+    val description: String? = null,
+    val status: String,
+    val target_count: Int,
+    val completed_count: Int,
+    val target_value: Double? = null,
+    val completed_value: Double? = null,
+    val unit: String? = null,
+    val reminder_time: String? = null,
+    val source_type: String,
+    val source_ref: String,
+)
+
+@Serializable
+data class HealthPlanFromChatRequest(
+    val content: String,
+    val analysis: String? = null,
+    val conversation_id: String? = null,
+    val message_id: String? = null,
+    val title: String? = null,
+)
+
+@Serializable
+data class TubeWeek(
+    val week_start: String,
+    val week_end: String,
+    val today: String,
+    val days: List<TubeDay> = emptyList(),
+)
+
+@Serializable
+data class TubeDay(
+    val date: String,
+    val weekday: Int,
+    val is_today: Boolean,
+    val is_future: Boolean,
+    val completion_ratio: Double,
+    val tasks: List<TubeTaskProgress> = emptyList(),
+)
+
+@Serializable
+data class TubeTaskProgress(
+    val task_type: String,
+    val label: String,
+    val completed: Int,
+    val target: Int,
+    val completed_value: Double? = null,
+    val target_value: Double? = null,
+    val unit: String? = null,
+    val ratio: Double,
+)
+
+@Serializable
+data class TubeCompleteRequest(
+    val date: String,
+    val task_type: String,
+    val amount: Int = 1,
+    val value: Double? = null,
+)
+
+@Serializable
+data class TubeCompleteResponse(
+    val day: TubeDay,
+)
+
+@Serializable
 data class PatientHistoryField(
     val value: String = "",
     val date_label: String? = null,

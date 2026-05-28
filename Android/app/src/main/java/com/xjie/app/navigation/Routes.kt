@@ -11,6 +11,7 @@ sealed class Route(val path: String) {
     data object Glucose : Route("glucose")
     data object Meals : Route("meals")
     data object Health : Route("health")
+    data object HealthPlan : Route("health_plan")
 
     // 二级页面
     data object Settings : Route("settings")

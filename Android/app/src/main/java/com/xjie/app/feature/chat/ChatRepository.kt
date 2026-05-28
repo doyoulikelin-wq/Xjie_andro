@@ -4,8 +4,11 @@ import com.xjie.app.core.model.ChatConversation
 import com.xjie.app.core.model.ChatMessage
 import com.xjie.app.core.model.ChatRequest
 import com.xjie.app.core.model.ChatResponse
+import com.xjie.app.core.model.HealthPlanDetail
+import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.UpdateConsentBody
 import com.xjie.app.core.network.api.ChatApi
+import com.xjie.app.core.network.api.HealthPlanApi
 import com.xjie.app.core.network.api.UserApi
 import com.xjie.app.core.network.safeApiCall
 import kotlinx.serialization.json.Json
@@ -15,6 +18,7 @@ import javax.inject.Singleton
 @Singleton
 class ChatRepository @Inject constructor(
     private val chatApi: ChatApi,
+    private val healthPlanApi: HealthPlanApi,
     private val userApi: UserApi,
     private val json: Json,
 ) {
@@ -44,4 +48,22 @@ class ChatRepository @Inject constructor(
 
     suspend fun enableAiChat() =
         safeApiCall(json) { userApi.updateConsent(UpdateConsentBody(allow_ai_chat = true)) }
+
+    suspend fun savePlanFromChat(
+        content: String,
+        analysis: String?,
+        conversationId: String?,
+        messageId: String,
+    ): HealthPlanDetail =
+        safeApiCall(json) {
+            healthPlanApi.createFromChat(
+                HealthPlanFromChatRequest(
+                    content = content,
+                    analysis = analysis,
+                    conversation_id = conversationId,
+                    message_id = messageId,
+                    title = null,
+                )
+            )
+        }
 }
