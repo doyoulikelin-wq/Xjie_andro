@@ -3,6 +3,7 @@ package com.xjie.app.core.network.api
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanListResponse
+import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.TubeCompleteRequest
 import com.xjie.app.core.model.TubeCompleteResponse
 import com.xjie.app.core.model.TubeWeek
@@ -21,6 +22,9 @@ interface HealthPlanApi {
 
     @GET("api/health-plans/week")
     suspend fun week(@Query("week_start") weekStart: String): TubeWeek
+
+    @GET("api/health-plans/tree-summary")
+    suspend fun treeSummary(): HealthTreeSummary
 
     @POST("api/health-plans/from-chat")
     suspend fun createFromChat(@Body body: HealthPlanFromChatRequest): HealthPlanDetail

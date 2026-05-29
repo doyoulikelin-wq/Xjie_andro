@@ -179,6 +179,12 @@ class ChatViewModel @Inject constructor(
         sendMessage(msg, UUID.randomUUID().toString(), existingUserMessageId = null)
     }
 
+    fun startPlanConversation(prompt: String) = viewModelScope.launch {
+        if (prompt.isBlank() || _state.value.sending) return@launch
+        newChat()
+        sendMessage(prompt.trim(), UUID.randomUUID().toString(), existingUserMessageId = null)
+    }
+
     fun retry(id: String) = viewModelScope.launch {
         val cur = _state.value
         val item = cur.messages.firstOrNull { it.id == id && it.status == ChatDeliveryStatus.Failed }

@@ -51,6 +51,8 @@ import com.xjie.app.core.ui.theme.cardStyle
 fun ChatScreen(
     onBack: (() -> Unit)? = null,
     onOpenPatientHistory: () -> Unit = {},
+    initialPrompt: String? = null,
+    onInitialPromptConsumed: () -> Unit = {},
     vm: ChatViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -59,6 +61,13 @@ fun ChatScreen(
     val focus = LocalFocusManager.current
 
     LaunchedEffect(Unit) { vm.loadConversations() }
+    LaunchedEffect(initialPrompt) {
+        val prompt = initialPrompt?.trim()
+        if (!prompt.isNullOrEmpty()) {
+            vm.startPlanConversation(prompt)
+            onInitialPromptConsumed()
+        }
+    }
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
             listState.animateScrollToItem(state.messages.size - 1)

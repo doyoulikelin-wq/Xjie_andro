@@ -72,6 +72,7 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HealthPlanScreen(
+    onGeneratePlan: () -> Unit = {},
     vm: HealthPlanViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -108,12 +109,14 @@ fun HealthPlanScreen(
                     onThisWeek = vm::backToThisWeek,
                     onComplete = vm::completeToday,
                     onEffectFinished = vm::clearCompletionEffect,
+                    onGeneratePlan = onGeneratePlan,
                 )
             }
             PlanOverviewCard(
                 plans = state.plans,
                 selectedId = state.selectedPlan?.id,
                 onSelect = vm::selectPlan,
+                onGeneratePlan = onGeneratePlan,
             )
             PlanDetailCard(plan = state.selectedPlan)
             if (state.plans.isEmpty() && !state.loading) {
@@ -131,8 +134,6 @@ fun HealthPlanScreen(
     }
 }
 
-private val healthTreeTaskTypes = listOf("exercise", "medication", "diet")
-
 @Composable
 private fun HealthTreeWeekCard(
     week: TubeWeek,
@@ -144,15 +145,25 @@ private fun HealthTreeWeekCard(
     onThisWeek: () -> Unit,
     onComplete: (String) -> Unit,
     onEffectFinished: () -> Unit,
+    onGeneratePlan: () -> Unit,
 ) {
     var dragX by remember { mutableStateOf(0f) }
     var selectedDate by remember(week.week_start) { mutableStateOf<String?>(null) }
+    var showMedicationNeed by remember(week.week_start) { mutableStateOf(week.has_medication_need) }
+    var showPlanDialog by remember { mutableStateOf(false) }
     val today = week.days.firstOrNull { it.is_today }
     val activeDay = selectedDate
         ?.let { date -> week.days.firstOrNull { it.date == date } }
         ?: today
         ?: week.days.firstOrNull()
-    val activeRatio = activeDay?.completion_ratio ?: 0.0
+    val activeTasks = activeDay?.tasks
+        ?.filter { showMedicationNeed || it.task_type != "medication" }
+        .orEmpty()
+    val activeRatio = if (activeDay?.is_future == true || activeTasks.isEmpty()) {
+        0.0
+    } else {
+        activeTasks.sumOf { it.ratio } / activeTasks.size
+    }
 
     Column(
         Modifier
@@ -222,11 +233,39 @@ private fun HealthTreeWeekCard(
             }
         }
 
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedButton(onClick = { showPlanDialog = true }) {
+                Icon(Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(5.dp))
+                Text("我的计划")
+            }
+            Button(onClick = onGeneratePlan) {
+                Text("生成计划")
+            }
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = showMedicationNeed,
+                    onCheckedChange = { showMedicationNeed = it },
+                )
+                Text(
+                    "有用药需求",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (showMedicationNeed) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
         HealthTreeStage(
             stage = healthTreeStage(activeRatio),
             completionRatio = activeRatio,
             day = activeDay,
             hasOmicsData = week.has_omics_data,
+            showMedicationNeed = showMedicationNeed,
             completingType = completingType,
             recentEffect = recentEffect,
             onComplete = onComplete,
@@ -240,6 +279,20 @@ private fun HealthTreeWeekCard(
             onSelect = { selectedDate = it.date },
         )
     }
+
+    if (showPlanDialog) {
+        HealthTreePlanDialog(
+            day = activeDay,
+            tasks = activeTasks,
+            showMedicationNeed = showMedicationNeed,
+            onMedicationNeedChange = { showMedicationNeed = it },
+            onGeneratePlan = {
+                showPlanDialog = false
+                onGeneratePlan()
+            },
+            onDismiss = { showPlanDialog = false },
+        )
+    }
 }
 
 @Composable
@@ -248,6 +301,7 @@ private fun HealthTreeStage(
     completionRatio: Double,
     day: TubeDay?,
     hasOmicsData: Boolean,
+    showMedicationNeed: Boolean,
     completingType: String?,
     recentEffect: String?,
     onComplete: (String) -> Unit,
@@ -301,6 +355,7 @@ private fun HealthTreeStage(
         ) {
             HealthTreeActionRow(
                 day = day,
+                showMedicationNeed = showMedicationNeed,
                 completingType = completingType,
                 onComplete = onComplete,
             )
@@ -404,12 +459,16 @@ private fun BoxScope.HealthTreeEffectOverlay(
 @Composable
 private fun HealthTreeActionRow(
     day: TubeDay?,
+    showMedicationNeed: Boolean,
     completingType: String?,
     onComplete: (String) -> Unit,
 ) {
+    val tasks = day?.tasks
+        ?.filter { showMedicationNeed || it.task_type != "medication" }
+        .orEmpty()
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        healthTreeTaskTypes.forEach { type ->
-            val task = day?.tasks?.firstOrNull { it.task_type == type }
+        tasks.forEach { task ->
+            val type = task.task_type
             HealthTreeActionChip(
                 type = type,
                 task = task,
@@ -419,6 +478,21 @@ private fun HealthTreeActionRow(
                 onComplete = onComplete,
                 modifier = Modifier.weight(1f),
             )
+        }
+        if (tasks.isEmpty()) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        "今天暂无执行任务",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
@@ -446,7 +520,7 @@ private fun HealthTreeActionChip(
         modifier = modifier.graphicsLayer { alpha = if (done) 0.56f else if (isActiveDay) 1f else 0.68f },
     ) {
         Row(
-            Modifier.height(48.dp).padding(horizontal = 8.dp),
+            Modifier.height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -482,12 +556,152 @@ private fun HealthTreeActionChip(
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
+                task?.title?.takeIf { it.isNotBlank() }?.let { title ->
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
                 Text(
-                    healthTreeProgressText(task),
+                    task?.summary ?: healthTreeProgressText(task),
                     style = MaterialTheme.typography.labelSmall,
                     color = typeColor(type),
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthTreePlanDialog(
+    day: TubeDay?,
+    tasks: List<TubeTaskProgress>,
+    showMedicationNeed: Boolean,
+    onMedicationNeedChange: (Boolean) -> Unit,
+    onGeneratePlan: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("我的计划", fontWeight = FontWeight.SemiBold)
+                Text(
+                    day?.date ?: "未选择日期",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        text = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = showMedicationNeed,
+                            onCheckedChange = onMedicationNeedChange,
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text("有用药需求", fontWeight = FontWeight.SemiBold)
+                            Text(
+                                "勾选后才显示用药计划；没有医生或本人确认时不默认展示。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                if (tasks.isEmpty()) {
+                    Text(
+                        "当前日期暂无可执行计划。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    tasks.forEach { task ->
+                        HealthTreePlanTaskRow(task)
+                    }
+                }
+
+                if (showMedicationNeed && day?.tasks?.none { it.task_type == "medication" } != false) {
+                    Text(
+                        "当前计划没有用药任务；如需要，请在生成计划时明确说明用药需求，或先完善用药记录。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = XjiePalette.Warning,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = onGeneratePlan) { Text("生成计划") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        },
+    )
+}
+
+@Composable
+private fun HealthTreePlanTaskRow(task: TubeTaskProgress) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, typeColor(task.task_type).copy(alpha = 0.18f)),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Image(
+                    painter = painterResource(healthTreeActionRes(task.task_type)),
+                    contentDescription = null,
+                    modifier = Modifier.size(34.dp),
+                    contentScale = ContentScale.Fit,
+                )
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        task.title ?: task.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        task.summary ?: healthTreeProgressText(task),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = typeColor(task.task_type),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
+            task.description?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            task.details.take(4).forEach { detail ->
+                Text(
+                    "- $detail",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -826,11 +1040,16 @@ private fun PlanOverviewCard(
     plans: List<HealthPlan>,
     selectedId: String?,
     onSelect: (HealthPlan) -> Unit,
+    onGeneratePlan: () -> Unit,
 ) {
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SectionHeader(Icons.Filled.CalendarMonth, "健康计划")
             Spacer(Modifier.weight(1f))
+            Button(onClick = onGeneratePlan) {
+                Text("生成计划")
+            }
+            Spacer(Modifier.width(8.dp))
             Surface(
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(6.dp),

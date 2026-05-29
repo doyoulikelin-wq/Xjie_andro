@@ -245,6 +245,8 @@ data class TubeWeek(
     val week_end: String,
     val today: String,
     val has_omics_data: Boolean = false,
+    val has_medication_need: Boolean = false,
+    val task_types: List<String> = emptyList(),
     val days: List<TubeDay> = emptyList(),
 )
 
@@ -262,6 +264,10 @@ data class TubeDay(
 data class TubeTaskProgress(
     val task_type: String,
     val label: String,
+    val title: String? = null,
+    val description: String? = null,
+    val summary: String? = null,
+    val details: List<String> = emptyList(),
     val completed: Int,
     val target: Int,
     val completed_value: Double? = null,
@@ -281,6 +287,13 @@ data class TubeCompleteRequest(
 @Serializable
 data class TubeCompleteResponse(
     val day: TubeDay,
+)
+
+@Serializable
+data class HealthTreeSummary(
+    val trees_grown: Int = 0,
+    val fruiting_count: Int = 0,
+    val active_plan_count: Int = 0,
 )
 
 @Serializable

@@ -3,6 +3,7 @@ package com.xjie.app.feature.healthplan
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanListResponse
+import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.TubeCompleteRequest
 import com.xjie.app.core.model.TubeCompleteResponse
 import com.xjie.app.core.model.TubeWeek
@@ -25,6 +26,9 @@ class HealthPlanRepository @Inject constructor(
 
     suspend fun week(weekStart: String): TubeWeek =
         safeApiCall(json) { api.week(weekStart) }
+
+    suspend fun treeSummary(): HealthTreeSummary =
+        safeApiCall(json) { api.treeSummary() }
 
     suspend fun createFromChat(body: HealthPlanFromChatRequest): HealthPlanDetail =
         safeApiCall(json) { api.createFromChat(body) }

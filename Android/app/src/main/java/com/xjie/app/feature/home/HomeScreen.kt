@@ -30,6 +30,7 @@ import com.xjie.app.core.model.DashboardHealth
 import com.xjie.app.core.model.GlucoseFormat
 import com.xjie.app.core.model.GlucoseSummary
 import com.xjie.app.core.model.GlucoseUnit
+import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.ProactiveMessage
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -73,6 +74,10 @@ fun HomeScreen(
 
         state.dashboard?.glucose?.last_24h?.let { g ->
             GlucoseCard(g, unit = unit)
+        }
+
+        state.treeSummary?.let { summary ->
+            HealthTreeSummaryCard(summary)
         }
 
         MealsCard(state.dashboard)
@@ -337,6 +342,52 @@ private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit) {
                 label = "范围",
                 value = "${GlucoseFormat.threshold(g.min ?: 0.0, unit)}~${GlucoseFormat.threshold(g.max ?: 0.0, unit)}",
                 unit = unit.label,
+            )
+        }
+    }
+}
+
+@Composable
+private fun HealthTreeSummaryCard(summary: HealthTreeSummary) {
+    Column(Modifier.cardStyle()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = com.xjie.app.R.drawable.healthtree_tree_06_fruiting),
+                contentDescription = null,
+                modifier = Modifier.size(34.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "健康树",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Spacer(Modifier.height(10.dp))
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            MetricItem(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                label = "已养成",
+                value = summary.trees_grown.toString(),
+                unit = "棵",
+            )
+            MetricItem(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                label = "结果次数",
+                value = summary.fruiting_count.toString(),
+                unit = "次",
+                accent = XjiePalette.Success,
+            )
+            MetricItem(
+                modifier = Modifier.weight(1f).fillMaxHeight(),
+                label = "进行中",
+                value = summary.active_plan_count.toString(),
+                unit = "个",
             )
         }
     }
