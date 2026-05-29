@@ -139,9 +139,23 @@ fun MainScaffold(
                                 restoreState = true
                             }
                         },
-                        onOpenHealth = { navController.navigate(Route.Health.path) },
-                        onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
-                    )
+	                        onOpenHealth = { navController.navigate(Route.Health.path) },
+	                        onOpenHealthData = {
+	                            navController.navigate(Route.HealthData.path) {
+	                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+	                                launchSingleTop = true
+	                                restoreState = true
+	                            }
+	                        },
+	                        onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
+	                        onOpenOmics = {
+	                            navController.navigate(Route.Omics.path) {
+	                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+	                                launchSingleTop = true
+	                                restoreState = true
+	                            }
+	                        },
+	                    )
                 }
                 composable(Route.Glucose.path) {
                     com.xjie.app.feature.glucose.GlucoseScreen(

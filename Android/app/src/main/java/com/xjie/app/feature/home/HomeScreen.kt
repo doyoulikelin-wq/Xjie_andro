@@ -6,8 +6,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Monitor
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -47,7 +51,9 @@ fun HomeScreen(
     onOpenMeals: () -> Unit = {},
     onOpenChat: () -> Unit = {},
     onOpenHealth: () -> Unit = {},
+    onOpenHealthData: () -> Unit = {},
     onOpenElderlyHistory: () -> Unit = {},
+    onOpenOmics: () -> Unit = {},
 ) {
     val state by vm.state.collectAsState()
     val subjectId by vm.subjectId.collectAsState()
@@ -78,7 +84,11 @@ fun HomeScreen(
 
         HealthTreeSummaryCard(
             summary = state.treeSummary ?: HealthTreeSummary(),
+            precision = state.contextPrecision,
             isLive = state.treeSummary != null,
+            onOpenHealthData = onOpenHealthData,
+            onOpenHistory = onOpenElderlyHistory,
+            onOpenOmics = onOpenOmics,
         )
 
         MealsCard(state.dashboard)
@@ -349,7 +359,15 @@ private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit) {
 }
 
 @Composable
-private fun HealthTreeSummaryCard(summary: HealthTreeSummary, isLive: Boolean) {
+private fun HealthTreeSummaryCard(
+    summary: HealthTreeSummary,
+    precision: ContextPrecisionSummary,
+    isLive: Boolean,
+    onOpenHealthData: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenOmics: () -> Unit,
+) {
+    var showPrecisionDetails by remember { mutableStateOf(false) }
     Column(Modifier.cardStyle()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -393,11 +411,155 @@ private fun HealthTreeSummaryCard(summary: HealthTreeSummary, isLive: Boolean) {
                 unit = "次",
                 accent = XjiePalette.Success,
             )
-            MetricItem(
+            Surface(
+                onClick = { showPrecisionDetails = true },
                 modifier = Modifier.weight(1f).fillMaxHeight(),
-                label = "进行中",
-                value = summary.active_plan_count.toString(),
-                unit = "个",
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                border = androidx.compose.foundation.BorderStroke(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                ),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 10.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "精准度",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "${precision.score}%",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+    }
+    if (showPrecisionDetails) {
+        ContextPrecisionDialog(
+            precision = precision,
+            onDismiss = { showPrecisionDetails = false },
+            onOpenHealthData = {
+                showPrecisionDetails = false
+                onOpenHealthData()
+            },
+            onOpenHistory = {
+                showPrecisionDetails = false
+                onOpenHistory()
+            },
+            onOpenOmics = {
+                showPrecisionDetails = false
+                onOpenOmics()
+            },
+        )
+    }
+}
+
+@Composable
+private fun ContextPrecisionDialog(
+    precision: ContextPrecisionSummary,
+    onDismiss: () -> Unit,
+    onOpenHealthData: () -> Unit,
+    onOpenHistory: () -> Unit,
+    onOpenOmics: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("数据精准度 ${precision.score}%", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "根据已上传健康资料、通知反馈和多组学特征估算。资料越完整，小捷给出的计划和建议越贴近个人情况。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ContextPrecisionRow(
+                    icon = Icons.Default.Favorite,
+                    title = "健康数据",
+                    subtitle = precision.healthDataDescription,
+                    value = "${precision.healthRecordCount + precision.healthExamCount} 份",
+                    onClick = onOpenHealthData,
+                )
+                ContextPrecisionRow(
+                    icon = Icons.Default.History,
+                    title = "历史记录",
+                    subtitle = precision.historyDescription,
+                    value = "${precision.historyFeedbackCount} 条",
+                    onClick = onOpenHistory,
+                )
+                ContextPrecisionRow(
+                    icon = Icons.Default.Hub,
+                    title = "多组学数据",
+                    subtitle = precision.omicsDescription,
+                    value = "${precision.omicsCategoryCount} 类",
+                    onClick = onOpenOmics,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        },
+    )
+}
+
+@Composable
+private fun ContextPrecisionRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    value: String,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.10f),
+                contentColor = MaterialTheme.colorScheme.primary,
+                shape = RoundedCornerShape(10.dp),
+            ) {
+                Icon(
+                    icon,
+                    contentDescription = null,
+                    modifier = Modifier.padding(8.dp).size(20.dp),
+                )
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                value,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Icon(
+                Icons.Default.ArrowForward,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(16.dp),
             )
         }
     }

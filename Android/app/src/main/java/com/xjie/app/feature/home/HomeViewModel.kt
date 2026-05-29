@@ -25,11 +25,47 @@ data class HomeUiState(
     val dashboard: DashboardHealth? = null,
     val proactive: ProactiveMessage? = null,
     val treeSummary: HealthTreeSummary? = null,
+    val contextPrecision: ContextPrecisionSummary = ContextPrecisionSummary(),
     val isOffline: Boolean = false,
     val interventionIndex: Int = 1,   // 0..4 对应 L1..L5
     val elderlyMode: Boolean = false,
     val error: String? = null,
 )
+
+data class ContextPrecisionSummary(
+    val healthRecordCount: Int = 0,
+    val healthExamCount: Int = 0,
+    val healthIndicatorCount: Int = 0,
+    val hasHealthSummary: Boolean = false,
+    val historyFeedbackCount: Int = 0,
+    val historyMoodCount: Int = 0,
+    val historyBodyCount: Int = 0,
+    val omicsCategoryCount: Int = 0,
+    val omicsItemCount: Int = 0,
+) {
+    val score: Int
+        get() {
+            val healthScore = minOf(
+                40,
+                healthRecordCount * 8 + healthExamCount * 8 + healthIndicatorCount * 2 + if (hasHealthSummary) 6 else 0,
+            )
+            val historyScore = minOf(
+                30,
+                historyFeedbackCount * 4 + historyMoodCount * 2 + historyBodyCount * 2,
+            )
+            val omicsScore = minOf(30, omicsCategoryCount * 6 + minOf(omicsItemCount, 18))
+            return minOf(100, healthScore + historyScore + omicsScore)
+        }
+
+    val healthDataDescription: String
+        get() = "病例 ${healthRecordCount} 份 · 体检 ${healthExamCount} 份 · 指标 ${healthIndicatorCount} 项"
+
+    val historyDescription: String
+        get() = "反馈 ${historyFeedbackCount} 条 · 心情 ${historyMoodCount} 条 · 身体状态 ${historyBodyCount} 条"
+
+    val omicsDescription: String
+        get() = if (omicsCategoryCount > 0) "${omicsCategoryCount} 类 · ${omicsItemCount} 项特征" else "暂无多组学上传"
+}
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -61,6 +97,7 @@ class HomeViewModel @Inject constructor(
             val (dashboard, fromCache) = repo.loadDashboard()
             val proactive = repo.loadProactive()
             val treeSummary = repo.loadTreeSummary()
+            val contextPrecision = repo.loadContextPrecision()
             val settings = repo.loadSettings()
             val idx = when (settings?.intervention_level) {
                 "L1" -> 0
@@ -76,6 +113,7 @@ class HomeViewModel @Inject constructor(
                     dashboard = dashboard ?: it.dashboard,
                     proactive = proactive,
                     treeSummary = treeSummary,
+                    contextPrecision = contextPrecision,
                     isOffline = fromCache,
                     interventionIndex = idx,
                     elderlyMode = settings?.elderly_mode == true,
