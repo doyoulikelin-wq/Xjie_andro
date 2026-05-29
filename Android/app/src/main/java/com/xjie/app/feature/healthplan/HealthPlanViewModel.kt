@@ -23,6 +23,7 @@ data class HealthPlanUiState(
     val weekStart: LocalDate = LocalDate.now().with(DayOfWeek.MONDAY),
     val loading: Boolean = false,
     val completingType: String? = null,
+    val lastCompletedType: String? = null,
     val error: String? = null,
 )
 
@@ -34,6 +35,8 @@ class HealthPlanViewModel @Inject constructor(
     val state: StateFlow<HealthPlanUiState> = _state.asStateFlow()
 
     fun clearError() = _state.update { it.copy(error = null) }
+
+    fun clearCompletionEffect() = _state.update { it.copy(lastCompletedType = null) }
 
     fun refresh() = viewModelScope.launch {
         val start = _state.value.weekStart
@@ -91,7 +94,11 @@ class HealthPlanViewModel @Inject constructor(
                     val updatedWeek = cur.week?.let { week ->
                         week.copy(days = week.days.map { if (it.date == res.day.date) res.day else it })
                     }
-                    cur.copy(week = updatedWeek, completingType = null)
+                    cur.copy(
+                        week = updatedWeek,
+                        completingType = null,
+                        lastCompletedType = taskType,
+                    )
                 }
             }
             .onFailure { e -> _state.update { it.copy(completingType = null, error = e.message) } }

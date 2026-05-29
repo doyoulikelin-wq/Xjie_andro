@@ -1,6 +1,10 @@
 package com.xjie.app.feature.healthplan
 
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -29,14 +33,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.xjie.app.R
 import com.xjie.app.core.model.HealthPlan
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.PlanTask
@@ -46,6 +55,7 @@ import com.xjie.app.core.model.TubeWeek
 import com.xjie.app.core.ui.components.EmptyState
 import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
+import kotlinx.coroutines.delay
 import kotlin.math.max
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,14 +88,16 @@ fun HealthPlanScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 state.week?.let { week ->
-                    TubeWeekCard(
+                    HealthTreeWeekCard(
                         week = week,
                         currentWeek = state.weekStart == java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY),
                         completingType = state.completingType,
+                        recentEffect = state.lastCompletedType,
                         onPrevious = vm::previousWeek,
                         onNext = vm::nextWeek,
                         onThisWeek = vm::backToThisWeek,
                         onComplete = vm::completeToday,
+                        onEffectFinished = vm::clearCompletionEffect,
                     )
                 }
                 PlanOverviewCard(
@@ -106,6 +118,335 @@ fun HealthPlanScreen(
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
         }
+    }
+}
+
+private val healthTreeTaskTypes = listOf("exercise", "diet", "medication", "record")
+
+@Composable
+private fun HealthTreeWeekCard(
+    week: TubeWeek,
+    currentWeek: Boolean,
+    completingType: String?,
+    recentEffect: String?,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onThisWeek: () -> Unit,
+    onComplete: (String) -> Unit,
+    onEffectFinished: () -> Unit,
+) {
+    var dragX by remember { mutableStateOf(0f) }
+    val today = week.days.firstOrNull { it.is_today }
+    val activeRatio = today?.completion_ratio
+        ?: week.days.filterNot { it.is_future }.lastOrNull()?.completion_ratio
+        ?: 0.0
+
+    Column(
+        Modifier
+            .cardStyle()
+            .pointerInput(week.week_start) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragX = 0f },
+                    onHorizontalDrag = { _, dragAmount -> dragX += dragAmount },
+                    onDragEnd = {
+                        if (dragX > 80f) onPrevious()
+                        if (dragX < -80f) onNext()
+                    },
+                )
+            },
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text(
+                    "健康树计划养成",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "${week.week_start} - ${week.week_end}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(8.dp),
+            ) {
+                Text(
+                    "${(activeRatio * 100).toInt()}%",
+                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            if (!currentWeek) {
+                TextButton(onClick = onThisWeek) { Text("本周") }
+            }
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            IconButton(
+                onClick = onPrevious,
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape),
+            ) { Icon(Icons.Filled.ChevronLeft, "上周") }
+
+            HealthTreeStage(
+                stage = healthTreeStage(activeRatio),
+                completionRatio = activeRatio,
+                recentEffect = recentEffect,
+                onEffectFinished = onEffectFinished,
+                modifier = Modifier.weight(1f),
+            )
+
+            IconButton(
+                onClick = onNext,
+                modifier = Modifier
+                    .size(38.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape),
+            ) { Icon(Icons.Filled.ChevronRight, "下周") }
+        }
+
+        HealthTreeCareButtons(
+            day = today,
+            completingType = completingType,
+            onComplete = onComplete,
+        )
+        HealthTreeWeekStrip(days = week.days)
+    }
+}
+
+@Composable
+private fun HealthTreeStage(
+    stage: Int,
+    completionRatio: Double,
+    recentEffect: String?,
+    onEffectFinished: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val pulse by animateFloatAsState(
+        targetValue = if (recentEffect != null) 1.06f else 1f,
+        animationSpec = tween(durationMillis = 450),
+        label = "treePulse",
+    )
+
+    Box(
+        modifier
+            .height(220.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color(0xFFF6FBF8),
+                        Color(0xFFE8F5EE),
+                        Color(0xFFF8FBFF),
+                    )
+                )
+            )
+            .padding(8.dp),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.healthtree_env_sun),
+            contentDescription = null,
+            modifier = Modifier.align(Alignment.TopEnd).size(46.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Image(
+            painter = painterResource(R.drawable.healthtree_env_watercan),
+            contentDescription = null,
+            modifier = Modifier.align(Alignment.BottomStart).size(56.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Image(
+            painter = painterResource(R.drawable.healthtree_env_medkit),
+            contentDescription = null,
+            modifier = Modifier.align(Alignment.BottomEnd).size(48.dp),
+            contentScale = ContentScale.Fit,
+        )
+        if (completionRatio >= 0.72) {
+            Image(
+                painter = painterResource(R.drawable.healthtree_multiomics_ring_static),
+                contentDescription = null,
+                modifier = Modifier.align(Alignment.Center).size(156.dp).graphicsLayer { alpha = 0.34f },
+                contentScale = ContentScale.Fit,
+            )
+        }
+        Column(
+            Modifier.align(Alignment.Center),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                painter = painterResource(healthTreeStageRes(stage)),
+                contentDescription = null,
+                modifier = Modifier.size(164.dp).graphicsLayer {
+                    scaleX = pulse
+                    scaleY = pulse
+                },
+                contentScale = ContentScale.Fit,
+            )
+            Text(
+                healthTreeStageLabel(stage),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        recentEffect?.let {
+            HealthTreeEffectOverlay(type = it, onFinished = onEffectFinished)
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.HealthTreeEffectOverlay(
+    type: String,
+    onFinished: () -> Unit,
+) {
+    var running by remember(type) { mutableStateOf(false) }
+    val progress by animateFloatAsState(
+        targetValue = if (running) 1f else 0f,
+        animationSpec = tween(durationMillis = 950),
+        label = "treeEffect",
+    )
+
+    LaunchedEffect(type) {
+        running = true
+        delay(1050)
+        onFinished()
+    }
+
+    Image(
+        painter = painterResource(healthTreeIconRes(type)),
+        contentDescription = null,
+        modifier = Modifier
+            .size(56.dp)
+            .align(Alignment.Center)
+            .offset(y = (-8f - 78f * progress).dp)
+            .graphicsLayer {
+                alpha = 1f - progress
+                scaleX = 0.72f + progress * 0.63f
+                scaleY = 0.72f + progress * 0.63f
+            },
+        contentScale = ContentScale.Fit,
+    )
+}
+
+@Composable
+private fun HealthTreeCareButtons(
+    day: TubeDay?,
+    completingType: String?,
+    onComplete: (String) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        healthTreeTaskTypes.forEach { type ->
+            val task = day?.tasks?.firstOrNull { it.task_type == type }
+            val done = (task?.ratio ?: 0.0) >= 1.0
+            Surface(
+                onClick = { onComplete(type) },
+                enabled = !done && completingType == null && day != null,
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = androidx.compose.foundation.BorderStroke(1.dp, typeColor(type).copy(alpha = 0.16f)),
+                modifier = Modifier.weight(1f),
+            ) {
+                Column(
+                    Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Box(
+                        Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(typeColor(type).copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (completingType == type) {
+                            CircularProgressIndicator(
+                                Modifier.size(18.dp),
+                                strokeWidth = 1.8.dp,
+                                color = typeColor(type),
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(healthTreeIconRes(type)),
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                contentScale = ContentScale.Fit,
+                            )
+                        }
+                    }
+                    Text(
+                        careLabel(type),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                    Text(
+                        healthTreeProgressText(task),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = typeColor(type),
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthTreeWeekStrip(days: List<TubeDay>) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        days.forEach { day ->
+            HealthTreeDayMarker(day = day, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun HealthTreeDayMarker(
+    day: TubeDay,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(if (day.is_today) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Image(
+            painter = painterResource(healthTreeStageRes(if (day.is_future) 1 else healthTreeStage(day.completion_ratio))),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp).graphicsLayer { alpha = if (day.is_future) 0.36f else 1f },
+            contentScale = ContentScale.Fit,
+        )
+        Box(
+            Modifier
+                .size(width = 26.dp, height = 24.dp)
+                .clip(CircleShape)
+                .background(if (day.is_today) MaterialTheme.colorScheme.primary else Color.Transparent),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                weekdayName(day.weekday),
+                style = MaterialTheme.typography.labelSmall,
+                color = if (day.is_today) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Text(
+            if (day.is_today) "今天" else "${(day.completion_ratio * 100).toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (day.is_today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
     }
 }
 
@@ -529,5 +870,64 @@ private fun typeColor(type: String): Color = when (type) {
     "exercise" -> Color(0xFF75C043)
     "medication" -> Color(0xFF2F80ED)
     "diet" -> Color(0xFFFF8A1F)
+    "record" -> Color(0xFF5B7CFA)
     else -> XjiePalette.Primary
+}
+
+private fun healthTreeStage(ratio: Double): Int {
+    val value = ratio.coerceIn(0.0, 1.0)
+    return when {
+        value < 0.12 -> 1
+        value < 0.28 -> 2
+        value < 0.48 -> 3
+        value < 0.72 -> 4
+        value < 0.92 -> 5
+        else -> 6
+    }
+}
+
+@DrawableRes
+private fun healthTreeStageRes(stage: Int): Int = when (stage) {
+    1 -> R.drawable.healthtree_tree_01_seed
+    2 -> R.drawable.healthtree_tree_02_sprout
+    3 -> R.drawable.healthtree_tree_03_seedling
+    4 -> R.drawable.healthtree_tree_04_young_tree
+    5 -> R.drawable.healthtree_tree_05_flowering
+    else -> R.drawable.healthtree_tree_06_fruiting
+}
+
+private fun healthTreeStageLabel(stage: Int): String = when (stage) {
+    1 -> "种子期"
+    2 -> "发芽期"
+    3 -> "幼苗期"
+    4 -> "成长中"
+    5 -> "开花期"
+    else -> "结果期"
+}
+
+@DrawableRes
+private fun healthTreeIconRes(type: String): Int = when (type) {
+    "exercise" -> R.drawable.healthtree_icon_exercise_sun
+    "diet" -> R.drawable.healthtree_icon_diet_water
+    "medication" -> R.drawable.healthtree_icon_medication_dew
+    "record" -> R.drawable.healthtree_icon_record_data_light
+    else -> R.drawable.healthtree_icon_multiomics_precision
+}
+
+private fun careLabel(type: String): String = when (type) {
+    "exercise" -> "晒太阳"
+    "diet" -> "浇水"
+    "medication" -> "晨露"
+    "record" -> "数据光"
+    else -> "照护"
+}
+
+private fun healthTreeProgressText(task: TubeTaskProgress?): String {
+    if (task == null) return "0/1"
+    val completed = task.completed_value
+    val target = task.target_value
+    if (task.unit == "kcal" && completed != null && target != null && completed > 0) {
+        return "${completed.toInt()}/${target.toInt()}"
+    }
+    return "${task.completed}/${max(task.target, 1)}"
 }
