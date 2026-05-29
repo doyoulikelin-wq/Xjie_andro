@@ -121,7 +121,7 @@ fun HealthPlanScreen(
     }
 }
 
-private val healthTreeTaskTypes = listOf("exercise", "diet", "medication", "record")
+private val healthTreeTaskTypes = listOf("exercise", "medication", "diet")
 
 @Composable
 private fun HealthTreeWeekCard(
@@ -136,10 +136,13 @@ private fun HealthTreeWeekCard(
     onEffectFinished: () -> Unit,
 ) {
     var dragX by remember { mutableStateOf(0f) }
+    var selectedDate by remember(week.week_start) { mutableStateOf<String?>(null) }
     val today = week.days.firstOrNull { it.is_today }
-    val activeRatio = today?.completion_ratio
-        ?: week.days.filterNot { it.is_future }.lastOrNull()?.completion_ratio
-        ?: 0.0
+    val activeDay = selectedDate
+        ?.let { date -> week.days.firstOrNull { it.date == date } }
+        ?: today
+        ?: week.days.firstOrNull()
+    val activeRatio = activeDay?.completion_ratio ?: 0.0
 
     Column(
         Modifier
@@ -182,41 +185,50 @@ private fun HealthTreeWeekCard(
                     fontWeight = FontWeight.SemiBold,
                 )
             }
+            Surface(
+                onClick = onPrevious,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                shape = CircleShape,
+                modifier = Modifier
+                    .size(34.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.ChevronLeft, "上周", modifier = Modifier.size(18.dp))
+                }
+            }
             if (!currentWeek) {
                 TextButton(onClick = onThisWeek) { Text("本周") }
             }
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            IconButton(
-                onClick = onPrevious,
-                modifier = Modifier
-                    .size(38.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape),
-            ) { Icon(Icons.Filled.ChevronLeft, "上周") }
-
-            HealthTreeStage(
-                stage = healthTreeStage(activeRatio),
-                completionRatio = activeRatio,
-                recentEffect = recentEffect,
-                onEffectFinished = onEffectFinished,
-                modifier = Modifier.weight(1f),
-            )
-
-            IconButton(
+            Surface(
                 onClick = onNext,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                shape = CircleShape,
                 modifier = Modifier
-                    .size(38.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), CircleShape),
-            ) { Icon(Icons.Filled.ChevronRight, "下周") }
+                    .size(34.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.ChevronRight, "下周", modifier = Modifier.size(18.dp))
+                }
+            }
         }
 
-        HealthTreeCareButtons(
-            day = today,
+        HealthTreeStage(
+            stage = healthTreeStage(activeRatio),
+            completionRatio = activeRatio,
+            day = activeDay,
+            hasOmicsData = week.has_omics_data,
             completingType = completingType,
+            recentEffect = recentEffect,
             onComplete = onComplete,
+            onEffectFinished = onEffectFinished,
+            modifier = Modifier.fillMaxWidth(),
         )
-        HealthTreeWeekStrip(days = week.days)
+
+        HealthTreeWeekStrip(
+            days = week.days,
+            selectedDate = activeDay?.date,
+            onSelect = { selectedDate = it.date },
+        )
     }
 }
 
@@ -224,7 +236,11 @@ private fun HealthTreeWeekCard(
 private fun HealthTreeStage(
     stage: Int,
     completionRatio: Double,
+    day: TubeDay?,
+    hasOmicsData: Boolean,
+    completingType: String?,
     recentEffect: String?,
+    onComplete: (String) -> Unit,
     onEffectFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -236,7 +252,7 @@ private fun HealthTreeStage(
 
     Box(
         modifier
-            .height(220.dp)
+            .height(300.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.verticalGradient(
@@ -247,47 +263,40 @@ private fun HealthTreeStage(
                     )
                 )
             )
-            .padding(8.dp),
+            .padding(12.dp),
     ) {
-        Image(
-            painter = painterResource(R.drawable.healthtree_env_sun),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.TopEnd).size(46.dp),
-            contentScale = ContentScale.Fit,
-        )
-        Image(
-            painter = painterResource(R.drawable.healthtree_env_watercan),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.BottomStart).size(56.dp),
-            contentScale = ContentScale.Fit,
-        )
-        Image(
-            painter = painterResource(R.drawable.healthtree_env_medkit),
-            contentDescription = null,
-            modifier = Modifier.align(Alignment.BottomEnd).size(48.dp),
-            contentScale = ContentScale.Fit,
-        )
-        if (completionRatio >= 0.72) {
-            Image(
-                painter = painterResource(R.drawable.healthtree_multiomics_ring_static),
-                contentDescription = null,
-                modifier = Modifier.align(Alignment.Center).size(156.dp).graphicsLayer { alpha = 0.34f },
-                contentScale = ContentScale.Fit,
-            )
-        }
         Column(
-            Modifier.align(Alignment.Center),
+            Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Image(
-                painter = painterResource(healthTreeStageRes(stage)),
-                contentDescription = null,
-                modifier = Modifier.size(164.dp).graphicsLayer {
-                    scaleX = pulse
-                    scaleY = pulse
-                },
-                contentScale = ContentScale.Fit,
+            HealthTreeActionRow(
+                day = day,
+                completingType = completingType,
+                onComplete = onComplete,
             )
+            Box(
+                Modifier.height(166.dp).fillMaxWidth(),
+                contentAlignment = Alignment.BottomCenter,
+            ) {
+                if (hasOmicsData) {
+                    Image(
+                        painter = painterResource(R.drawable.healthtree_pot_rich_soil),
+                        contentDescription = null,
+                        modifier = Modifier.size(width = 94.dp, height = 49.dp).graphicsLayer { alpha = 0.92f },
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+                Image(
+                    painter = painterResource(healthTreeStageRes(stage)),
+                    contentDescription = null,
+                    modifier = Modifier.size(156.dp).graphicsLayer {
+                        scaleX = pulse
+                        scaleY = pulse
+                    },
+                    contentScale = ContentScale.Fit,
+                )
+            }
             Text(
                 healthTreeStageLabel(stage),
                 style = MaterialTheme.typography.labelSmall,
@@ -320,23 +329,23 @@ private fun BoxScope.HealthTreeEffectOverlay(
     }
 
     Image(
-        painter = painterResource(healthTreeIconRes(type)),
+        painter = painterResource(healthTreeActionRes(type)),
         contentDescription = null,
         modifier = Modifier
-            .size(56.dp)
-            .align(Alignment.Center)
-            .offset(y = (-8f - 78f * progress).dp)
+            .size(48.dp)
+            .align(Alignment.TopCenter)
+            .offset(y = (8f + 60f * progress).dp)
             .graphicsLayer {
                 alpha = 1f - progress
-                scaleX = 0.72f + progress * 0.63f
-                scaleY = 0.72f + progress * 0.63f
+                scaleX = 0.82f + progress * 0.26f
+                scaleY = 0.82f + progress * 0.26f
             },
         contentScale = ContentScale.Fit,
     )
 }
 
 @Composable
-private fun HealthTreeCareButtons(
+private fun HealthTreeActionRow(
     day: TubeDay?,
     completingType: String?,
     onComplete: (String) -> Unit,
@@ -344,66 +353,104 @@ private fun HealthTreeCareButtons(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         healthTreeTaskTypes.forEach { type ->
             val task = day?.tasks?.firstOrNull { it.task_type == type }
-            val done = (task?.ratio ?: 0.0) >= 1.0
-            Surface(
-                onClick = { onComplete(type) },
-                enabled = !done && completingType == null && day != null,
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = androidx.compose.foundation.BorderStroke(1.dp, typeColor(type).copy(alpha = 0.16f)),
+            HealthTreeActionChip(
+                type = type,
+                task = task,
+                isActiveDay = day?.is_today == true,
+                isCompleting = completingType == type,
+                isBusy = completingType != null,
+                onComplete = onComplete,
                 modifier = Modifier.weight(1f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun HealthTreeActionChip(
+    type: String,
+    task: TubeTaskProgress?,
+    isActiveDay: Boolean,
+    isCompleting: Boolean,
+    isBusy: Boolean,
+    onComplete: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val done = (task?.ratio ?: 0.0) >= 1.0
+    Surface(
+        onClick = { onComplete(type) },
+        enabled = isActiveDay && !done && !isBusy,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            typeColor(type).copy(alpha = if (isActiveDay) 0.24f else 0.1f),
+        ),
+        modifier = modifier.graphicsLayer { alpha = if (done) 0.56f else if (isActiveDay) 1f else 0.68f },
+    ) {
+        Row(
+            Modifier.height(48.dp).padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(typeColor(type).copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Column(
-                    Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Box(
-                        Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(typeColor(type).copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (completingType == type) {
-                            CircularProgressIndicator(
-                                Modifier.size(18.dp),
-                                strokeWidth = 1.8.dp,
-                                color = typeColor(type),
-                            )
-                        } else {
-                            Image(
-                                painter = painterResource(healthTreeIconRes(type)),
-                                contentDescription = null,
-                                modifier = Modifier.size(28.dp),
-                                contentScale = ContentScale.Fit,
-                            )
-                        }
-                    }
-                    Text(
-                        careLabel(type),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                    Text(
-                        healthTreeProgressText(task),
-                        style = MaterialTheme.typography.labelSmall,
+                if (isCompleting) {
+                    CircularProgressIndicator(
+                        Modifier.size(16.dp),
+                        strokeWidth = 1.7.dp,
                         color = typeColor(type),
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(healthTreeActionRes(type)),
+                        contentDescription = null,
+                        modifier = Modifier.size(29.dp),
+                        contentScale = ContentScale.Fit,
                     )
                 }
+            }
+            Column(
+                Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                Text(
+                    careLabel(type),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+                Text(
+                    healthTreeProgressText(task),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = typeColor(type),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun HealthTreeWeekStrip(days: List<TubeDay>) {
+private fun HealthTreeWeekStrip(
+    days: List<TubeDay>,
+    selectedDate: String?,
+    onSelect: (TubeDay) -> Unit,
+) {
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         days.forEach { day ->
-            HealthTreeDayMarker(day = day, modifier = Modifier.weight(1f))
+            HealthTreeDayMarker(
+                day = day,
+                selected = day.date == selectedDate,
+                onSelect = { onSelect(day) },
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -411,12 +458,15 @@ private fun HealthTreeWeekStrip(days: List<TubeDay>) {
 @Composable
 private fun HealthTreeDayMarker(
     day: TubeDay,
+    selected: Boolean,
+    onSelect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier
             .clip(RoundedCornerShape(9.dp))
-            .background(if (day.is_today) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent)
+            .background(if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent)
+            .clickable { onSelect() }
             .padding(vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -431,20 +481,20 @@ private fun HealthTreeDayMarker(
             Modifier
                 .size(width = 26.dp, height = 24.dp)
                 .clip(CircleShape)
-                .background(if (day.is_today) MaterialTheme.colorScheme.primary else Color.Transparent),
+                .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 weekdayName(day.weekday),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (day.is_today) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
             )
         }
         Text(
             if (day.is_today) "今天" else "${(day.completion_ratio * 100).toInt()}%",
             style = MaterialTheme.typography.labelSmall,
-            color = if (day.is_today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
     }
@@ -870,7 +920,6 @@ private fun typeColor(type: String): Color = when (type) {
     "exercise" -> Color(0xFF75C043)
     "medication" -> Color(0xFF2F80ED)
     "diet" -> Color(0xFFFF8A1F)
-    "record" -> Color(0xFF5B7CFA)
     else -> XjiePalette.Primary
 }
 
@@ -910,15 +959,21 @@ private fun healthTreeIconRes(type: String): Int = when (type) {
     "exercise" -> R.drawable.healthtree_icon_exercise_sun
     "diet" -> R.drawable.healthtree_icon_diet_water
     "medication" -> R.drawable.healthtree_icon_medication_dew
-    "record" -> R.drawable.healthtree_icon_record_data_light
     else -> R.drawable.healthtree_icon_multiomics_precision
 }
 
+@DrawableRes
+private fun healthTreeActionRes(type: String): Int = when (type) {
+    "exercise" -> R.drawable.healthtree_env_sun
+    "medication" -> R.drawable.healthtree_env_medkit
+    "diet" -> R.drawable.healthtree_env_watercan
+    else -> healthTreeIconRes(type)
+}
+
 private fun careLabel(type: String): String = when (type) {
-    "exercise" -> "晒太阳"
-    "diet" -> "浇水"
-    "medication" -> "晨露"
-    "record" -> "数据光"
+    "exercise" -> "运动"
+    "diet" -> "饮食"
+    "medication" -> "用药"
     else -> "照护"
 }
 
@@ -927,7 +982,7 @@ private fun healthTreeProgressText(task: TubeTaskProgress?): String {
     val completed = task.completed_value
     val target = task.target_value
     if (task.unit == "kcal" && completed != null && target != null && completed > 0) {
-        return "${completed.toInt()}/${target.toInt()}"
+        return "${completed.toInt()}/${target.toInt()} kcal"
     }
     return "${task.completed}/${max(task.target, 1)}"
 }

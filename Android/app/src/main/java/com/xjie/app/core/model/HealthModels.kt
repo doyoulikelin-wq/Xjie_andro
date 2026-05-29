@@ -244,6 +244,7 @@ data class TubeWeek(
     val week_start: String,
     val week_end: String,
     val today: String,
+    val has_omics_data: Boolean = false,
     val days: List<TubeDay> = emptyList(),
 )
 
