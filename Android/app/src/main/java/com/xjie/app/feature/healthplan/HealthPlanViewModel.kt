@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.model.HealthPlan
 import com.xjie.app.core.model.HealthPlanDetail
+import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.TubeWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -22,6 +23,7 @@ data class HealthPlanUiState(
     val week: TubeWeek? = null,
     val weekStart: LocalDate = LocalDate.now().with(DayOfWeek.MONDAY),
     val loading: Boolean = false,
+    val creatingPlan: Boolean = false,
     val completingType: String? = null,
     val lastCompletedType: String? = null,
     val error: String? = null,
@@ -102,5 +104,17 @@ class HealthPlanViewModel @Inject constructor(
                 }
             }
             .onFailure { e -> _state.update { it.copy(completingType = null, error = e.message) } }
+    }
+
+    fun createFromQuestionnaire(request: HealthPlanQuestionnaireRequest) = viewModelScope.launch {
+        _state.update { it.copy(creatingPlan = true) }
+        runCatching { repo.createFromQuestionnaire(request) }
+            .onSuccess { detail ->
+                refresh()
+                _state.update { it.copy(selectedPlan = detail, creatingPlan = false) }
+            }
+            .onFailure { e ->
+                _state.update { it.copy(creatingPlan = false, error = e.message) }
+            }
     }
 }

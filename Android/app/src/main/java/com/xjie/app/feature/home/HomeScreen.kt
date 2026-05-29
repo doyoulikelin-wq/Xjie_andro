@@ -30,6 +30,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.xjie.app.core.model.DashboardHealth
 import com.xjie.app.core.model.GlucoseFormat
 import com.xjie.app.core.model.GlucoseSummary
@@ -58,8 +61,18 @@ fun HomeScreen(
     val state by vm.state.collectAsState()
     val subjectId by vm.subjectId.collectAsState()
     val unit by vm.glucoseUnit.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(Unit) { vm.load() }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                vm.load()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Column(
         Modifier

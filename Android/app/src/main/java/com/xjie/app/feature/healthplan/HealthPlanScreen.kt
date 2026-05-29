@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.R
 import com.xjie.app.core.model.HealthPlan
 import com.xjie.app.core.model.HealthPlanDetail
+import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.PlanTask
 import com.xjie.app.core.model.TubeDay
 import com.xjie.app.core.model.TubeTaskProgress
@@ -72,11 +74,11 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HealthPlanScreen(
-    onGeneratePlan: () -> Unit = {},
     vm: HealthPlanViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
+    var showPlanQuestionnaire by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.refresh() }
     LaunchedEffect(state.error) {
@@ -109,14 +111,14 @@ fun HealthPlanScreen(
                     onThisWeek = vm::backToThisWeek,
                     onComplete = vm::completeToday,
                     onEffectFinished = vm::clearCompletionEffect,
-                    onGeneratePlan = onGeneratePlan,
+                    onGeneratePlan = { showPlanQuestionnaire = true },
                 )
             }
             PlanOverviewCard(
                 plans = state.plans,
                 selectedId = state.selectedPlan?.id,
                 onSelect = vm::selectPlan,
-                onGeneratePlan = onGeneratePlan,
+                onGeneratePlan = { showPlanQuestionnaire = true },
             )
             PlanDetailCard(plan = state.selectedPlan)
             if (state.plans.isEmpty() && !state.loading) {
@@ -131,6 +133,16 @@ fun HealthPlanScreen(
         if (state.loading) {
             CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
+    }
+    if (showPlanQuestionnaire) {
+        HealthPlanQuestionnaireDialog(
+            creating = state.creatingPlan,
+            onCreate = { request ->
+                vm.createFromQuestionnaire(request)
+                showPlanQuestionnaire = false
+            },
+            onDismiss = { showPlanQuestionnaire = false },
+        )
     }
 }
 
@@ -373,6 +385,7 @@ private fun HealthTreeStage(
             ) {
                 HealthTreeIdleImage(
                     stage = stage,
+                    date = day?.date,
                     modifier = Modifier
                         .size(160.dp)
                         .graphicsLayer {
@@ -399,10 +412,11 @@ private fun HealthTreeStage(
 @Composable
 private fun HealthTreeIdleImage(
     stage: Int,
+    date: String?,
     modifier: Modifier = Modifier,
 ) {
     val frameCount = 6
-    val sheet = ImageBitmap.imageResource(id = healthTreeIdleSheetRes(stage))
+    val sheet = ImageBitmap.imageResource(id = healthTreeIdleSheetRes(stage, date))
     val transition = rememberInfiniteTransition(label = "treeIdleFrames")
     val frameProgress by transition.animateFloat(
         initialValue = 0f,
@@ -695,6 +709,176 @@ private fun HealthTreePlanDialog(
 }
 
 @Composable
+private fun HealthPlanQuestionnaireDialog(
+    creating: Boolean,
+    onCreate: (HealthPlanQuestionnaireRequest) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val targets = listOf("控糖稳定", "减重控脂", "提升体能", "改善睡眠", "饮食规律", "综合健康")
+    val durations = listOf(7 to "7 天", 14 to "14 天", 30 to "30 天", 60 to "60 天")
+    val frequencies = listOf(
+        "daily" to "每天",
+        "three_per_week" to "每周 3 次",
+        "five_per_week" to "每周 5 次",
+        "weekdays" to "工作日",
+    )
+    val contents = listOf(
+        "fitness" to "健身",
+        "diet_control" to "饮食控制",
+        "sleep" to "睡眠",
+        "hydration" to "饮水",
+        "medication" to "用药",
+    )
+    var target by rememberSaveable { mutableStateOf("控糖稳定") }
+    var durationDays by rememberSaveable { mutableStateOf(7) }
+    var frequency by rememberSaveable { mutableStateOf("daily") }
+    var selectedContents by rememberSaveable { mutableStateOf(listOf("fitness", "diet_control")) }
+    var medicationNeeded by rememberSaveable { mutableStateOf(false) }
+    var notes by rememberSaveable { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("生成健康计划", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                QuestionnaireSection("目标") {
+                    ChoiceRows(
+                        options = targets.map { it to it },
+                        selectedKeys = setOf(target),
+                        onPick = { target = it },
+                    )
+                }
+                QuestionnaireSection("时间") {
+                    ChoiceRows(
+                        options = durations.map { it.first.toString() to it.second },
+                        selectedKeys = setOf(durationDays.toString()),
+                        onPick = { durationDays = it.toIntOrNull() ?: 7 },
+                    )
+                }
+                QuestionnaireSection("频次") {
+                    ChoiceRows(
+                        options = frequencies,
+                        selectedKeys = setOf(frequency),
+                        onPick = { frequency = it },
+                    )
+                }
+                QuestionnaireSection("涉及内容") {
+                    ChoiceRows(
+                        options = contents,
+                        selectedKeys = selectedContents.toSet(),
+                        onPick = { key ->
+                            selectedContents = if (selectedContents.contains(key)) {
+                                selectedContents.filterNot { it == key }
+                            } else {
+                                selectedContents + key
+                            }
+                            if (key == "medication" && !selectedContents.contains("medication")) {
+                                medicationNeeded = false
+                            }
+                        },
+                    )
+                }
+                if (selectedContents.contains("medication")) {
+                    Surface(
+                        onClick = { medicationNeeded = !medicationNeeded },
+                        shape = RoundedCornerShape(12.dp),
+                        color = XjiePalette.Warning.copy(alpha = 0.08f),
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(10.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            Checkbox(
+                                checked = medicationNeeded,
+                                onCheckedChange = { medicationNeeded = it },
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text("确认有用药需求", fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "勾选后才会生成用药任务；未确认时只保存问卷选择，不自动安排用药。",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("补充说明") },
+                    minLines = 3,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !creating,
+                onClick = {
+                    onCreate(
+                        HealthPlanQuestionnaireRequest(
+                            target = target,
+                            duration_days = durationDays,
+                            frequency = frequency,
+                            contents = selectedContents,
+                            medication_needed = selectedContents.contains("medication") && medicationNeeded,
+                            notes = notes.trim().ifBlank { null },
+                            title = "${target}健康计划",
+                        )
+                    )
+                },
+            ) {
+                if (creating) {
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("保存")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun QuestionnaireSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        content()
+    }
+}
+
+@Composable
+private fun ChoiceRows(
+    options: List<Pair<String, String>>,
+    selectedKeys: Set<String>,
+    onPick: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (key, label) ->
+                    FilterChip(
+                        selected = selectedKeys.contains(key),
+                        onClick = { onPick(key) },
+                        label = { Text(label, maxLines = 1) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (row.size == 1) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HealthTreePlanTaskRow(task: TubeTaskProgress) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
@@ -780,7 +964,7 @@ private fun HealthTreeDayMarker(
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Image(
-            painter = painterResource(healthTreeStageRes(if (day.is_future) 1 else healthTreeStage(day.completion_ratio))),
+            painter = painterResource(healthTreeStageRes(if (day.is_future) 1 else healthTreeStage(day.completion_ratio), day.date)),
             contentDescription = null,
             modifier = Modifier.size(32.dp).graphicsLayer { alpha = if (day.is_future) 0.36f else 1f },
             contentScale = ContentScale.Fit,
@@ -1249,23 +1433,51 @@ private fun healthTreeStage(ratio: Double): Int {
 }
 
 @DrawableRes
-private fun healthTreeStageRes(stage: Int): Int = when (stage) {
+private fun healthTreeStageRes(stage: Int, date: String? = null): Int = when (stage) {
     1 -> R.drawable.healthtree_tree_01_seed
     2 -> R.drawable.healthtree_tree_02_sprout
     3 -> R.drawable.healthtree_tree_03_seedling
     4 -> R.drawable.healthtree_tree_04_young_tree
     5 -> R.drawable.healthtree_tree_05_flowering
-    else -> R.drawable.healthtree_tree_06_fruiting
+    else -> healthTreeFruitingRes(date)
 }
 
 @DrawableRes
-private fun healthTreeIdleSheetRes(stage: Int): Int = when (stage) {
+private fun healthTreeIdleSheetRes(stage: Int, date: String? = null): Int = when (stage) {
     1 -> R.drawable.healthtree_tree_01_seed_idle_sheet
     2 -> R.drawable.healthtree_tree_02_sprout_idle_sheet
     3 -> R.drawable.healthtree_tree_03_seedling_idle_sheet
     4 -> R.drawable.healthtree_tree_04_young_tree_idle_sheet
     5 -> R.drawable.healthtree_tree_05_flowering_idle_sheet
-    else -> R.drawable.healthtree_tree_06_fruiting_idle_sheet
+    else -> healthTreeFruitingIdleRes(date)
+}
+
+@DrawableRes
+private fun healthTreeFruitingRes(date: String?): Int = when (stableTreeSkinSeed(date.orEmpty())) {
+    in 0..19 -> R.drawable.healthtree_tree_06_fruiting
+    in 20..39 -> R.drawable.healthtree_tree_06_apple
+    in 40..59 -> R.drawable.healthtree_tree_06_pear
+    in 60..74 -> R.drawable.healthtree_tree_06_golden
+    in 75..89 -> R.drawable.healthtree_tree_06_yuanbao
+    else -> R.drawable.healthtree_tree_06_peach_immortal
+}
+
+@DrawableRes
+private fun healthTreeFruitingIdleRes(date: String?): Int = when (stableTreeSkinSeed(date.orEmpty())) {
+    in 0..19 -> R.drawable.healthtree_tree_06_fruiting_idle_sheet
+    in 20..39 -> R.drawable.healthtree_tree_06_apple_idle_sheet
+    in 40..59 -> R.drawable.healthtree_tree_06_pear_idle_sheet
+    in 60..74 -> R.drawable.healthtree_tree_06_golden_idle_sheet
+    in 75..89 -> R.drawable.healthtree_tree_06_yuanbao_idle_sheet
+    else -> R.drawable.healthtree_tree_06_peach_immortal_idle_sheet
+}
+
+private fun stableTreeSkinSeed(text: String): Int {
+    var value = 0
+    text.forEachIndexed { index, ch ->
+        value = (value + ch.code * (index + 17)) % 100
+    }
+    return value
 }
 
 private fun healthTreeStageLabel(stage: Int): String = when (stage) {

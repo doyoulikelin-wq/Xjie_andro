@@ -18,9 +18,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -56,10 +53,6 @@ fun MainScaffold(
 ) {
     val navController = rememberNavController()
     val isOnline by vm.isOnline.collectAsState()
-    var pendingChatPrompt by remember { mutableStateOf<String?>(null) }
-    val planGenerationPrompt = remember {
-        "我想生成健康计划。请先问我想生成哪一类计划（运动、饮食、用药或组合）、目标周期、禁忌/限制和是否有用药需求；用药相关内容仅在我明确确认需要时再纳入计划。"
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -177,19 +170,11 @@ fun MainScaffold(
                     com.xjie.app.feature.healthdata.HealthDataScreen(
                         onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
+                        onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                     )
                 }
                 composable(Route.HealthPlan.path) {
-                    com.xjie.app.feature.healthplan.HealthPlanScreen(
-                        onGeneratePlan = {
-                            pendingChatPrompt = planGenerationPrompt
-                            navController.navigate(Route.Chat.path) {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                    )
+                    com.xjie.app.feature.healthplan.HealthPlanScreen()
                 }
                 composable(
                     Route.HealthDataFocus.PATTERN,
@@ -201,6 +186,7 @@ fun MainScaffold(
                     com.xjie.app.feature.healthdata.HealthDataScreen(
                         onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
+                        onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                         initialFocus = focus,
                     )
                 }
@@ -210,8 +196,6 @@ fun MainScaffold(
                 composable(Route.Chat.path) {
                     com.xjie.app.feature.chat.ChatScreen(
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
-                        initialPrompt = pendingChatPrompt,
-                        onInitialPromptConsumed = { pendingChatPrompt = null },
                     )
                 }
                 composable(Route.PatientHistory.path) {

@@ -64,7 +64,7 @@ data class ContextPrecisionSummary(
         get() = "反馈 ${historyFeedbackCount} 条 · 心情 ${historyMoodCount} 条 · 身体状态 ${historyBodyCount} 条"
 
     val omicsDescription: String
-        get() = if (omicsCategoryCount > 0) "${omicsCategoryCount} 类 · ${omicsItemCount} 项特征" else "暂无多组学上传"
+        get() = if (omicsCategoryCount > 0) "${omicsCategoryCount} 类 · ${omicsItemCount} 项特征" else "暂无真实多组学上传"
 }
 
 @HiltViewModel

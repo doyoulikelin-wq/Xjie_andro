@@ -2,6 +2,7 @@ package com.xjie.app.feature.healthplan
 
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
+import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.HealthPlanListResponse
 import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.TubeCompleteRequest
@@ -32,6 +33,9 @@ class HealthPlanRepository @Inject constructor(
 
     suspend fun createFromChat(body: HealthPlanFromChatRequest): HealthPlanDetail =
         safeApiCall(json) { api.createFromChat(body) }
+
+    suspend fun createFromQuestionnaire(body: HealthPlanQuestionnaireRequest): HealthPlanDetail =
+        safeApiCall(json) { api.createFromQuestionnaire(body) }
 
     suspend fun complete(date: String, taskType: String): TubeCompleteResponse =
         safeApiCall(json) {

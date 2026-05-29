@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,6 +43,7 @@ import com.xjie.app.core.util.DateUtils
 fun HealthDataScreen(
     onOpenRecords: () -> Unit,
     onOpenExams: () -> Unit,
+    onOpenPatientHistory: () -> Unit,
     initialFocus: String? = null,
     vm: HealthDataViewModel = hiltViewModel(),
 ) {
@@ -83,6 +85,8 @@ fun HealthDataScreen(
             }
 
             AiSummaryCard(state, vm::generateSummary)
+
+            PatientHistoryEntryCard(onClick = onOpenPatientHistory)
 
             FocusWrapper(highlighted = initialFocus == "indicator") {
                 IndicatorTrendSection()
@@ -217,6 +221,53 @@ fun HealthDataScreen(
                 TextButton(onClick = { showUploadSheet = false }) { Text("取消") }
             },
         )
+    }
+}
+
+@Composable
+private fun PatientHistoryEntryCard(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Filled.Description,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(26.dp),
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    "病史整理",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    "把诊断、用药、过敏和异常检查整理成给医生看的摘要",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = -90f },
+            )
+        }
     }
 }
 

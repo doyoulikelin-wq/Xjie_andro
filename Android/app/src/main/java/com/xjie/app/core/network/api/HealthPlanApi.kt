@@ -2,6 +2,7 @@ package com.xjie.app.core.network.api
 
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
+import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.HealthPlanListResponse
 import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.TubeCompleteRequest
@@ -28,6 +29,9 @@ interface HealthPlanApi {
 
     @POST("api/health-plans/from-chat")
     suspend fun createFromChat(@Body body: HealthPlanFromChatRequest): HealthPlanDetail
+
+    @POST("api/health-plans/questionnaire")
+    suspend fun createFromQuestionnaire(@Body body: HealthPlanQuestionnaireRequest): HealthPlanDetail
 
     @POST("api/health-plans/tube/complete")
     suspend fun completeTubeTask(@Body body: TubeCompleteRequest): TubeCompleteResponse

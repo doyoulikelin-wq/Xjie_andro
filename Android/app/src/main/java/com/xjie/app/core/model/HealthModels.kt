@@ -240,6 +240,17 @@ data class HealthPlanFromChatRequest(
 )
 
 @Serializable
+data class HealthPlanQuestionnaireRequest(
+    val target: String,
+    val duration_days: Int,
+    val frequency: String,
+    val contents: List<String> = emptyList(),
+    val medication_needed: Boolean = false,
+    val notes: String? = null,
+    val title: String? = null,
+)
+
+@Serializable
 data class TubeWeek(
     val week_start: String,
     val week_end: String,
