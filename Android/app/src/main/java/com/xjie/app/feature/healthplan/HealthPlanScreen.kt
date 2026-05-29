@@ -270,10 +270,15 @@ private fun HealthTreeStage(
         ),
         label = "treeIdleBreath",
     )
+    val potRes = if (hasOmicsData) {
+        R.drawable.healthtree_pot_rich_soil
+    } else {
+        R.drawable.healthtree_pot_base
+    }
 
     Box(
         modifier
-            .height(300.dp)
+            .height(312.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.verticalGradient(
@@ -289,7 +294,7 @@ private fun HealthTreeStage(
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             HealthTreeActionRow(
                 day = day,
@@ -297,31 +302,32 @@ private fun HealthTreeStage(
                 onComplete = onComplete,
             )
             Box(
-                Modifier.height(166.dp).fillMaxWidth(),
+                Modifier
+                    .height(184.dp)
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                if (hasOmicsData) {
-                    Image(
-                        painter = painterResource(R.drawable.healthtree_pot_rich_soil),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(width = 88.dp, height = 46.dp)
-                            .offset(y = (-8).dp)
-                            .graphicsLayer { alpha = 0.92f },
-                        contentScale = ContentScale.Fit,
-                    )
-                }
                 Image(
                     painter = painterResource(healthTreeStageRes(stage)),
                     contentDescription = null,
                     modifier = Modifier
-                        .size(148.dp)
-                        .offset(y = (-8).dp)
+                        .size(154.dp)
+                        .offset(y = (-14).dp)
                         .graphicsLayer {
                             scaleX = pulse * idleBreath
                             scaleY = pulse * idleBreath
                             rotationZ = idleSway
                         },
+                    contentScale = ContentScale.Fit,
+                )
+                Image(
+                    painter = painterResource(potRes),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(154.dp)
+                        .offset(y = (-14).dp)
+                        .graphicsLayer { alpha = if (hasOmicsData) 0.98f else 1f },
                     contentScale = ContentScale.Fit,
                 )
             }
