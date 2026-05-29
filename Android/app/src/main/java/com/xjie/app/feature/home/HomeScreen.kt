@@ -76,9 +76,10 @@ fun HomeScreen(
             GlucoseCard(g, unit = unit)
         }
 
-        state.treeSummary?.let { summary ->
-            HealthTreeSummaryCard(summary)
-        }
+        HealthTreeSummaryCard(
+            summary = state.treeSummary ?: HealthTreeSummary(),
+            isLive = state.treeSummary != null,
+        )
 
         MealsCard(state.dashboard)
 
@@ -348,7 +349,7 @@ private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit) {
 }
 
 @Composable
-private fun HealthTreeSummaryCard(summary: HealthTreeSummary) {
+private fun HealthTreeSummaryCard(summary: HealthTreeSummary, isLive: Boolean) {
     Column(Modifier.cardStyle()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
@@ -361,7 +362,16 @@ private fun HealthTreeSummaryCard(summary: HealthTreeSummary) {
                 "健康树",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
             )
+            if (!isLive) {
+                Text(
+                    "同步中",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
         }
         Spacer(Modifier.height(10.dp))
         Row(
