@@ -1,7 +1,11 @@
 package com.xjie.app.feature.healthplan
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -58,7 +62,6 @@ import com.xjie.app.core.ui.theme.cardStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthPlanScreen(
     vm: HealthPlanViewModel = hiltViewModel(),
@@ -71,52 +74,51 @@ fun HealthPlanScreen(
         state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                title = { Text("健康计划") },
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(top = 10.dp, bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "健康计划",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
             )
-        },
-    ) { inner ->
-        Box(Modifier.padding(inner).fillMaxSize()) {
-            Column(
-                Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                state.week?.let { week ->
-                    HealthTreeWeekCard(
-                        week = week,
-                        currentWeek = state.weekStart == java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-                        completingType = state.completingType,
-                        recentEffect = state.lastCompletedType,
-                        onPrevious = vm::previousWeek,
-                        onNext = vm::nextWeek,
-                        onThisWeek = vm::backToThisWeek,
-                        onComplete = vm::completeToday,
-                        onEffectFinished = vm::clearCompletionEffect,
-                    )
-                }
-                PlanOverviewCard(
-                    plans = state.plans,
-                    selectedId = state.selectedPlan?.id,
-                    onSelect = vm::selectPlan,
+            state.week?.let { week ->
+                HealthTreeWeekCard(
+                    week = week,
+                    currentWeek = state.weekStart == java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY),
+                    completingType = state.completingType,
+                    recentEffect = state.lastCompletedType,
+                    onPrevious = vm::previousWeek,
+                    onNext = vm::nextWeek,
+                    onThisWeek = vm::backToThisWeek,
+                    onComplete = vm::completeToday,
+                    onEffectFinished = vm::clearCompletionEffect,
                 )
-                PlanDetailCard(plan = state.selectedPlan)
-                if (state.plans.isEmpty() && !state.loading) {
-                    EmptyState(
-                        title = "暂无健康计划",
-                        description = "在助手小捷生成饮食、运动、用药方案后，点击「保存为健康计划」。",
-                    )
-                }
-                Spacer(Modifier.height(20.dp))
             }
-            if (state.loading) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            PlanOverviewCard(
+                plans = state.plans,
+                selectedId = state.selectedPlan?.id,
+                onSelect = vm::selectPlan,
+            )
+            PlanDetailCard(plan = state.selectedPlan)
+            if (state.plans.isEmpty() && !state.loading) {
+                EmptyState(
+                    title = "暂无健康计划",
+                    description = "在助手小捷生成饮食、运动、用药方案后，点击「保存为健康计划」。",
+                )
             }
+            Spacer(Modifier.height(6.dp))
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
+        if (state.loading) {
+            CircularProgressIndicator(Modifier.align(Alignment.Center))
         }
     }
 }
@@ -249,6 +251,25 @@ private fun HealthTreeStage(
         animationSpec = tween(durationMillis = 450),
         label = "treePulse",
     )
+    val idle = rememberInfiniteTransition(label = "treeIdle")
+    val idleSway by idle.animateFloat(
+        initialValue = -1.4f,
+        targetValue = 1.4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "treeIdleSway",
+    )
+    val idleBreath by idle.animateFloat(
+        initialValue = 0.99f,
+        targetValue = 1.015f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2200),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "treeIdleBreath",
+    )
 
     Box(
         modifier
@@ -283,17 +304,24 @@ private fun HealthTreeStage(
                     Image(
                         painter = painterResource(R.drawable.healthtree_pot_rich_soil),
                         contentDescription = null,
-                        modifier = Modifier.size(width = 94.dp, height = 49.dp).graphicsLayer { alpha = 0.92f },
+                        modifier = Modifier
+                            .size(width = 88.dp, height = 46.dp)
+                            .offset(y = (-8).dp)
+                            .graphicsLayer { alpha = 0.92f },
                         contentScale = ContentScale.Fit,
                     )
                 }
                 Image(
                     painter = painterResource(healthTreeStageRes(stage)),
                     contentDescription = null,
-                    modifier = Modifier.size(156.dp).graphicsLayer {
-                        scaleX = pulse
-                        scaleY = pulse
-                    },
+                    modifier = Modifier
+                        .size(148.dp)
+                        .offset(y = (-8).dp)
+                        .graphicsLayer {
+                            scaleX = pulse * idleBreath
+                            scaleY = pulse * idleBreath
+                            rotationZ = idleSway
+                        },
                     contentScale = ContentScale.Fit,
                 )
             }

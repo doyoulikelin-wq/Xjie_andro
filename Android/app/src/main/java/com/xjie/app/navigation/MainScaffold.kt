@@ -2,6 +2,7 @@ package com.xjie.app.navigation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,8 +56,8 @@ fun MainScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             Surface(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
                 shadowElevation = 14.dp,
@@ -68,6 +69,7 @@ fun MainScaffold(
                 NavigationBar(
                     containerColor = Color.Transparent,
                     tonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0.dp),
                 ) {
                     val backStack by navController.currentBackStackEntryAsState()
                     val currentDest = backStack?.destination
