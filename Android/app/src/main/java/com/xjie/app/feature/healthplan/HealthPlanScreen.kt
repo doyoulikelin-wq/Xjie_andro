@@ -233,31 +233,36 @@ private fun HealthTreeWeekCard(
             }
         }
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            OutlinedButton(onClick = { showPlanDialog = true }) {
-                Icon(Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(5.dp))
-                Text("我的计划")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                OutlinedButton(
+                    onClick = { showPlanDialog = true },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                ) {
+                    Icon(Icons.Filled.Assignment, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(5.dp))
+                    Text("我的计划")
+                }
+                Button(
+                    onClick = onGeneratePlan,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                ) {
+                    Text("生成计划")
+                }
             }
-            Button(onClick = onGeneratePlan) {
-                Text("生成计划")
-            }
-            Spacer(Modifier.weight(1f))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = showMedicationNeed,
-                    onCheckedChange = { showMedicationNeed = it },
-                )
-                Text(
-                    "有用药需求",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (showMedicationNeed) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            MedicationNeedToggle(
+                checked = showMedicationNeed,
+                onCheckedChange = { showMedicationNeed = it },
+                modifier = Modifier.fillMaxWidth(),
+                description = "勾选后显示用药计划",
+            )
         }
 
         HealthTreeStage(
@@ -577,6 +582,54 @@ private fun HealthTreeActionChip(
 }
 
 @Composable
+private fun MedicationNeedToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    description: String? = null,
+) {
+    val accent = if (checked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    Surface(
+        onClick = { onCheckedChange(!checked) },
+        modifier = modifier,
+        color = if (checked) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        shape = RoundedCornerShape(16.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Checkbox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
+            Spacer(Modifier.width(4.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    "有用药需求",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accent,
+                )
+                if (description != null) {
+                    Text(
+                        description,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun HealthTreePlanDialog(
     day: TubeDay?,
     tasks: List<TubeTaskProgress>,
@@ -604,28 +657,12 @@ private fun HealthTreePlanDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    shape = RoundedCornerShape(12.dp),
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(
-                            checked = showMedicationNeed,
-                            onCheckedChange = onMedicationNeedChange,
-                        )
-                        Column(Modifier.weight(1f)) {
-                            Text("有用药需求", fontWeight = FontWeight.SemiBold)
-                            Text(
-                                "勾选后才显示用药计划；没有医生或本人确认时不默认展示。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
+                MedicationNeedToggle(
+                    checked = showMedicationNeed,
+                    onCheckedChange = onMedicationNeedChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    description = "勾选后才显示用药计划；没有医生或本人确认时不默认展示。",
+                )
 
                 if (tasks.isEmpty()) {
                     Text(
