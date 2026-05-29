@@ -1,6 +1,7 @@
 package com.xjie.app.feature.healthplan
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
@@ -39,14 +40,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.R
@@ -61,6 +68,7 @@ import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 @Composable
 fun HealthPlanScreen(
@@ -251,34 +259,29 @@ private fun HealthTreeStage(
         animationSpec = tween(durationMillis = 450),
         label = "treePulse",
     )
-    val idle = rememberInfiniteTransition(label = "treeIdle")
-    val idleSway by idle.animateFloat(
-        initialValue = -1.4f,
-        targetValue = 1.4f,
+    val idleMotion = rememberInfiniteTransition(label = "treeIdleMotion")
+    val idleSway by idleMotion.animateFloat(
+        initialValue = -0.8f,
+        targetValue = 0.8f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400),
+            animation = tween(durationMillis = 3200),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "treeIdleSway",
     )
-    val idleBreath by idle.animateFloat(
-        initialValue = 0.99f,
-        targetValue = 1.015f,
+    val idleBreath by idleMotion.animateFloat(
+        initialValue = 0.996f,
+        targetValue = 1.006f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200),
+            animation = tween(durationMillis = 3000),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "treeIdleBreath",
     )
-    val potRes = if (hasOmicsData) {
-        R.drawable.healthtree_pot_rich_soil
-    } else {
-        R.drawable.healthtree_pot_base
-    }
 
     Box(
         modifier
-            .height(312.dp)
+            .height(318.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.verticalGradient(
@@ -303,32 +306,21 @@ private fun HealthTreeStage(
             )
             Box(
                 Modifier
-                    .height(184.dp)
+                    .height(190.dp)
                     .fillMaxWidth()
-                    .padding(bottom = 4.dp),
+                    .padding(bottom = 14.dp),
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                Image(
-                    painter = painterResource(healthTreeStageRes(stage)),
-                    contentDescription = null,
+                HealthTreeIdleImage(
+                    stage = stage,
                     modifier = Modifier
-                        .size(154.dp)
-                        .offset(y = (-14).dp)
+                        .size(160.dp)
                         .graphicsLayer {
+                            transformOrigin = TransformOrigin(0.5f, 0.86f)
                             scaleX = pulse * idleBreath
                             scaleY = pulse * idleBreath
                             rotationZ = idleSway
                         },
-                    contentScale = ContentScale.Fit,
-                )
-                Image(
-                    painter = painterResource(potRes),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(154.dp)
-                        .offset(y = (-14).dp)
-                        .graphicsLayer { alpha = if (hasOmicsData) 0.98f else 1f },
-                    contentScale = ContentScale.Fit,
                 )
             }
             Text(
@@ -341,6 +333,37 @@ private fun HealthTreeStage(
         recentEffect?.let {
             HealthTreeEffectOverlay(type = it, onFinished = onEffectFinished)
         }
+    }
+}
+
+@Composable
+private fun HealthTreeIdleImage(
+    stage: Int,
+    modifier: Modifier = Modifier,
+) {
+    val frameCount = 6
+    val sheet = ImageBitmap.imageResource(id = healthTreeIdleSheetRes(stage))
+    val transition = rememberInfiniteTransition(label = "treeIdleFrames")
+    val frameProgress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = frameCount.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2400, easing = LinearEasing),
+        ),
+        label = "treeIdleFrame",
+    )
+    val frame = frameProgress.toInt().coerceIn(0, frameCount - 1)
+
+    Canvas(modifier) {
+        val frameWidth = sheet.width / frameCount
+        drawImage(
+            image = sheet,
+            srcOffset = IntOffset(frame * frameWidth, 0),
+            srcSize = IntSize(frameWidth, sheet.height),
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+            filterQuality = FilterQuality.None,
+        )
     }
 }
 
@@ -977,6 +1000,16 @@ private fun healthTreeStageRes(stage: Int): Int = when (stage) {
     4 -> R.drawable.healthtree_tree_04_young_tree
     5 -> R.drawable.healthtree_tree_05_flowering
     else -> R.drawable.healthtree_tree_06_fruiting
+}
+
+@DrawableRes
+private fun healthTreeIdleSheetRes(stage: Int): Int = when (stage) {
+    1 -> R.drawable.healthtree_tree_01_seed_idle_sheet
+    2 -> R.drawable.healthtree_tree_02_sprout_idle_sheet
+    3 -> R.drawable.healthtree_tree_03_seedling_idle_sheet
+    4 -> R.drawable.healthtree_tree_04_young_tree_idle_sheet
+    5 -> R.drawable.healthtree_tree_05_flowering_idle_sheet
+    else -> R.drawable.healthtree_tree_06_fruiting_idle_sheet
 }
 
 private fun healthTreeStageLabel(stage: Int): String = when (stage) {
