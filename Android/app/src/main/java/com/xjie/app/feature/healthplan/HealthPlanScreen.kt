@@ -176,6 +176,10 @@ private fun HealthTreeWeekCard(
     } else {
         activeTasks.sumOf { it.ratio } / activeTasks.size
     }
+    val activeDateLabel = activeDay?.let {
+        if (it.is_today) "今天 · ${it.date}" else "${weekdayName(it.weekday)} · ${it.date}"
+    } ?: "未选择日期"
+    val isActiveDayToday = activeDay?.is_today == true
 
     Column(
         Modifier
@@ -283,9 +287,15 @@ private fun HealthTreeWeekCard(
             day = activeDay,
             hasOmicsData = week.has_omics_data,
             showMedicationNeed = showMedicationNeed,
+            dateLabel = activeDateLabel,
+            isActiveDayToday = isActiveDayToday,
             completingType = completingType,
             recentEffect = recentEffect,
             onComplete = onComplete,
+            onBackToToday = {
+                selectedDate = null
+                if (!currentWeek) onThisWeek()
+            },
             onEffectFinished = onEffectFinished,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -319,9 +329,12 @@ private fun HealthTreeStage(
     day: TubeDay?,
     hasOmicsData: Boolean,
     showMedicationNeed: Boolean,
+    dateLabel: String,
+    isActiveDayToday: Boolean,
     completingType: String?,
     recentEffect: String?,
     onComplete: (String) -> Unit,
+    onBackToToday: () -> Unit,
     onEffectFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -368,7 +381,7 @@ private fun HealthTreeStage(
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             HealthTreeActionRow(
                 day = day,
@@ -378,7 +391,7 @@ private fun HealthTreeStage(
             )
             Box(
                 Modifier
-                    .height(190.dp)
+                    .height(184.dp)
                     .fillMaxWidth()
                     .padding(bottom = 14.dp),
                 contentAlignment = Alignment.BottomCenter,
@@ -395,6 +408,37 @@ private fun HealthTreeStage(
                             rotationZ = idleSway
                         },
                 )
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
+                    shape = RoundedCornerShape(999.dp),
+                ) {
+                    Text(
+                        dateLabel,
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                }
+                if (!isActiveDayToday) {
+                    Spacer(Modifier.width(8.dp))
+                    FilledTonalButton(
+                        onClick = onBackToToday,
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("回到今天", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
             Text(
                 healthTreeStageLabel(stage),
