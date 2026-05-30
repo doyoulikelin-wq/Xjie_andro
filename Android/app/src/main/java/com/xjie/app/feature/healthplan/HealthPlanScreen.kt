@@ -409,11 +409,7 @@ private fun HealthTreeStage(
                         },
                 )
             }
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
                     shape = RoundedCornerShape(999.dp),
@@ -427,18 +423,6 @@ private fun HealthTreeStage(
                         maxLines = 1,
                     )
                 }
-                if (!isActiveDayToday) {
-                    Spacer(Modifier.width(8.dp))
-                    FilledTonalButton(
-                        onClick = onBackToToday,
-                        modifier = Modifier.height(34.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    ) {
-                        Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("回到今天", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
-                    }
-                }
             }
             Text(
                 healthTreeStageLabel(stage),
@@ -449,6 +433,19 @@ private fun HealthTreeStage(
         }
         recentEffect?.let {
             HealthTreeEffectOverlay(type = it, onFinished = onEffectFinished)
+        }
+        if (!isActiveDayToday) {
+            FilledTonalButton(
+                onClick = onBackToToday,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .height(34.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+            ) {
+                Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("回到今天", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -1015,8 +1012,8 @@ private fun HealthTreeDayMarker(
         )
         Box(
             Modifier
-                .size(width = 26.dp, height = 24.dp)
-                .clip(CircleShape)
+                .size(width = 42.dp, height = 24.dp)
+                .clip(RoundedCornerShape(999.dp))
                 .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
@@ -1025,6 +1022,7 @@ private fun HealthTreeDayMarker(
                 style = MaterialTheme.typography.labelSmall,
                 color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
             )
         }
         Text(
@@ -1151,8 +1149,8 @@ private fun TubeDayColumn(
         Spacer(Modifier.height(6.dp))
         Box(
             Modifier
-                .size(28.dp)
-                .clip(CircleShape)
+                .size(width = 42.dp, height = 24.dp)
+                .clip(RoundedCornerShape(999.dp))
                 .background(if (day.is_today) MaterialTheme.colorScheme.primary else Color.Transparent),
             contentAlignment = Alignment.Center,
         ) {
@@ -1439,13 +1437,13 @@ private fun progressText(task: TubeTaskProgress): String {
 }
 
 private fun weekdayName(weekday: Int): String = when (weekday) {
-    1 -> "一"
-    2 -> "二"
-    3 -> "三"
-    4 -> "四"
-    5 -> "五"
-    6 -> "六"
-    else -> "日"
+    1 -> "周一"
+    2 -> "周二"
+    3 -> "周三"
+    4 -> "周四"
+    5 -> "周五"
+    6 -> "周六"
+    else -> "周日"
 }
 
 private fun short(day: String): String = day.takeLast(5)
