@@ -163,6 +163,7 @@ private fun HealthTreeWeekCard(
     var selectedDate by remember(week.week_start) { mutableStateOf<String?>(null) }
     var showMedicationNeed by remember(week.week_start) { mutableStateOf(week.has_medication_need) }
     var showPlanDialog by remember { mutableStateOf(false) }
+    var showGrowthPath by remember { mutableStateOf(false) }
     val today = week.days.firstOrNull { it.is_today }
     val activeDay = selectedDate
         ?.let { date -> week.days.firstOrNull { it.date == date } }
@@ -171,15 +172,11 @@ private fun HealthTreeWeekCard(
     val activeTasks = activeDay?.tasks
         ?.filter { showMedicationNeed || it.task_type != "medication" }
         .orEmpty()
-    val activeRatio = if (activeDay?.is_future == true || activeTasks.isEmpty()) {
-        0.0
-    } else {
-        activeTasks.sumOf { it.ratio } / activeTasks.size
-    }
     val activeDateLabel = activeDay?.let {
-        if (it.is_today) "今天 · ${it.date}" else "${weekdayName(it.weekday)} · ${it.date}"
+        "${planRelativeLabel(it, week.today)} · ${it.date}"
     } ?: "未选择日期"
     val isActiveDayToday = activeDay?.is_today == true
+    val growthProgress = remember(week) { growthTreeProgress(week) }
 
     Column(
         Modifier
@@ -215,7 +212,7 @@ private fun HealthTreeWeekCard(
                 shape = RoundedCornerShape(8.dp),
             ) {
                 Text(
-                    "${(activeRatio * 100).toInt()}%",
+                    "${growthProgress.exp}/${GrowthTreeProgress.MaxExp} EXP",
                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
@@ -272,26 +269,20 @@ private fun HealthTreeWeekCard(
                 ) {
                     Text("生成计划")
                 }
+                OutlinedButton(
+                    onClick = { showGrowthPath = true },
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                ) {
+                    Text("成长路径", maxLines = 1)
+                }
             }
-            MedicationNeedToggle(
-                checked = showMedicationNeed,
-                onCheckedChange = { showMedicationNeed = it },
-                modifier = Modifier.fillMaxWidth(),
-                description = "勾选后显示用药计划",
-            )
         }
 
         HealthTreeStage(
-            stage = healthTreeStage(activeRatio),
-            completionRatio = activeRatio,
-            day = activeDay,
-            hasOmicsData = week.has_omics_data,
-            showMedicationNeed = showMedicationNeed,
-            dateLabel = activeDateLabel,
+            progress = growthProgress,
+            today = today,
             isActiveDayToday = isActiveDayToday,
-            completingType = completingType,
             recentEffect = recentEffect,
-            onComplete = onComplete,
             onBackToToday = {
                 selectedDate = null
                 if (!currentWeek) onThisWeek()
@@ -300,10 +291,22 @@ private fun HealthTreeWeekCard(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        HealthTreeWeekStrip(
-            days = week.days,
+        GrowthPlanDaySelector(
+            choices = growthPlanChoices(week),
             selectedDate = activeDay?.date,
             onSelect = { selectedDate = it.date },
+        )
+
+        HealthTreePlanPreview(
+            title = "${planRelativeLabel(activeDay, week.today)}计划",
+            dateLabel = activeDateLabel,
+            day = activeDay,
+            showMedicationNeed = showMedicationNeed,
+            onMedicationNeedChange = { showMedicationNeed = it },
+            completingType = completingType,
+            onComplete = onComplete,
+            onOpenDetail = { showPlanDialog = true },
+            onGeneratePlan = onGeneratePlan,
         )
     }
 
@@ -320,20 +323,20 @@ private fun HealthTreeWeekCard(
             onDismiss = { showPlanDialog = false },
         )
     }
+    if (showGrowthPath) {
+        HealthTreeGrowthPathDialog(
+            progress = growthProgress,
+            onDismiss = { showGrowthPath = false },
+        )
+    }
 }
 
 @Composable
 private fun HealthTreeStage(
-    stage: Int,
-    completionRatio: Double,
-    day: TubeDay?,
-    hasOmicsData: Boolean,
-    showMedicationNeed: Boolean,
-    dateLabel: String,
+    progress: GrowthTreeProgress,
+    today: TubeDay?,
     isActiveDayToday: Boolean,
-    completingType: String?,
     recentEffect: String?,
-    onComplete: (String) -> Unit,
     onBackToToday: () -> Unit,
     onEffectFinished: () -> Unit,
     modifier: Modifier = Modifier,
@@ -345,8 +348,8 @@ private fun HealthTreeStage(
     )
     val idleMotion = rememberInfiniteTransition(label = "treeIdleMotion")
     val idleSway by idleMotion.animateFloat(
-        initialValue = -0.8f,
-        targetValue = 0.8f,
+        initialValue = -0.45f,
+        targetValue = 0.45f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 3200),
             repeatMode = RepeatMode.Reverse,
@@ -354,8 +357,8 @@ private fun HealthTreeStage(
         label = "treeIdleSway",
     )
     val idleBreath by idleMotion.animateFloat(
-        initialValue = 0.996f,
-        targetValue = 1.006f,
+        initialValue = 0.998f,
+        targetValue = 1.004f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 3000),
             repeatMode = RepeatMode.Reverse,
@@ -365,7 +368,7 @@ private fun HealthTreeStage(
 
     Box(
         modifier
-            .height(318.dp)
+            .height(350.dp)
             .clip(RoundedCornerShape(18.dp))
             .background(
                 Brush.verticalGradient(
@@ -383,24 +386,17 @@ private fun HealthTreeStage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            HealthTreeActionRow(
-                day = day,
-                showMedicationNeed = showMedicationNeed,
-                completingType = completingType,
-                onComplete = onComplete,
-            )
             Box(
                 Modifier
-                    .height(184.dp)
+                    .height(192.dp)
                     .fillMaxWidth()
-                    .padding(bottom = 14.dp),
+                    .padding(bottom = 6.dp),
                 contentAlignment = Alignment.BottomCenter,
             ) {
-                HealthTreeIdleImage(
-                    stage = stage,
-                    date = day?.date,
+                GrowthTreeImage(
+                    stage = progress.stage,
                     modifier = Modifier
-                        .size(160.dp)
+                        .size(190.dp)
                         .graphicsLayer {
                             transformOrigin = TransformOrigin(0.5f, 0.86f)
                             scaleX = pulse * idleBreath
@@ -409,27 +405,53 @@ private fun HealthTreeStage(
                         },
                 )
             }
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.90f),
-                    shape = RoundedCornerShape(999.dp),
-                ) {
-                    Text(
-                        dateLabel,
-                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                    )
-                }
-            }
             Text(
-                healthTreeStageLabel(stage),
+                "今日",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                today?.date ?: "未同步日期",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                growthTreeStageLabel(progress.stage),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Lv.${progress.stage}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        if (progress.isMaxStage) "已进入结果期" else "距下一阶段 ${progress.expToNextStage} EXP",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { progress.stageProgress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "健康问答、添加病例/健康数据、持续佩戴血糖仪都会累积成长经验。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
         }
         recentEffect?.let {
             HealthTreeEffectOverlay(type = it, onFinished = onEffectFinished)
@@ -451,35 +473,24 @@ private fun HealthTreeStage(
 }
 
 @Composable
-private fun HealthTreeIdleImage(
+private fun GrowthTreeImage(
     stage: Int,
-    date: String?,
     modifier: Modifier = Modifier,
 ) {
-    val frameCount = 6
-    val sheet = ImageBitmap.imageResource(id = healthTreeIdleSheetRes(stage, date))
-    val transition = rememberInfiniteTransition(label = "treeIdleFrames")
-    val frameProgress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = frameCount.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = LinearEasing),
-        ),
-        label = "treeIdleFrame",
-    )
-    val frame = frameProgress.toInt().coerceIn(0, frameCount - 1)
-
-    Canvas(modifier) {
-        val frameWidth = sheet.width / frameCount
-        drawImage(
-            image = sheet,
-            srcOffset = IntOffset(frame * frameWidth, 0),
-            srcSize = IntSize(frameWidth, sheet.height),
-            dstOffset = IntOffset(0, 0),
-            dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
-            filterQuality = FilterQuality.None,
-        )
+    val frames = remember(stage) { growthTreeFrameRes(stage) }
+    var frameIndex by remember(stage) { mutableStateOf(0) }
+    LaunchedEffect(stage, frames.size) {
+        while (true) {
+            delay(220)
+            frameIndex = (frameIndex + 1) % frames.size
+        }
     }
+    Image(
+        painter = painterResource(frames[frameIndex]),
+        contentDescription = null,
+        modifier = modifier,
+        contentScale = ContentScale.Fit,
+    )
 }
 
 @Composable
@@ -500,20 +511,307 @@ private fun BoxScope.HealthTreeEffectOverlay(
         onFinished()
     }
 
-    Image(
-        painter = painterResource(healthTreeActionRes(type)),
-        contentDescription = null,
+    Column(
         modifier = Modifier
-            .size(48.dp)
             .align(Alignment.TopCenter)
-            .offset(y = (8f + 60f * progress).dp)
+            .offset(y = (8f + 64f * progress).dp)
             .graphicsLayer {
                 alpha = 1f - progress
                 scaleX = 0.82f + progress * 0.26f
                 scaleY = 0.82f + progress * 0.26f
             },
-        contentScale = ContentScale.Fit,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(healthTreeActionRes(type)),
+            contentDescription = null,
+            modifier = Modifier.size(48.dp),
+            contentScale = ContentScale.Fit,
+        )
+        Surface(
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+            shape = RoundedCornerShape(999.dp),
+        ) {
+            Text(
+                "+10 EXP",
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun GrowthPlanDaySelector(
+    choices: List<GrowthPlanDayChoice>,
+    selectedDate: String?,
+    onSelect: (TubeDay) -> Unit,
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+        choices.forEach { choice ->
+            val selected = choice.day?.date == selectedDate
+            Surface(
+                onClick = { choice.day?.let(onSelect) },
+                enabled = choice.day != null,
+                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.weight(1f).height(48.dp),
+            ) {
+                Column(
+                    Modifier.fillMaxSize().padding(horizontal = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        choice.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = when {
+                            selected -> MaterialTheme.colorScheme.onPrimary
+                            choice.day == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            else -> MaterialTheme.colorScheme.onSurface
+                        },
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                    Text(
+                        choice.day?.date?.let(::shortDate) ?: "--",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = when {
+                            selected -> MaterialTheme.colorScheme.onPrimary
+                            choice.day == null -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthTreePlanPreview(
+    title: String,
+    dateLabel: String,
+    day: TubeDay?,
+    showMedicationNeed: Boolean,
+    onMedicationNeedChange: (Boolean) -> Unit,
+    completingType: String?,
+    onComplete: (String) -> Unit,
+    onOpenDetail: () -> Unit,
+    onGeneratePlan: () -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    dateLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedButton(onClick = onOpenDetail, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+                Text("详情", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        MedicationNeedToggle(
+            checked = showMedicationNeed,
+            onCheckedChange = onMedicationNeedChange,
+            modifier = Modifier.fillMaxWidth(),
+            description = "勾选后显示用药计划",
+        )
+        HealthTreeActionRow(
+            day = day,
+            showMedicationNeed = showMedicationNeed,
+            completingType = completingType,
+            onComplete = onComplete,
+        )
+        if (day?.is_today != true) {
+            Text(
+                "仅今日计划支持点击完成；前后日期用于查看安排。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (day?.tasks?.isEmpty() != false) {
+            Button(onClick = onGeneratePlan) {
+                Text("生成计划")
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthTreeGrowthPathDialog(
+    progress: GrowthTreeProgress,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text("成长路径", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "当前 ${growthTreeStageLabel(progress.stage)} · ${progress.exp}/${GrowthTreeProgress.MaxExp} EXP",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        text = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                growthStageMilestones.forEach { item ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                if (item.stage == progress.stage) MaterialTheme.colorScheme.primary.copy(alpha = 0.10f)
+                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                            )
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Image(
+                            painter = painterResource(growthTreeFrameRes(item.stage).first()),
+                            contentDescription = null,
+                            modifier = Modifier.size(46.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(item.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                item.description,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text(
+                            "${item.requiredExp}+",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (item.stage <= progress.stage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
+                Text(
+                    "经验来源设计：健康相关问答 +5 EXP；添加病例或健康数据 +15 EXP；持续佩戴血糖仪每日 +30 EXP；完成今日计划任务 +10 EXP。真实持久经验值接口接入后沿用此界面。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("完成") }
+        },
     )
+}
+
+private data class GrowthTreeProgress(
+    val exp: Int,
+) {
+    val stage: Int = (exp / 100 + 1).coerceIn(1, 5)
+    val stageProgress: Float = if (stage >= 5) 1f else ((exp % 100).toFloat() / 100f).coerceIn(0f, 1f)
+    val expToNextStage: Int = if (stage >= 5) 0 else (stage * 100 - exp).coerceAtLeast(0)
+    val isMaxStage: Boolean = stage >= 5
+
+    companion object {
+        const val MaxExp = 500
+    }
+}
+
+private data class GrowthPlanDayChoice(
+    val offset: Int,
+    val label: String,
+    val day: TubeDay?,
+)
+
+private data class GrowthStageMilestone(
+    val stage: Int,
+    val title: String,
+    val description: String,
+    val requiredExp: Int,
+)
+
+private val growthStageMilestones = listOf(
+    GrowthStageMilestone(1, "种子期", "开始记录健康目标，完成第一次互动。", 0),
+    GrowthStageMilestone(2, "发芽期", "持续完成计划，小苗从土壤里冒出。", 100),
+    GrowthStageMilestone(3, "树苗期", "病例、健康数据和问答逐步形成个人上下文。", 200),
+    GrowthStageMilestone(4, "成长期", "连续数据让计划更稳定，树冠开始展开。", 300),
+    GrowthStageMilestone(5, "结果期", "长期坚持后结出果实，记录阶段性成果。", 400),
+)
+
+private fun growthTreeProgress(week: TubeWeek): GrowthTreeProgress {
+    val tasks = week.days.flatMap { it.tasks }
+    if (tasks.isEmpty()) return GrowthTreeProgress(0)
+    val planExp = (tasks.size * 5).coerceAtMost(120)
+    val ratioExp = ((tasks.sumOf { it.ratio.coerceIn(0.0, 1.0) } / tasks.size.coerceAtLeast(1)) * 260).toInt()
+    val completedUnitExp = tasks.sumOf { task ->
+        task.completed.coerceAtMost(task.target.coerceAtLeast(1)) * 8
+    }.coerceAtMost(120)
+    return GrowthTreeProgress((planExp + ratioExp + completedUnitExp).coerceIn(0, GrowthTreeProgress.MaxExp - 1))
+}
+
+private fun growthPlanChoices(week: TubeWeek): List<GrowthPlanDayChoice> {
+    val offsets = listOf(-2 to "前天", -1 to "昨天", 0 to "今日", 1 to "明天", 2 to "后天")
+    val today = runCatching { java.time.LocalDate.parse(week.today) }.getOrNull()
+    return offsets.map { (offset, label) ->
+        val date = today?.plusDays(offset.toLong())?.toString()
+        GrowthPlanDayChoice(
+            offset = offset,
+            label = label,
+            day = date?.let { key -> week.days.firstOrNull { it.date == key } }
+                ?: if (offset == 0) week.days.firstOrNull { it.is_today } else null,
+        )
+    }
+}
+
+private fun planRelativeLabel(day: TubeDay?, today: String): String {
+    if (day == null || day.is_today) return "今日"
+    val todayDate = runCatching { java.time.LocalDate.parse(today) }.getOrNull()
+    val dayDate = runCatching { java.time.LocalDate.parse(day.date) }.getOrNull()
+    val diff = if (todayDate != null && dayDate != null) java.time.temporal.ChronoUnit.DAYS.between(todayDate, dayDate).toInt() else 0
+    return when (diff) {
+        -2 -> "前天"
+        -1 -> "昨天"
+        1 -> "明天"
+        2 -> "后天"
+        else -> weekdayName(day.weekday)
+    }
+}
+
+private fun shortDate(date: String): String = date.takeLast(5)
+
+private fun growthTreeFrameRes(stage: Int): List<Int> = when (stage) {
+    1 -> listOf(R.drawable.growth_tree_seed_0, R.drawable.growth_tree_seed_1, R.drawable.growth_tree_seed_2, R.drawable.growth_tree_seed_3)
+    2 -> listOf(R.drawable.growth_tree_sprout_0, R.drawable.growth_tree_sprout_1, R.drawable.growth_tree_sprout_2, R.drawable.growth_tree_sprout_3)
+    3 -> listOf(R.drawable.growth_tree_sapling_0, R.drawable.growth_tree_sapling_1, R.drawable.growth_tree_sapling_2, R.drawable.growth_tree_sapling_3, R.drawable.growth_tree_sapling_4)
+    4 -> listOf(R.drawable.growth_tree_tree_0, R.drawable.growth_tree_tree_1, R.drawable.growth_tree_tree_2, R.drawable.growth_tree_tree_3, R.drawable.growth_tree_tree_4, R.drawable.growth_tree_tree_5)
+    else -> listOf(R.drawable.growth_tree_fruit_0, R.drawable.growth_tree_fruit_1, R.drawable.growth_tree_fruit_2, R.drawable.growth_tree_fruit_3)
+}
+
+private fun growthTreeStageLabel(stage: Int): String = when (stage) {
+    1 -> "种子期"
+    2 -> "发芽期"
+    3 -> "树苗期"
+    4 -> "成长期"
+    else -> "结果期"
 }
 
 @Composable
