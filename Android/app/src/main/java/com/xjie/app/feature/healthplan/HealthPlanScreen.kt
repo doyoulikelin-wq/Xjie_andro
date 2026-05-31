@@ -1,12 +1,7 @@
 package com.xjie.app.feature.healthplan
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -41,20 +36,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.R
@@ -70,7 +59,6 @@ import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
-import kotlin.math.roundToInt
 
 @Composable
 fun HealthPlanScreen(
@@ -346,26 +334,6 @@ private fun HealthTreeStage(
         animationSpec = tween(durationMillis = 450),
         label = "treePulse",
     )
-    val idleMotion = rememberInfiniteTransition(label = "treeIdleMotion")
-    val idleSway by idleMotion.animateFloat(
-        initialValue = -0.45f,
-        targetValue = 0.45f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3200),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "treeIdleSway",
-    )
-    val idleBreath by idleMotion.animateFloat(
-        initialValue = 0.998f,
-        targetValue = 1.004f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 3000),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "treeIdleBreath",
-    )
-
     Box(
         modifier
             .height(350.dp)
@@ -398,10 +366,8 @@ private fun HealthTreeStage(
                     modifier = Modifier
                         .size(190.dp)
                         .graphicsLayer {
-                            transformOrigin = TransformOrigin(0.5f, 0.86f)
-                            scaleX = pulse * idleBreath
-                            scaleY = pulse * idleBreath
-                            rotationZ = idleSway
+                            scaleX = pulse
+                            scaleY = pulse
                         },
                 )
             }
@@ -477,16 +443,8 @@ private fun GrowthTreeImage(
     stage: Int,
     modifier: Modifier = Modifier,
 ) {
-    val frames = remember(stage) { growthTreeFrameRes(stage) }
-    var frameIndex by remember(stage) { mutableStateOf(0) }
-    LaunchedEffect(stage, frames.size) {
-        while (true) {
-            delay(220)
-            frameIndex = (frameIndex + 1) % frames.size
-        }
-    }
     Image(
-        painter = painterResource(frames[frameIndex]),
+        painter = painterResource(growthTreePrimaryRes(stage)),
         contentDescription = null,
         modifier = modifier,
         contentScale = ContentScale.Fit,
@@ -805,6 +763,9 @@ private fun growthTreeFrameRes(stage: Int): List<Int> = when (stage) {
     4 -> listOf(R.drawable.growth_tree_tree_0, R.drawable.growth_tree_tree_1, R.drawable.growth_tree_tree_2, R.drawable.growth_tree_tree_3, R.drawable.growth_tree_tree_4, R.drawable.growth_tree_tree_5)
     else -> listOf(R.drawable.growth_tree_fruit_0, R.drawable.growth_tree_fruit_1, R.drawable.growth_tree_fruit_2, R.drawable.growth_tree_fruit_3)
 }
+
+@DrawableRes
+private fun growthTreePrimaryRes(stage: Int): Int = growthTreeFrameRes(stage).first()
 
 private fun growthTreeStageLabel(stage: Int): String = when (stage) {
     1 -> "种子期"
