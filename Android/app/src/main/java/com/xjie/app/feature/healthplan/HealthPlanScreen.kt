@@ -7,7 +7,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -40,7 +39,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -147,7 +145,6 @@ private fun HealthTreeWeekCard(
     onEffectFinished: () -> Unit,
     onGeneratePlan: () -> Unit,
 ) {
-    var dragX by remember { mutableStateOf(0f) }
     var selectedDate by remember(week.week_start) { mutableStateOf<String?>(null) }
     var showMedicationNeed by remember(week.week_start) { mutableStateOf(week.has_medication_need) }
     var showPlanDialog by remember { mutableStateOf(false) }
@@ -167,18 +164,7 @@ private fun HealthTreeWeekCard(
     val growthProgress = remember(week) { growthTreeProgress(week) }
 
     Column(
-        Modifier
-            .cardStyle()
-            .pointerInput(week.week_start) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragX = 0f },
-                    onHorizontalDrag = { _, dragAmount -> dragX += dragAmount },
-                    onDragEnd = {
-                        if (dragX > 80f) onPrevious()
-                        if (dragX < -80f) onNext()
-                    },
-                )
-            },
+        Modifier.cardStyle(),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1199,7 +1185,7 @@ private fun HealthTreePlanTaskRow(task: TubeTaskProgress) {
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        task.title ?: task.label,
+                        stripPlanDayPrefix(task.title ?: task.label),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -1220,7 +1206,7 @@ private fun HealthTreePlanTaskRow(task: TubeTaskProgress) {
             }
             task.details.take(4).forEach { detail ->
                 Text(
-                    "- $detail",
+                    "- ${stripPlanDayPrefix(detail)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -1303,20 +1289,8 @@ private fun TubeWeekCard(
     onThisWeek: () -> Unit,
     onComplete: (String) -> Unit,
 ) {
-    var dragX by remember { mutableStateOf(0f) }
     Column(
-        Modifier
-            .cardStyle()
-            .pointerInput(week.week_start) {
-                detectHorizontalDragGestures(
-                    onDragStart = { dragX = 0f },
-                    onHorizontalDrag = { _, dragAmount -> dragX += dragAmount },
-                    onDragEnd = {
-                        if (dragX > 80f) onPrevious()
-                        if (dragX < -80f) onNext()
-                    },
-                )
-            },
+        Modifier.cardStyle(),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1621,46 +1595,498 @@ private fun PlanOverviewCard(
 
 @Composable
 private fun PlanDetailCard(plan: HealthPlanDetail?) {
+    val days = remember(plan?.id, plan?.updated_at, plan?.tasks?.size) {
+        plan?.let(::planDaySummaries).orEmpty()
+    }
+    var selectedDate by remember(plan?.id) { mutableStateOf<String?>(null) }
+
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(Icons.Filled.Assignment, "计划详情")
         if (plan == null) {
             Text("保存计划后，这里会展示目标、周期和每日任务。",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
-            return@Column
+        } else {
+            val templates = remember(plan.id, plan.tasks.size) { planTaskTemplates(plan.tasks) }
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(plan.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${shortDate(plan.start_date)} - ${shortDate(plan.end_date)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                compactPlanSummary(plan)?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (templates.isNotEmpty()) {
+                Text("每日执行", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                templates.take(6).forEach { task ->
+                    PlanTemplateRow(task)
+                }
+            }
+            HorizontalDivider()
+            PlanCalendar(days = days, onSelect = { selectedDate = it.date })
         }
-        Text(plan.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-        plan.goal?.takeIf { it.isNotBlank() }?.let {
-            Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatPill("${plan.task_count}", "任务", Modifier.weight(1f))
-            StatPill("${plan.completed_task_count}", "完成", Modifier.weight(1f))
-            StatPill(short(plan.start_date), "开始", Modifier.weight(1f))
-        }
-        HorizontalDivider()
-        plan.tasks.take(8).forEach { task ->
-            TaskRow(task)
+    }
+    days.firstOrNull { it.date == selectedDate }?.let { day ->
+        PlanDayDetailDialog(day = day, onDismiss = { selectedDate = null })
+    }
+}
+
+@Composable
+private fun PlanTemplateRow(task: PlanTask) {
+    val kind = planTaskKind(task)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .padding(10.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(typeIcon(kind), null, tint = typeColor(kind), modifier = Modifier.width(22.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    planTaskDisplayTitle(task),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    planTaskTargetText(task),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = typeColor(kind),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+            planTaskDetailText(task)?.takeIf { it.isNotBlank() }?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun TaskRow(task: PlanTask) {
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Icon(typeIcon(task.task_type), null, tint = typeColor(task.task_type), modifier = Modifier.width(22.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(task.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-            Text("${short(task.date)} · ${task.completed_count}/${max(task.target_count, 1)}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant)
+private fun PlanCalendar(days: List<PlanDaySummary>, onSelect: (PlanDaySummary) -> Unit) {
+    val labels = listOf("一", "二", "三", "四", "五", "六", "日")
+    val slots = remember(days) { planCalendarSlots(days) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.CalendarMonth, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(5.dp))
+            Text("执行日历", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            if (days.isNotEmpty()) {
+                Text(
+                    "${shortDate(days.first().date)} - ${shortDate(days.last().date)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
-        if (task.status == "completed") {
-            Icon(Icons.Filled.CheckCircle, null, tint = XjiePalette.Success)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            labels.forEach { label ->
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
+        }
+
+        slots.chunked(7).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { day ->
+                    if (day == null) {
+                        Spacer(Modifier.weight(1f).aspectRatio(1f))
+                    } else {
+                        PlanCalendarCell(
+                            day = day,
+                            onClick = { onSelect(day) },
+                            modifier = Modifier.weight(1f).aspectRatio(1f),
+                        )
+                    }
+                }
+                repeat(7 - row.size) {
+                    Spacer(Modifier.weight(1f).aspectRatio(1f))
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            PlanCalendarLegend("✓", "完成", XjiePalette.Success)
+            PlanCalendarLegend("◐", "部分", XjiePalette.Warning)
+            PlanCalendarLegend("×", "未完成", XjiePalette.Danger)
+            PlanCalendarLegend("–", "未到", MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
+@Composable
+private fun PlanCalendarCell(day: PlanDaySummary, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(10.dp),
+        color = planDayBackground(day.status),
+    ) {
+        Column(
+            Modifier.fillMaxSize().padding(vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                dayOfMonth(day.date),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = planDayForeground(day.status),
+            )
+            Text(
+                day.status.symbol,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = planDayForeground(day.status),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlanCalendarLegend(symbol: String, label: String, color: Color) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(symbol, style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.Bold)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun PlanDayDetailDialog(day: PlanDaySummary, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(day.date, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "${day.status.symbol} ${day.status.label}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = planDayForeground(day.status),
+                )
+            }
+        },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (day.tasks.isEmpty()) {
+                    Text(
+                        "这一天没有安排具体任务。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    day.tasks.forEachIndexed { index, task ->
+                        PlanDayTaskRow(index + 1, task)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("完成") }
+        },
+    )
+}
+
+@Composable
+private fun PlanDayTaskRow(index: Int, task: PlanTask) {
+    val kind = planTaskKind(task)
+    var expanded by remember(task.id) { mutableStateOf(false) }
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .clickable(enabled = kind == "medication") { expanded = !expanded }
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Icon(typeIcon(kind), null, tint = typeColor(kind), modifier = Modifier.width(22.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    "$index. ${planTaskDisplayTitle(task)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    planTaskProgressText(task),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = typeColor(kind),
+                    fontWeight = FontWeight.SemiBold,
+                )
+                planTaskDetailText(task)?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            if (kind == "medication") {
+                Text(
+                    if (expanded) "收起" else "用药信息",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        if (expanded && kind == "medication") {
+            MedicationTaskEditor(task)
+        }
+    }
+}
+
+@Composable
+private fun MedicationTaskEditor(task: PlanTask) {
+    var medicationName by rememberSaveable(task.id) { mutableStateOf("") }
+    var morning by rememberSaveable(task.id) { mutableStateOf(false) }
+    var noon by rememberSaveable(task.id) { mutableStateOf(false) }
+    var evening by rememberSaveable(task.id) { mutableStateOf(false) }
+
+    Column(
+        Modifier.padding(start = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        if (planTaskDetailText(task).isNullOrBlank()) {
+            Text(
+                "暂无药物信息，可先手动补充。",
+                style = MaterialTheme.typography.labelSmall,
+                color = XjiePalette.Warning,
+            )
+        }
+        OutlinedTextField(
+            value = medicationName,
+            onValueChange = { medicationName = it },
+            modifier = Modifier.fillMaxWidth(),
+            label = { Text("药物名称") },
+            singleLine = true,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = morning,
+                onClick = { morning = !morning },
+                label = { Text("早") },
+                modifier = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected = noon,
+                onClick = { noon = !noon },
+                label = { Text("中") },
+                modifier = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected = evening,
+                onClick = { evening = !evening },
+                label = { Text("晚") },
+                modifier = Modifier.weight(1f),
+            )
+        }
+        task.reminder_time?.takeIf { it.isNotBlank() }?.let {
+            Text(
+                "原提醒时间：$it",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private data class PlanDaySummary(
+    val date: String,
+    val tasks: List<PlanTask>,
+    val status: PlanDayStatus,
+)
+
+private enum class PlanDayStatus(val symbol: String, val label: String) {
+    Future("–", "未到日期"),
+    Completed("✓", "已完成"),
+    Partial("◐", "完成一部分"),
+    Missed("×", "未完成"),
+    Empty("–", "未安排任务"),
+}
+
+private fun planDaySummaries(plan: HealthPlanDetail): List<PlanDaySummary> {
+    val grouped = plan.tasks.groupBy { it.date }
+    fun fallbackDays(): List<PlanDaySummary> =
+        grouped.keys.sorted().map { date ->
+            val tasks = grouped[date].orEmpty().sortedBy { it.id }
+            PlanDaySummary(date, tasks, planDayStatus(date, tasks))
+        }
+
+    val start = runCatching { java.time.LocalDate.parse(plan.start_date) }.getOrNull()
+    val end = runCatching { java.time.LocalDate.parse(plan.end_date) }.getOrNull()
+    val rangeStart = start ?: return fallbackDays()
+    val rangeEnd = end ?: return fallbackDays()
+    if (rangeStart.isAfter(rangeEnd)) return fallbackDays()
+    val days = mutableListOf<PlanDaySummary>()
+    var cursor = rangeStart
+    while (!cursor.isAfter(rangeEnd) && days.size < 370) {
+        val date = cursor.toString()
+        val tasks = grouped[date].orEmpty().sortedBy { it.id }
+        days += PlanDaySummary(date, tasks, planDayStatus(date, tasks))
+        cursor = cursor.plusDays(1)
+    }
+    return days
+}
+
+private fun planDayStatus(date: String, tasks: List<PlanTask>): PlanDayStatus {
+    val day = runCatching { java.time.LocalDate.parse(date) }.getOrNull()
+    if (day != null && day.isAfter(java.time.LocalDate.now())) return PlanDayStatus.Future
+    if (tasks.isEmpty()) return PlanDayStatus.Empty
+    val ratios = tasks.map(::planTaskCompletionRatio)
+    if (ratios.all { it >= 1.0 }) return PlanDayStatus.Completed
+    if (ratios.any { it > 0.0 }) return PlanDayStatus.Partial
+    return PlanDayStatus.Missed
+}
+
+private fun planCalendarSlots(days: List<PlanDaySummary>): List<PlanDaySummary?> {
+    val first = days.firstOrNull()?.let { runCatching { java.time.LocalDate.parse(it.date) }.getOrNull() }
+    val offset = first?.let { (it.dayOfWeek.value + 6) % 7 } ?: 0
+    return List(offset) { null } + days
+}
+
+private fun planTaskTemplates(tasks: List<PlanTask>): List<PlanTask> {
+    val seen = mutableSetOf<String>()
+    return tasks
+        .sortedWith(compareBy<PlanTask> { planTaskSortOrder(planTaskKind(it)) }.thenBy { planTaskDisplayTitle(it) })
+        .filter { task ->
+            val key = "${planTaskKind(task)}|${planTaskDisplayTitle(task)}|${planTaskTargetText(task)}"
+            seen.add(key)
+        }
+}
+
+private fun planTaskKind(task: PlanTask): String {
+    val text = "${task.task_type} ${task.title} ${task.description.orEmpty()} ${task.source_ref}".lowercase()
+    return when {
+        text.contains("sleep") || text.contains("睡") -> "sleep"
+        text.contains("hydration") || text.contains("饮水") || text.contains("喝水") -> "hydration"
+        task.task_type == "measurement" -> "record"
+        else -> task.task_type
+    }
+}
+
+private fun planTaskDisplayTitle(task: PlanTask): String {
+    val cleaned = stripPlanDayPrefix(task.title.trim())
+    if (cleaned.isNotEmpty()) return cleaned
+    return when (planTaskKind(task)) {
+        "exercise" -> "运动"
+        "medication" -> "按时吃药"
+        "diet" -> "饮食"
+        "sleep" -> "按时睡觉"
+        "hydration" -> "饮水"
+        else -> "健康任务"
+    }
+}
+
+private fun stripPlanDayPrefix(text: String): String =
+    Regex("第\\s*\\d+\\s*天\\s*").replace(text, "").trim()
+
+private fun planTaskTargetText(task: PlanTask): String {
+    val target = task.target_value
+    return if (target != null && target > 0.0) {
+        "每日 ${formatPlanNumber(target)}${task.unit?.let { " $it" }.orEmpty()}"
+    } else {
+        "每日 ${max(task.target_count, 1)} 次"
+    }
+}
+
+private fun planTaskProgressText(task: PlanTask): String {
+    val target = task.target_value
+    return if (target != null && target > 0.0) {
+        val completed = (task.completed_value ?: 0.0).coerceAtLeast(0.0)
+        "${formatPlanNumber(completed)}/${formatPlanNumber(target)}${task.unit?.let { " $it" }.orEmpty()}"
+    } else {
+        "${task.completed_count.coerceAtLeast(0)}/${max(task.target_count, 1)}"
+    }
+}
+
+private fun planTaskDetailText(task: PlanTask): String? {
+    val parts = mutableListOf<String>()
+    task.description?.trim()?.takeIf { it.isNotBlank() }?.let(parts::add)
+    task.reminder_time?.takeIf { it.isNotBlank() }?.let { reminder ->
+        if (planTaskKind(task) == "sleep") parts += "睡觉时间 $reminder"
+        if (planTaskKind(task) == "medication") parts += "提醒 $reminder"
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
+}
+
+private fun planTaskCompletionRatio(task: PlanTask): Double {
+    if (task.status == "completed") return 1.0
+    val target = task.target_value
+    if (target != null && target > 0.0) {
+        return ((task.completed_value ?: 0.0) / target).coerceIn(0.0, 1.0)
+    }
+    return (task.completed_count.toDouble() / max(task.target_count, 1).toDouble()).coerceIn(0.0, 1.0)
+}
+
+private fun compactPlanSummary(plan: HealthPlanDetail): String? {
+    val text = listOf(plan.goal, plan.background, plan.raw_content)
+        .firstOrNull { !it.isNullOrBlank() }
+        ?.replace("\n", " ")
+        ?.replace(Regex("\\s+"), " ")
+        ?.trim()
+        ?: return null
+    return if (text.length <= 72) text else text.take(72) + "..."
+}
+
+private fun planTaskSortOrder(kind: String): Int = when (kind) {
+    "exercise" -> 0
+    "medication" -> 1
+    "diet" -> 2
+    "sleep" -> 3
+    "hydration" -> 4
+    else -> 5
+}
+
+private fun planDayForeground(status: PlanDayStatus): Color = when (status) {
+    PlanDayStatus.Completed -> XjiePalette.Success
+    PlanDayStatus.Partial -> XjiePalette.Warning
+    PlanDayStatus.Missed -> XjiePalette.Danger
+    PlanDayStatus.Future, PlanDayStatus.Empty -> Color(0xFF8A9491)
+}
+
+private fun planDayBackground(status: PlanDayStatus): Color = when (status) {
+    PlanDayStatus.Completed -> XjiePalette.Success.copy(alpha = 0.12f)
+    PlanDayStatus.Partial -> XjiePalette.Warning.copy(alpha = 0.12f)
+    PlanDayStatus.Missed -> XjiePalette.Danger.copy(alpha = 0.10f)
+    PlanDayStatus.Future, PlanDayStatus.Empty -> Color(0xFFF2F5F3)
+}
+
+private fun dayOfMonth(date: String): String =
+    runCatching { java.time.LocalDate.parse(date).dayOfMonth.toString() }.getOrElse { date.takeLast(2) }
+
+private fun formatPlanNumber(value: Double): String =
+    if (value == value.toInt().toDouble()) value.toInt().toString() else String.format("%.1f", value)
 
 @Composable
 private fun StatPill(value: String, label: String, modifier: Modifier = Modifier) {
@@ -1711,6 +2137,8 @@ private fun typeIcon(type: String): ImageVector = when (type) {
     "exercise" -> Icons.Filled.DirectionsRun
     "medication" -> Icons.Filled.MedicalServices
     "diet" -> Icons.Filled.LocalDining
+    "sleep" -> Icons.Filled.Science
+    "hydration" -> Icons.Filled.Science
     else -> Icons.Filled.Science
 }
 
@@ -1718,6 +2146,8 @@ private fun typeColor(type: String): Color = when (type) {
     "exercise" -> Color(0xFF75C043)
     "medication" -> Color(0xFF2F80ED)
     "diet" -> Color(0xFFFF8A1F)
+    "sleep" -> Color(0xFF6B6FD6)
+    "hydration" -> Color(0xFF21A7C7)
     else -> XjiePalette.Primary
 }
 
