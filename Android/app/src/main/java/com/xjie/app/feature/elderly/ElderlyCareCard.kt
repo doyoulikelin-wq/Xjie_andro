@@ -2,9 +2,6 @@ package com.xjie.app.feature.elderly
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,7 +10,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
 import com.xjie.app.core.model.ElderlyCheckinKind
 
@@ -38,8 +34,6 @@ fun ElderlyCareCard(
 
     Column(Modifier.cardStyle()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Favorite, null, tint = XjiePalette.Accent)
-            Spacer(Modifier.width(6.dp))
             Text(
                 "关怀复查",
                 fontSize = 19.sp,
@@ -58,7 +52,7 @@ fun ElderlyCareCard(
         val tipText = when {
             status == null -> "正在加载今日关怀状态…"
             status.should_prompt && status.last_checkin_at != null ->
-                "距离上次签到已超过 ${status.interval_min / 60} 小时，过来打个招呼吧～"
+                "距离上次签到已超过 ${status.interval_min / 60} 小时，过来打个招呼吧。"
             status.should_prompt -> "该和您聊一聊啦。点击下方任一选项快速复查。"
             status.last_checkin_at != null -> "感谢分享！稍后我们再来问候您。"
             else -> "随时记录身体和心情变化。"
@@ -103,8 +97,6 @@ fun ElderlyCareCard(
                 modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                 shape = RoundedCornerShape(12.dp),
             ) {
-                Icon(Icons.Filled.History, null)
-                Spacer(Modifier.width(4.dp))
                 Text("查看历史", fontSize = 17.sp)
             }
         }

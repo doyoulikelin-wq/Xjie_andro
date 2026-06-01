@@ -7,7 +7,7 @@ package com.xjie.app.feature.home
  */
 val PROACTIVE_FALLBACK_MESSAGES: List<String> = listOf(
     // 关怀型
-    "今天也辛苦啦，先深呼吸三秒，再继续看数据～",
+    "今天也辛苦啦，先深呼吸三秒，再继续看数据。",
     "喝水了吗？小口慢饮，对血糖更友好哦。",
     "久坐超过 1 小时？起来走两分钟，曲线会感谢你。",
     "不用追求完美，今天比昨天稳一点就很棒。",

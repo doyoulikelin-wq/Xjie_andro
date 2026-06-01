@@ -4,10 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,14 +32,10 @@ fun ElderlyHistoryScreen(
             TopAppBar(
                 title = { Text("关怀记录", fontSize = 20.sp) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
-                    }
+                    TextButton(onClick = onBack) { Text("返回") }
                 },
                 actions = {
-                    IconButton(onClick = { vm.openSheet("manual") }) {
-                        Icon(Icons.Filled.Add, "新增签到")
-                    }
+                    TextButton(onClick = { vm.openSheet("manual") }) { Text("新增") }
                 },
             )
         },
@@ -148,9 +140,7 @@ private fun HistoryRow(item: ElderlyCheckin, kind: ElderlyCheckinKind, onDelete:
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, "删除", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            TextButton(onClick = onDelete) { Text("删除") }
         }
     }
 }
