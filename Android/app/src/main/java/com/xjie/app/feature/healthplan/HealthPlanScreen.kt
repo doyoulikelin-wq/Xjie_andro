@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
@@ -42,13 +43,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.R
 import com.xjie.app.core.model.HealthPlan
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
+import com.xjie.app.core.model.PlanRevisionItem
+import com.xjie.app.core.model.PlanRevisionProposal
+import com.xjie.app.core.model.PlanRevisionReason
 import com.xjie.app.core.model.PlanTask
+import com.xjie.app.core.model.PlanTaskUpdateRequest
 import com.xjie.app.core.model.TubeDay
 import com.xjie.app.core.model.TubeTaskProgress
 import com.xjie.app.core.model.TubeWeek
@@ -106,7 +112,12 @@ fun HealthPlanScreen(
                 onSelect = vm::selectPlan,
                 onGeneratePlan = { showPlanQuestionnaire = true },
             )
-            PlanDetailCard(plan = state.selectedPlan)
+            PlanDetailCard(
+                plan = state.selectedPlan,
+                isRevisionLoading = state.revisionLoading,
+                onEditTask = vm::updateTask,
+                onAIRevision = vm::generateAIRevision,
+            )
             if (state.plans.isEmpty() && !state.loading) {
                 EmptyState(
                     title = "暂无健康计划",
@@ -128,6 +139,14 @@ fun HealthPlanScreen(
                 showPlanQuestionnaire = false
             },
             onDismiss = { showPlanQuestionnaire = false },
+        )
+    }
+    state.revisionProposal?.let { proposal ->
+        PlanRevisionComparisonDialog(
+            proposal = proposal,
+            applying = state.revisionApplying,
+            onDismiss = vm::dismissRevision,
+            onApply = vm::applyRevision,
         )
     }
 }
@@ -864,6 +883,14 @@ private fun HealthTreeActionChip(
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                 )
+                if (!task?.plan_codes.isNullOrEmpty()) {
+                    Text(
+                        "计划 ${task?.plan_codes.orEmpty().joinToString("/")}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                    )
+                }
                 task?.title?.takeIf { it.isNotBlank() }?.let { title ->
                     Text(
                         stripPlanDayPrefix(title),
@@ -1578,6 +1605,14 @@ private fun PlanOverviewCard(
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
+                    plan.plan_code?.let { code ->
+                        Text(
+                            "计划 $code",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                     Text(plan.title, style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold, maxLines = 2)
                     Text("${short(plan.start_date)} - ${short(plan.end_date)}",
@@ -1597,11 +1632,17 @@ private fun PlanOverviewCard(
 }
 
 @Composable
-private fun PlanDetailCard(plan: HealthPlanDetail?) {
+private fun PlanDetailCard(
+    plan: HealthPlanDetail?,
+    isRevisionLoading: Boolean,
+    onEditTask: (PlanTask, PlanTaskUpdateRequest) -> Unit,
+    onAIRevision: () -> Unit,
+) {
     val days = remember(plan?.id, plan?.updated_at, plan?.tasks?.size) {
         plan?.let(::planDaySummaries).orEmpty()
     }
     var selectedDate by remember(plan?.id) { mutableStateOf<String?>(null) }
+    var editingTask by remember(plan?.id) { mutableStateOf<PlanTask?>(null) }
 
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         SectionHeader(Icons.Filled.Assignment, "计划详情")
@@ -1612,6 +1653,14 @@ private fun PlanDetailCard(plan: HealthPlanDetail?) {
         } else {
             val templates = remember(plan.id, plan.tasks.size) { planTaskTemplates(plan.tasks) }
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                plan.plan_code?.let { code ->
+                    Text(
+                        "计划 $code",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
                 Text(plan.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
                     "${shortDate(plan.start_date)} - ${shortDate(plan.end_date)}",
@@ -1628,9 +1677,25 @@ private fun PlanDetailCard(plan: HealthPlanDetail?) {
                 }
             }
             if (templates.isNotEmpty()) {
-                Text("每日执行", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("每日执行", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.weight(1f))
+                    OutlinedButton(
+                        onClick = onAIRevision,
+                        enabled = !isRevisionLoading,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    ) {
+                        if (isRevisionLoading) {
+                            CircularProgressIndicator(Modifier.size(14.dp), strokeWidth = 1.5.dp)
+                            Spacer(Modifier.width(5.dp))
+                            Text("Thinking...")
+                        } else {
+                            Text("AI 辅助修正")
+                        }
+                    }
+                }
                 templates.take(6).forEach { task ->
-                    PlanTemplateRow(task)
+                    PlanTemplateRow(task, onClick = { editingTask = task })
                 }
             }
             HorizontalDivider()
@@ -1640,44 +1705,281 @@ private fun PlanDetailCard(plan: HealthPlanDetail?) {
     days.firstOrNull { it.date == selectedDate }?.let { day ->
         PlanDayDetailDialog(day = day, onDismiss = { selectedDate = null })
     }
+    editingTask?.let { task ->
+        PlanTaskEditDialog(
+            task = task,
+            onSave = { request ->
+                onEditTask(task, request)
+                editingTask = null
+            },
+            onDismiss = { editingTask = null },
+        )
+    }
 }
 
 @Composable
-private fun PlanTemplateRow(task: PlanTask) {
+private fun PlanTemplateRow(task: PlanTask, onClick: () -> Unit) {
     val kind = planTaskKind(task)
-    Row(
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(typeIcon(kind), null, tint = typeColor(kind), modifier = Modifier.width(22.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        planTaskDisplayTitle(task),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        planTaskTargetText(task),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = typeColor(kind),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                planTaskDetailText(task)?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Text("编辑", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun PlanTaskEditDialog(
+    task: PlanTask,
+    onSave: (PlanTaskUpdateRequest) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var title by remember(task.id) { mutableStateOf(stripPlanDayPrefix(task.title)) }
+    var description by remember(task.id) { mutableStateOf(task.description.orEmpty()) }
+    var targetCount by remember(task.id) { mutableStateOf(max(task.target_count, 1).toString()) }
+    var targetValue by remember(task.id) { mutableStateOf(task.target_value?.let(::formatPlanNumber).orEmpty()) }
+    var unit by remember(task.id) { mutableStateOf(task.unit.orEmpty()) }
+    var reminderTime by remember(task.id) { mutableStateOf(task.reminder_time.orEmpty()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑每日执行") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("标题") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("说明") },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = targetCount,
+                        onValueChange = { targetCount = it.filter(Char::isDigit).take(3) },
+                        label = { Text("次数") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = targetValue,
+                        onValueChange = { targetValue = it.take(12) },
+                        label = { Text("目标值") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it.take(12) },
+                        label = { Text("单位") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = reminderTime,
+                        onValueChange = { reminderTime = it.take(8) },
+                        label = { Text("提醒") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = title.isNotBlank(),
+                onClick = {
+                    onSave(
+                        PlanTaskUpdateRequest(
+                            title = title.trim(),
+                            description = description.trim().ifBlank { null },
+                            target_count = targetCount.toIntOrNull(),
+                            target_value = targetValue.toDoubleOrNull(),
+                            unit = unit.trim().ifBlank { null },
+                            reminder_time = reminderTime.trim().ifBlank { null },
+                        ),
+                    )
+                },
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
+}
+
+@Composable
+private fun PlanRevisionComparisonDialog(
+    proposal: PlanRevisionProposal,
+    applying: Boolean,
+    onDismiss: () -> Unit,
+    onApply: (List<String>, Boolean, Boolean) -> Unit,
+) {
+    var acceptedKeys by remember(proposal.id) { mutableStateOf(proposal.revised_items.map { it.task_key }.toSet()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("AI 辅助修正") },
+        text = {
+            Column(
+                Modifier
+                    .heightIn(max = 560.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (proposal.daily_limit_used) {
+                    Text(
+                        "今日已使用过一次 AI 辅助修正，当前显示今天已生成的建议。",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = XjiePalette.Warning,
+                    )
+                }
+                proposal.revised_items.forEach { revised ->
+                    val original = proposal.original_items.firstOrNull { it.task_key == revised.task_key }
+                    val reason = proposal.reasons.firstOrNull { it.task_key == revised.task_key }
+                    PlanRevisionCompareItem(
+                        original = original,
+                        revised = revised,
+                        reason = reason,
+                        accepted = acceptedKeys.contains(revised.task_key),
+                        onToggle = {
+                            acceptedKeys = if (acceptedKeys.contains(revised.task_key)) {
+                                acceptedKeys - revised.task_key
+                            } else {
+                                acceptedKeys + revised.task_key
+                            }
+                        },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !applying, onClick = { onApply(acceptedKeys.toList(), false, false) }) {
+                Text(if (applying) "应用中..." else "接受勾选")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(enabled = !applying, onClick = { onApply(emptyList(), true, false) }) {
+                    Text("全部接受")
+                }
+                TextButton(enabled = !applying, onClick = { onApply(emptyList(), false, true) }) {
+                    Text("保留原版")
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun PlanRevisionCompareItem(
+    original: PlanRevisionItem?,
+    revised: PlanRevisionItem,
+    reason: PlanRevisionReason?,
+    accepted: Boolean,
+    onToggle: () -> Unit,
+) {
+    Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))
             .padding(10.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(typeIcon(kind), null, tint = typeColor(kind), modifier = Modifier.width(22.dp))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = accepted, onCheckedChange = { onToggle() })
+            Text(revised.label, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            if (revised.plan_codes.isNotEmpty()) {
                 Text(
-                    planTaskDisplayTitle(task),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    planTaskTargetText(task),
+                    "计划 ${revised.plan_codes.joinToString("/")}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = typeColor(kind),
+                    color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.SemiBold,
-                )
-            }
-            planTaskDetailText(task)?.takeIf { it.isNotBlank() }?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RevisionItemColumn("原计划", original, MaterialTheme.colorScheme.onSurfaceVariant, Modifier.weight(1f))
+            RevisionItemColumn("修改后", revised, MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+        }
+        reason?.let {
+            Text("为什么这样修改", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+            Text(it.reason, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            it.evidence?.takeIf { text -> text.isNotBlank() }?.let { evidence ->
+                Text("依据：$evidence", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RevisionItemColumn(label: String, item: PlanRevisionItem?, tint: Color, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint, fontWeight = FontWeight.SemiBold)
+        Text(item?.title ?: "-", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+        Text(revisionTargetText(item), style = MaterialTheme.typography.labelSmall, color = tint)
+        item?.description?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private fun revisionTargetText(item: PlanRevisionItem?): String {
+    if (item == null) return "-"
+    val target = item.target_value
+    return if (target != null) {
+        "目标 ${formatPlanNumber(target)}${item.unit?.let { " $it" } ?: ""}"
+    } else {
+        "每日 ${item.target_count} 次"
     }
 }
 

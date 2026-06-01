@@ -5,6 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.model.HealthPlan
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
+import com.xjie.app.core.model.PlanRevisionApplyRequest
+import com.xjie.app.core.model.PlanRevisionProposal
+import com.xjie.app.core.model.PlanTask
+import com.xjie.app.core.model.PlanTaskUpdateRequest
 import com.xjie.app.core.model.TubeWeek
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
@@ -26,6 +30,9 @@ data class HealthPlanUiState(
     val creatingPlan: Boolean = false,
     val completingType: String? = null,
     val lastCompletedType: String? = null,
+    val revisionProposal: PlanRevisionProposal? = null,
+    val revisionLoading: Boolean = false,
+    val revisionApplying: Boolean = false,
     val error: String? = null,
 )
 
@@ -104,6 +111,48 @@ class HealthPlanViewModel @Inject constructor(
                 }
             }
             .onFailure { e -> _state.update { it.copy(completingType = null, error = e.message) } }
+    }
+
+    fun updateTask(task: PlanTask, request: PlanTaskUpdateRequest) = viewModelScope.launch {
+        runCatching { repo.updateTask(task.id, request) }
+            .onSuccess { refresh() }
+            .onFailure { e -> _state.update { it.copy(error = e.message) } }
+    }
+
+    fun generateAIRevision() = viewModelScope.launch {
+        if (_state.value.revisionLoading) return@launch
+        _state.update { it.copy(revisionLoading = true) }
+        runCatching { repo.generateRevision(_state.value.week?.today) }
+            .onSuccess { proposal ->
+                _state.update { it.copy(revisionProposal = proposal, revisionLoading = false) }
+            }
+            .onFailure { e ->
+                _state.update { it.copy(revisionLoading = false, error = e.message) }
+            }
+    }
+
+    fun dismissRevision() {
+        _state.update { it.copy(revisionProposal = null) }
+    }
+
+    fun applyRevision(keys: List<String>, acceptAll: Boolean = false, rejectAll: Boolean = false) = viewModelScope.launch {
+        val proposal = _state.value.revisionProposal ?: return@launch
+        _state.update { it.copy(revisionApplying = true) }
+        runCatching {
+            repo.applyRevision(
+                proposal.id,
+                PlanRevisionApplyRequest(
+                    accepted_task_keys = keys,
+                    accept_all = acceptAll,
+                    reject_all = rejectAll,
+                ),
+            )
+        }.onSuccess {
+            _state.update { state -> state.copy(revisionProposal = null, revisionApplying = false) }
+            refresh()
+        }.onFailure { e ->
+            _state.update { it.copy(revisionApplying = false, error = e.message) }
+        }
     }
 
     fun createFromQuestionnaire(request: HealthPlanQuestionnaireRequest) = viewModelScope.launch {

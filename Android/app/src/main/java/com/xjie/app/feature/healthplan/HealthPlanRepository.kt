@@ -5,6 +5,11 @@ import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.HealthPlanListResponse
 import com.xjie.app.core.model.HealthTreeSummary
+import com.xjie.app.core.model.PlanRevisionApplyRequest
+import com.xjie.app.core.model.PlanRevisionGenerateRequest
+import com.xjie.app.core.model.PlanRevisionProposal
+import com.xjie.app.core.model.PlanTask
+import com.xjie.app.core.model.PlanTaskUpdateRequest
 import com.xjie.app.core.model.TubeCompleteRequest
 import com.xjie.app.core.model.TubeCompleteResponse
 import com.xjie.app.core.model.TubeWeek
@@ -41,4 +46,20 @@ class HealthPlanRepository @Inject constructor(
         safeApiCall(json) {
             api.completeTubeTask(TubeCompleteRequest(date = date, task_type = taskType))
         }
+
+    suspend fun updateTask(id: String, body: PlanTaskUpdateRequest): PlanTask =
+        safeApiCall(json) { api.updateTask(id, body) }
+
+    suspend fun generateRevision(date: String?): PlanRevisionProposal =
+        safeApiCall(json) {
+            api.generateRevision(
+                PlanRevisionGenerateRequest(
+                    date = date,
+                    purpose = "根据用户基本信息、近期健康数据、病史和执行反馈修正整个计划",
+                ),
+            )
+        }
+
+    suspend fun applyRevision(id: String, body: PlanRevisionApplyRequest): PlanRevisionProposal =
+        safeApiCall(json) { api.applyRevision(id, body) }
 }

@@ -176,6 +176,7 @@ data class HealthPlanListResponse(
 @Serializable
 data class HealthPlan(
     val id: String,
+    val plan_code: String? = null,
     val title: String,
     val goal: String? = null,
     val background: String? = null,
@@ -194,6 +195,7 @@ data class HealthPlan(
 @Serializable
 data class HealthPlanDetail(
     val id: String,
+    val plan_code: String? = null,
     val title: String,
     val goal: String? = null,
     val background: String? = null,
@@ -285,6 +287,9 @@ data class TubeTaskProgress(
     val target_value: Double? = null,
     val unit: String? = null,
     val ratio: Double,
+    val plan_ids: List<String> = emptyList(),
+    val plan_codes: List<String> = emptyList(),
+    val source_task_ids: List<String> = emptyList(),
 )
 
 @Serializable
@@ -305,6 +310,68 @@ data class HealthTreeSummary(
     val trees_grown: Int = 0,
     val fruiting_count: Int = 0,
     val active_plan_count: Int = 0,
+)
+
+@Serializable
+data class PlanTaskUpdateRequest(
+    val title: String? = null,
+    val description: String? = null,
+    val target_count: Int? = null,
+    val target_value: Double? = null,
+    val unit: String? = null,
+    val reminder_time: String? = null,
+)
+
+@Serializable
+data class PlanRevisionGenerateRequest(
+    val date: String? = null,
+    val purpose: String? = null,
+)
+
+@Serializable
+data class PlanRevisionApplyRequest(
+    val accepted_task_keys: List<String> = emptyList(),
+    val accept_all: Boolean = false,
+    val reject_all: Boolean = false,
+)
+
+@Serializable
+data class PlanRevisionProposal(
+    val id: String,
+    val date: String,
+    val status: String,
+    val purpose: String,
+    val original_items: List<PlanRevisionItem> = emptyList(),
+    val revised_items: List<PlanRevisionItem> = emptyList(),
+    val reasons: List<PlanRevisionReason> = emptyList(),
+    val context_summary: String? = null,
+    val daily_limit_used: Boolean = false,
+    val created_at: String,
+    val applied_at: String? = null,
+)
+
+@Serializable
+data class PlanRevisionItem(
+    val task_key: String,
+    val task_type: String,
+    val label: String,
+    val title: String,
+    val description: String? = null,
+    val target_count: Int = 1,
+    val target_value: Double? = null,
+    val unit: String? = null,
+    val reminder_time: String? = null,
+    val plan_ids: List<String> = emptyList(),
+    val plan_codes: List<String> = emptyList(),
+    val source_task_ids: List<String> = emptyList(),
+    val summary: String? = null,
+)
+
+@Serializable
+data class PlanRevisionReason(
+    val task_key: String,
+    val reason: String,
+    val evidence: String? = null,
 )
 
 @Serializable

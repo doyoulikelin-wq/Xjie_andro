@@ -5,11 +5,17 @@ import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.HealthPlanListResponse
 import com.xjie.app.core.model.HealthTreeSummary
+import com.xjie.app.core.model.PlanRevisionApplyRequest
+import com.xjie.app.core.model.PlanRevisionGenerateRequest
+import com.xjie.app.core.model.PlanRevisionProposal
+import com.xjie.app.core.model.PlanTask
+import com.xjie.app.core.model.PlanTaskUpdateRequest
 import com.xjie.app.core.model.TubeCompleteRequest
 import com.xjie.app.core.model.TubeCompleteResponse
 import com.xjie.app.core.model.TubeWeek
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -35,4 +41,13 @@ interface HealthPlanApi {
 
     @POST("api/health-plans/tube/complete")
     suspend fun completeTubeTask(@Body body: TubeCompleteRequest): TubeCompleteResponse
+
+    @PATCH("api/health-plans/tasks/{id}")
+    suspend fun updateTask(@Path("id") id: String, @Body body: PlanTaskUpdateRequest): PlanTask
+
+    @POST("api/health-plans/revision/generate")
+    suspend fun generateRevision(@Body body: PlanRevisionGenerateRequest): PlanRevisionProposal
+
+    @POST("api/health-plans/revision/{id}/apply")
+    suspend fun applyRevision(@Path("id") id: String, @Body body: PlanRevisionApplyRequest): PlanRevisionProposal
 }
