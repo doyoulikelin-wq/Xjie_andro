@@ -15,11 +15,11 @@ enum class MoodSegment(val key: String, val label: String, val window: String) {
 }
 
 enum class MoodLevel(val value: Int, val emoji: String, val label: String) {
-    ANGRY(1, "😡", "愤怒"),
-    SAD(2, "😢", "低落"),
-    ANXIOUS(3, "😟", "焦虑"),
-    NEUTRAL(4, "😐", "平静"),
-    HAPPY(5, "😀", "愉快");
+    ANGRY(1, "怒", "愤怒"),
+    SAD(2, "低", "低落"),
+    ANXIOUS(3, "焦", "焦虑"),
+    NEUTRAL(4, "平", "平静"),
+    HAPPY(5, "悦", "愉快");
 
     companion object {
         fun fromValue(v: Int?): MoodLevel? = entries.firstOrNull { it.value == v }

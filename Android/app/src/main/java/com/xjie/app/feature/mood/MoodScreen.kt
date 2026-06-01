@@ -87,7 +87,7 @@ private fun TodayCard(
             if (saving) CircularProgressIndicator(strokeWidth = 2.dp,
                 modifier = Modifier.size(16.dp))
         }
-        Text("点击对应时段的 emoji 完成打卡，可重复点击修改",
+        Text("点击对应时段的情绪按钮完成打卡，可重复点击修改",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
         MoodSegment.entries.forEach { seg ->

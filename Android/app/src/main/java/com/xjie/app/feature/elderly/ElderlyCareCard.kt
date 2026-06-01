@@ -59,7 +59,7 @@ fun ElderlyCareCard(
             status == null -> "正在加载今日关怀状态…"
             status.should_prompt && status.last_checkin_at != null ->
                 "距离上次签到已超过 ${status.interval_min / 60} 小时，过来打个招呼吧～"
-            status.should_prompt -> "该和您聊一聊啦 ❤️ 点击下方任一选项快速复查。"
+            status.should_prompt -> "该和您聊一聊啦。点击下方任一选项快速复查。"
             status.last_checkin_at != null -> "感谢分享！稍后我们再来问候您。"
             else -> "随时记录身体和心情变化。"
         }
@@ -81,7 +81,7 @@ fun ElderlyCareCard(
                             modifier = Modifier.weight(1f).heightIn(min = 48.dp),
                             shape = RoundedCornerShape(12.dp),
                         ) {
-                            Text("${q.kind.emoji} ${q.kind.displayName}复查", fontSize = 15.sp)
+                            Text("${q.kind.displayName}复查", fontSize = 15.sp)
                         }
                     }
                     if (row.size == 1) Spacer(Modifier.weight(1f))

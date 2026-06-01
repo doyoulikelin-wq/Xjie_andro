@@ -194,7 +194,7 @@ class MedicationScheduler @Inject constructor(
         )
         val n = NotificationCompat.Builder(context, NotificationChannels.ELDERLY)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("💗 测试通知")
+            .setContentTitle("测试通知")
             .setContentText("如果你看到这条，说明通知通道与权限正常。")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -267,7 +267,7 @@ class MedicationReminderReceiver : BroadcastReceiver() {
         val name = intent.getStringExtra("name") ?: "用药提醒"
         val dosage = intent.getStringExtra("dosage").orEmpty()
         val instructions = intent.getStringExtra("instructions").orEmpty()
-        val title = "💊 该服药了：$name"
+        val title = "该服药了：$name"
         val body = buildString {
             if (dosage.isNotBlank()) append("剂量：$dosage")
             if (instructions.isNotBlank()) {
@@ -303,7 +303,7 @@ class ElderlyReminderReceiver : BroadcastReceiver() {
         NotificationChannels.ensure(context)
         val n = NotificationCompat.Builder(context, NotificationChannels.ELDERLY)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("💗 关怀复查")
+            .setContentTitle("关怀复查")
             .setContentText("现在感觉如何？记一笔今天的状态吧。")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

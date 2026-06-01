@@ -42,7 +42,7 @@ fun ElderlyCheckinDialog(
         title = {
             Column {
                 Text(
-                    "${kind.emoji} ${kind.title}",
+                    kind.title,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                 )
@@ -174,7 +174,7 @@ private fun EmojiRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        items.forEach { (raw, emoji, label) ->
+        items.forEach { (raw, _, label) ->
             val isSel = selected == raw
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -189,14 +189,8 @@ private fun EmojiRow(
                     onClick = { onSelect(raw) },
                     color = Color.Transparent,
                 ) {
-                    Text(emoji, fontSize = 32.sp, modifier = Modifier.padding(4.dp))
+                    Text(label, fontSize = 18.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp))
                 }
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    label,
-                    fontSize = 14.sp,
-                    fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
-                )
             }
         }
     }

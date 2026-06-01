@@ -116,7 +116,7 @@ private fun GroupHeader(kind: ElderlyCheckinKind, count: Int) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
     ) {
-        Text("${kind.emoji}  ${kind.displayName}", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        Text(kind.displayName, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.width(6.dp))
         Text("($count)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -132,12 +132,11 @@ private fun HistoryRow(item: ElderlyCheckin, kind: ElderlyCheckinKind, onDelete:
             Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(kind.emoji, fontSize = 22.sp, modifier = Modifier.padding(end = 10.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 val title = listOfNotNull(
                     item.activity?.takeIf { it.isNotBlank() },
-                    BodyFeeling.fromRaw(item.body_feeling)?.let { "${it.emoji} ${it.label}" },
-                    MoodChoice.fromRaw(item.mood)?.let { "${it.emoji} ${it.label}" },
+                    BodyFeeling.fromRaw(item.body_feeling)?.label,
+                    MoodChoice.fromRaw(item.mood)?.label,
                 ).joinToString("  ·  ").ifBlank { "（无具体内容）" }
                 Text(title, fontSize = 17.sp, fontWeight = FontWeight.Medium)
                 item.note?.takeIf { it.isNotBlank() }?.let {
