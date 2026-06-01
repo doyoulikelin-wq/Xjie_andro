@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -72,6 +73,7 @@ fun ChangePasswordDialog(
     vm: ChangePasswordViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
+    var passwordsVisible by remember { mutableStateOf(false) }
     LaunchedEffect(state.done) { if (state.done) onDismiss() }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -82,7 +84,7 @@ fun ChangePasswordDialog(
                     value = state.oldPwd,
                     onValueChange = vm::setOld,
                     label = { Text("当前密码") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordsVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -91,7 +93,7 @@ fun ChangePasswordDialog(
                     value = state.newPwd,
                     onValueChange = vm::setNew,
                     label = { Text("新密码（≥8位含字母数字）") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordsVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
@@ -100,7 +102,15 @@ fun ChangePasswordDialog(
                     value = state.confirmPwd,
                     onValueChange = vm::setConfirm,
                     label = { Text("再次输入新密码") },
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordsVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        TextButton(
+                            onClick = { passwordsVisible = !passwordsVisible },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(if (passwordsVisible) "隐藏" else "显示密码", style = MaterialTheme.typography.labelSmall)
+                        }
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),

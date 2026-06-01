@@ -1,5 +1,10 @@
 package com.xjie.app.feature.chat
 
+import android.app.Activity
+import android.content.Intent
+import android.speech.RecognizerIntent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -10,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -29,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -45,6 +53,7 @@ import com.xjie.app.core.model.Citation
 import com.xjie.app.core.ui.components.MarkdownText
 import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -59,6 +68,19 @@ fun ChatScreen(
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val focus = LocalFocusManager.current
+    val speechLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val spoken = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+                ?.trim()
+            if (!spoken.isNullOrEmpty()) {
+                vm.setInput(spoken)
+            }
+        }
+    }
 
     LaunchedEffect(Unit) { vm.loadConversations() }
     LaunchedEffect(initialPrompt) {
@@ -133,6 +155,16 @@ fun ChatScreen(
                 sending = state.sending,
                 onValueChange = vm::setInput,
                 onSend = { focus.clearFocus(); vm.send() },
+                onVoice = {
+                    focus.clearFocus()
+                    speechLauncher.launch(
+                        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.CHINA.toLanguageTag())
+                            putExtra(RecognizerIntent.EXTRA_PROMPT, "请说出要发送给小捷的内容")
+                        },
+                    )
+                },
             )
         },
     ) { inner ->
@@ -141,6 +173,9 @@ fun ChatScreen(
             modifier = Modifier
                 .padding(inner)
                 .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focus.clearFocus() })
+                }
                 .padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(vertical = 12.dp),
@@ -528,6 +563,7 @@ private fun InputBar(
     sending: Boolean,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    onVoice: () -> Unit,
 ) {
     Surface(color = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
         Row(
@@ -547,6 +583,17 @@ private fun InputBar(
                 singleLine = false,
             )
             Spacer(Modifier.width(8.dp))
+            IconButton(
+                onClick = onVoice,
+                enabled = !sending,
+            ) {
+                Icon(
+                    Icons.Filled.Mic,
+                    contentDescription = "语音输入",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Spacer(Modifier.width(2.dp))
             val canSend = !sending && value.isNotBlank()
             TextButton(
                 onClick = onSend,

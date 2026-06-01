@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -233,6 +234,7 @@ private fun PhoneSection(
     onSubmit: () -> Unit,
     onForgot: () -> Unit = {},
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -263,7 +265,15 @@ private fun PhoneSection(
                 value = state.password,
                 onValueChange = onPasswordChange,
                 placeholder = { Text("至少 8 位") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    TextButton(
+                        onClick = { passwordVisible = !passwordVisible },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text(if (passwordVisible) "隐藏" else "显示密码", style = MaterialTheme.typography.labelSmall)
+                    }
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),

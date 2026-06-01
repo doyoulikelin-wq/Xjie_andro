@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
@@ -122,6 +123,7 @@ fun PasswordResetDialog(
     vm: PasswordResetViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
+    var passwordVisible by remember { mutableStateOf(false) }
     LaunchedEffect(state.done) { if (state.done) onDismiss() }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -165,7 +167,15 @@ fun PasswordResetDialog(
                     onValueChange = vm::setNewPassword,
                     label = { Text("新密码（≥8位含字母数字）") },
                     singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        TextButton(
+                            onClick = { passwordVisible = !passwordVisible },
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                        ) {
+                            Text(if (passwordVisible) "隐藏" else "显示密码", style = MaterialTheme.typography.labelSmall)
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                     modifier = Modifier.fillMaxWidth(),
                 )

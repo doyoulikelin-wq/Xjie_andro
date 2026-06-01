@@ -156,6 +156,7 @@ private fun HealthTreeWeekCard(
         ?: week.days.firstOrNull()
     val activeTasks = activeDay?.tasks
         ?.filter { showMedicationNeed || it.task_type != "medication" }
+        ?.sortedWith(compareBy<TubeTaskProgress> { planTaskSortOrder(it.task_type) }.thenBy { it.label })
         .orEmpty()
     val activeDateLabel = activeDay?.let {
         "${planRelativeLabel(it, week.today)} · ${it.date}"
@@ -265,10 +266,11 @@ private fun HealthTreeWeekCard(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        GrowthPlanDaySelector(
-            choices = growthPlanChoices(week),
-            selectedDate = activeDay?.date,
-            onSelect = { selectedDate = it.date },
+        HealthTreeActionRow(
+            day = activeDay,
+            showMedicationNeed = showMedicationNeed,
+            completingType = completingType,
+            onComplete = onComplete,
         )
 
         HealthTreePlanPreview(
@@ -574,12 +576,6 @@ private fun HealthTreePlanPreview(
             modifier = Modifier.fillMaxWidth(),
             description = "勾选后显示用药计划",
         )
-        HealthTreeActionRow(
-            day = day,
-            showMedicationNeed = showMedicationNeed,
-            completingType = completingType,
-            onComplete = onComplete,
-        )
         if (day?.is_today != true) {
             Text(
                 "仅今日计划支持点击完成；前后日期用于查看安排。",
@@ -770,8 +766,30 @@ private fun HealthTreeActionRow(
 ) {
     val tasks = day?.tasks
         ?.filter { showMedicationNeed || it.task_type != "medication" }
+        ?.sortedWith(compareBy<TubeTaskProgress> { planTaskSortOrder(it.task_type) }.thenBy { it.label })
         .orEmpty()
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    if (tasks.isEmpty()) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+            modifier = Modifier.fillMaxWidth().height(58.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    "今天暂无执行任务",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        return
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         tasks.forEach { task ->
             val type = task.task_type
             HealthTreeActionChip(
@@ -781,23 +799,8 @@ private fun HealthTreeActionRow(
                 isCompleting = completingType == type,
                 isBusy = completingType != null,
                 onComplete = onComplete,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.width(116.dp),
             )
-        }
-        if (tasks.isEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        "今天暂无执行任务",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
         }
     }
 }
@@ -863,7 +866,7 @@ private fun HealthTreeActionChip(
                 )
                 task?.title?.takeIf { it.isNotBlank() }?.let { title ->
                     Text(
-                        title,
+                        stripPlanDayPrefix(title),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -1204,7 +1207,7 @@ private fun HealthTreePlanTaskRow(task: TubeTaskProgress) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            task.details.take(4).forEach { detail ->
+            task.details.forEach { detail ->
                 Text(
                     "- ${stripPlanDayPrefix(detail)}",
                     style = MaterialTheme.typography.bodySmall,
@@ -1672,7 +1675,6 @@ private fun PlanTemplateRow(task: PlanTask) {
                     it,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
                 )
             }
         }
@@ -2056,7 +2058,7 @@ private fun compactPlanSummary(plan: HealthPlanDetail): String? {
         ?.replace(Regex("\\s+"), " ")
         ?.trim()
         ?: return null
-    return if (text.length <= 72) text else text.take(72) + "..."
+    return text
 }
 
 private fun planTaskSortOrder(kind: String): Int = when (kind) {
@@ -2225,6 +2227,8 @@ private fun healthTreeIconRes(type: String): Int = when (type) {
     "exercise" -> R.drawable.healthtree_icon_exercise_sun
     "diet" -> R.drawable.healthtree_icon_diet_water
     "medication" -> R.drawable.healthtree_icon_medication_dew
+    "hydration" -> R.drawable.healthtree_icon_diet_water
+    "sleep" -> R.drawable.healthtree_icon_record_data_light
     else -> R.drawable.healthtree_icon_multiomics_precision
 }
 
@@ -2233,6 +2237,8 @@ private fun healthTreeActionRes(type: String): Int = when (type) {
     "exercise" -> R.drawable.healthtree_env_sun
     "medication" -> R.drawable.healthtree_env_medkit
     "diet" -> R.drawable.healthtree_env_watercan
+    "hydration" -> R.drawable.healthtree_env_watercan
+    "sleep" -> R.drawable.healthtree_icon_record_data_light
     else -> healthTreeIconRes(type)
 }
 
@@ -2240,6 +2246,8 @@ private fun careLabel(type: String): String = when (type) {
     "exercise" -> "运动"
     "diet" -> "饮食"
     "medication" -> "用药"
+    "hydration" -> "饮水"
+    "sleep" -> "睡眠"
     else -> "照护"
 }
 
