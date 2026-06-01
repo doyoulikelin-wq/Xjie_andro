@@ -9,6 +9,10 @@ data class UserSettings(
     val glucose_unit: String? = null,
     val elderly_mode: Boolean = false,
     val elderly_checkin_interval_min: Int = 180,
+    val onboarding_completed: Boolean = false,
+    val onboarding_target: String? = null,
+    val onboarding_contents: List<String> = emptyList(),
+    val onboarding_generate_plan: Boolean = false,
 )
 
 @Serializable

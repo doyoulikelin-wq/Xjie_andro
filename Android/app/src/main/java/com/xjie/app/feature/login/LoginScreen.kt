@@ -74,6 +74,10 @@ fun LoginScreen(
                     onAgeChange = vm::setAge,
                     onHeightChange = vm::setHeightCm,
                     onWeightChange = vm::setWeightKg,
+                    onTargetChange = vm::setOnboardingTarget,
+                    onToggleContent = vm::toggleOnboardingContent,
+                    onGeneratePlanChange = vm::setOnboardingGeneratePlan,
+                    onMedicationNeededChange = vm::setMedicationNeeded,
                     onToggleSignup = vm::toggleSignup,
                     onSubmit = vm::loginPhone,
                     onForgot = { showReset = true },
@@ -230,6 +234,10 @@ private fun PhoneSection(
     onAgeChange: (Int) -> Unit,
     onHeightChange: (Int) -> Unit,
     onWeightChange: (Int) -> Unit,
+    onTargetChange: (String) -> Unit,
+    onToggleContent: (String) -> Unit,
+    onGeneratePlanChange: (Boolean) -> Unit,
+    onMedicationNeededChange: (Boolean) -> Unit,
     onToggleSignup: () -> Unit,
     onSubmit: () -> Unit,
     onForgot: () -> Unit = {},
@@ -292,6 +300,18 @@ private fun PhoneSection(
                     onWeightChange = onWeightChange,
                 )
             }
+            LabeledField(label = "健康目标与计划需求") {
+                OnboardingNeedsSection(
+                    target = state.onboardingTarget,
+                    contents = state.onboardingContents,
+                    generatePlan = state.onboardingGeneratePlan,
+                    medicationNeeded = state.medicationNeeded,
+                    onTargetChange = onTargetChange,
+                    onToggleContent = onToggleContent,
+                    onGeneratePlanChange = onGeneratePlanChange,
+                    onMedicationNeededChange = onMedicationNeededChange,
+                )
+            }
         }
         GradientButton(
             label = if (state.isSignup) "注册" else "登录",
@@ -313,6 +333,127 @@ private fun PhoneSection(
                 Text("忘记密码？", color = MaterialTheme.colorScheme.primary)
             }
         }
+    }
+}
+
+@Composable
+private fun OnboardingNeedsSection(
+    target: String,
+    contents: Set<String>,
+    generatePlan: Boolean,
+    medicationNeeded: Boolean,
+    onTargetChange: (String) -> Unit,
+    onToggleContent: (String) -> Unit,
+    onGeneratePlanChange: (Boolean) -> Unit,
+    onMedicationNeededChange: (Boolean) -> Unit,
+) {
+    val targets = listOf("控糖稳定", "减重减脂", "肝功能改善", "运动习惯", "睡眠改善")
+    val options = listOf(
+        "fitness" to "健身",
+        "diet_control" to "饮食控制",
+        "sleep" to "睡眠",
+        "hydration" to "饮水",
+        "medication" to "用药",
+        "glucose" to "血糖追踪",
+    )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.38f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            "注册最后一步会保存为你的初始计划偏好。",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text("目标", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        targets.chunked(3).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { item ->
+                    OnboardingChip(
+                        label = item,
+                        selected = target == item,
+                        onClick = { onTargetChange(item) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+        Text("涉及内容", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+        options.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { (value, label) ->
+                    OnboardingChip(
+                        label = label,
+                        selected = contents.contains(value),
+                        onClick = { onToggleContent(value) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+        if (contents.contains("medication")) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Checkbox(checked = medicationNeeded, onCheckedChange = onMedicationNeededChange)
+                Text(
+                    "我有用药计划需求",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Switch(checked = generatePlan, onCheckedChange = onGeneratePlanChange)
+            Column(Modifier.weight(1f)) {
+                Text("注册后生成首个健康计划", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "可在计划模块继续编辑和 AI 辅助修正。",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp,
+            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Text(
+            label,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }
 

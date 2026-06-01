@@ -30,6 +30,14 @@ data class LoginPhoneBody(
 )
 
 @Serializable
+data class OnboardingNeedsRequest(
+    val target: String? = null,
+    val contents: List<String> = emptyList(),
+    val generate_plan: Boolean = false,
+    val completed: Boolean = true,
+)
+
+@Serializable
 data class WxLoginBody(val code: String)
 
 @Serializable

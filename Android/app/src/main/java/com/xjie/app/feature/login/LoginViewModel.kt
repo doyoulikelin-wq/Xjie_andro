@@ -28,6 +28,10 @@ data class LoginUiState(
     val age: Int = 30,
     val heightCm: Int = 165,
     val weightKg: Int = 55,
+    val onboardingTarget: String = "控糖稳定",
+    val onboardingContents: Set<String> = setOf("fitness", "diet_control"),
+    val onboardingGeneratePlan: Boolean = true,
+    val medicationNeeded: Boolean = false,
     val loading: Boolean = false,
     val errorMessage: String? = null,
     val toast: String? = null,
@@ -54,6 +58,17 @@ class LoginViewModel @Inject constructor(
     fun setAge(v: Int) = _state.update { it.copy(age = v) }
     fun setHeightCm(v: Int) = _state.update { it.copy(heightCm = v) }
     fun setWeightKg(v: Int) = _state.update { it.copy(weightKg = v) }
+    fun setOnboardingTarget(v: String) = _state.update { it.copy(onboardingTarget = v) }
+    fun toggleOnboardingContent(v: String) = _state.update {
+        val next = it.onboardingContents.toMutableSet()
+        if (next.contains(v)) next.remove(v) else next.add(v)
+        it.copy(
+            onboardingContents = next,
+            medicationNeeded = if (v == "medication" && it.onboardingContents.contains(v)) false else it.medicationNeeded,
+        )
+    }
+    fun setOnboardingGeneratePlan(v: Boolean) = _state.update { it.copy(onboardingGeneratePlan = v) }
+    fun setMedicationNeeded(v: Boolean) = _state.update { it.copy(medicationNeeded = v) }
     fun clearToast() = _state.update { it.copy(toast = null) }
 
     fun loadSubjects() {
@@ -95,6 +110,10 @@ class LoginViewModel @Inject constructor(
                     age = if (s.isSignup) s.age else null,
                     heightCm = if (s.isSignup) s.heightCm.toDouble() else null,
                     weightKg = if (s.isSignup) s.weightKg.toDouble() else null,
+                    onboardingTarget = if (s.isSignup) s.onboardingTarget else null,
+                    onboardingContents = if (s.isSignup) s.onboardingContents.toList() else emptyList(),
+                    onboardingGeneratePlan = s.isSignup && s.onboardingGeneratePlan,
+                    medicationNeeded = s.isSignup && s.medicationNeeded,
                 )
             }
         }

@@ -1,6 +1,7 @@
 package com.xjie.app.core.network.api
 
 import com.xjie.app.core.model.ConsentResponse
+import com.xjie.app.core.model.OnboardingNeedsRequest
 import com.xjie.app.core.model.UpdateConsentBody
 import com.xjie.app.core.model.UpdateProfileBody
 import com.xjie.app.core.model.UpdateSettingsBody
@@ -10,6 +11,7 @@ import com.xjie.app.core.model.UserSettings
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import retrofit2.http.PUT
 
 interface UserApi {
     @GET("api/users/me")
@@ -29,4 +31,7 @@ interface UserApi {
 
     @PATCH("api/users/profile")
     suspend fun updateProfile(@Body body: UpdateProfileBody): UserProfile
+
+    @PUT("api/users/onboarding")
+    suspend fun updateOnboarding(@Body body: OnboardingNeedsRequest): UserSettings
 }

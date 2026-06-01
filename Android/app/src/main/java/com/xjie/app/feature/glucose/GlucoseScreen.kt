@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.xjie.app.core.model.CGMQuality
 import com.xjie.app.core.model.GlucoseFormat
 import com.xjie.app.core.model.GlucoseSummary
 import com.xjie.app.core.model.GlucoseUnit
@@ -79,6 +80,8 @@ fun GlucoseScreen(
         ) {
             WindowTabs(current = state.window, onSelect = vm::setWindow)
 
+            state.cgmQuality?.let { CGMQualityCard(it) }
+
             state.summary?.let { SummaryCard(it, unit) }
 
             ChartCard(
@@ -89,6 +92,53 @@ fun GlucoseScreen(
             )
         }
     }
+}
+
+@Composable
+private fun CGMQualityCard(q: CGMQuality) {
+    Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("CGM 数据质量", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.weight(1f))
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = cgmStatusColor(q.status).copy(alpha = 0.12f),
+                contentColor = cgmStatusColor(q.status),
+            ) {
+                Text(
+                    "${q.completeness_pct}%",
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        Text(q.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            MetricItem(
+                modifier = Modifier.weight(1f),
+                label = "活跃天数",
+                value = "${q.active_days}/${q.window_days}",
+            )
+            MetricItem(
+                modifier = Modifier.weight(1f),
+                label = "读数",
+                value = "${q.reading_count}",
+            )
+            MetricItem(
+                modifier = Modifier.weight(1f),
+                label = "缺口",
+                value = "${NumberUtils.toFixed(q.gap_hours)}h",
+            )
+        }
+    }
+}
+
+private fun cgmStatusColor(status: String): Color = when (status) {
+    "good" -> XjiePalette.Success
+    "watch", "partial" -> XjiePalette.Warning
+    "missing", "poor" -> XjiePalette.Danger
+    else -> Color(0xFF8A9491)
 }
 
 @Composable

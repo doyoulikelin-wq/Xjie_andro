@@ -38,7 +38,10 @@ import com.xjie.app.core.model.GlucoseFormat
 import com.xjie.app.core.model.GlucoseSummary
 import com.xjie.app.core.model.GlucoseUnit
 import com.xjie.app.core.model.HealthTreeSummary
+import com.xjie.app.core.model.MetabolicDayState
+import com.xjie.app.core.model.MetabolicState
 import com.xjie.app.core.model.ProactiveMessage
+import com.xjie.app.core.model.WeeklyValidation
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
 import com.xjie.app.core.ui.components.BrandTitle
@@ -82,6 +85,11 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         WelcomeBar(subjectId = subjectId, onOpenSettings = onOpenSettings)
+
+        MetabolicTopRow(
+            metabolic = state.dashboard?.metabolic_state,
+            weekly = state.dashboard?.weekly_validation,
+        )
 
         if (state.elderlyMode) {
             // 老年模式：“关怀复查”取代主动提醒 + 干预滑块
@@ -187,6 +195,161 @@ private fun WelcomeBar(subjectId: String, onOpenSettings: () -> Unit) {
         }
     }
 }
+
+@Composable
+private fun MetabolicTopRow(
+    metabolic: MetabolicState?,
+    weekly: WeeklyValidation?,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        MetabolicStateCard(metabolic, Modifier.weight(1f))
+        WeeklyValidationCard(weekly, Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun MetabolicStateCard(state: MetabolicState?, modifier: Modifier = Modifier) {
+    var showOverview by remember { mutableStateOf(false) }
+    Surface(
+        onClick = { showOverview = true },
+        modifier = modifier.heightIn(min = 138.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("今日代谢", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Text("${state?.score ?: 0}", color = metabolicLevelColor(state?.level), fontWeight = FontWeight.Bold)
+            }
+            Text(
+                state?.headline ?: "等待代谢状态",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+            )
+            Text(
+                state?.action ?: "同步 CGM 后会给出今天最小行动。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("总览", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowForward, null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+    if (showOverview) {
+        MetabolicOverviewDialog(
+            days = state?.overview.orEmpty(),
+            onDismiss = { showOverview = false },
+        )
+    }
+}
+
+@Composable
+private fun WeeklyValidationCard(weekly: WeeklyValidation?, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.heightIn(min = 138.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("周验证", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.weight(1f))
+                Text("${weekly?.adherence_pct ?: 0}%", color = XjiePalette.Success, fontWeight = FontWeight.Bold)
+            }
+            Text(
+                weekly?.headline ?: "等待本周验证",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+            )
+            Text(
+                weekly?.summary ?: "完成计划后，小捷会对比执行率和血糖变化。",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                MiniMetric("${weekly?.completed_actions ?: 0}/${weekly?.total_actions ?: 0}", "执行", Modifier.weight(1f))
+                MiniMetric(deltaText(weekly?.tir_delta_pct), "TIR", Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniMetric(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.07f))
+            .padding(vertical = 5.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(value, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun MetabolicOverviewDialog(days: List<MetabolicDayState>, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("代谢总览") },
+        text = {
+            Column(
+                Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "连续 7 天代谢状态根据 CGM 完整率、TIR、波动等级和异常区间生成。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                days.forEach { day ->
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+                            .padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(day.date.takeLast(5), fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(8.dp))
+                            Text(day.headline, modifier = Modifier.weight(1f), maxLines = 1)
+                            Text("${day.score}", color = metabolicLevelColor(day.level), fontWeight = FontWeight.Bold)
+                        }
+                        Text(day.reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("行动：${day.action}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } },
+    )
+}
+
+private fun metabolicLevelColor(level: String?): Color = when (level) {
+    "stable" -> XjiePalette.Success
+    "watch" -> XjiePalette.Warning
+    "risk" -> XjiePalette.Danger
+    else -> Color(0xFF8A9491)
+}
+
+private fun deltaText(value: Double?): String =
+    value?.let { "${if (it >= 0) "+" else ""}${"%.1f".format(it)}%" } ?: "--"
 
 @Composable
 private fun ProactiveCard(p: ProactiveMessage?, onOpenChat: () -> Unit) {

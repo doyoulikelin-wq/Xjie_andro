@@ -2,6 +2,7 @@ package com.xjie.app.feature.glucose
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xjie.app.core.model.CGMQuality
 import com.xjie.app.core.model.GlucosePoint
 import com.xjie.app.core.model.GlucoseRange
 import com.xjie.app.core.model.GlucoseSummary
@@ -29,6 +30,7 @@ data class GlucoseUiState(
     val chart: List<ChartPoint> = emptyList(),
     val summary: GlucoseSummary? = null,
     val range: GlucoseRange? = null,
+    val cgmQuality: CGMQuality? = null,
     val error: String? = null,
 )
 
@@ -81,7 +83,7 @@ class GlucoseViewModel @Inject constructor(
             val dashboard = repo.dashboard()
             val summary = if (w == GlucoseWindow.H24) dashboard?.glucose?.last_24h
             else dashboard?.glucose?.last_7d
-            _state.update { it.copy(summary = summary, loading = false) }
+            _state.update { it.copy(summary = summary, cgmQuality = dashboard?.cgm_quality, loading = false) }
         }
     }
 
