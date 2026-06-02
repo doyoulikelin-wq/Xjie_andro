@@ -56,9 +56,15 @@ data class GlucoseRange(
 
 @Serializable
 data class MetabolicState(
+    val title: String? = null,
     val date: String,
     val level: String,
     val score: Int,
+    val confidence: String? = null,
+    val confidence_label: String? = null,
+    val data_sources: List<String>? = null,
+    val missing_sources: List<String>? = null,
+    val primary_basis: String? = null,
     val headline: String,
     val reason: String,
     val action: String,
@@ -74,6 +80,13 @@ data class MetabolicMetrics(
     val max: Double? = null,
     val variability: String? = null,
     val reading_count: Int? = null,
+    val meals_count: Int? = null,
+    val kcal_today: Double? = null,
+    val tasks_total: Int? = null,
+    val tasks_completed: Int? = null,
+    val exercise_minutes: Int? = null,
+    val mood_count: Int? = null,
+    val care_count: Int? = null,
 )
 
 @Serializable
@@ -84,6 +97,9 @@ data class MetabolicDayState(
     val headline: String,
     val reason: String,
     val action: String,
+    val confidence: String? = null,
+    val data_sources: List<String>? = null,
+    val missing_sources: List<String>? = null,
     val avg: Double? = null,
     val tir_70_180_pct: Double? = null,
     val reading_count: Int = 0,

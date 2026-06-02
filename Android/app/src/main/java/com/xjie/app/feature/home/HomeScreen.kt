@@ -215,28 +215,39 @@ private fun MetabolicStateCard(state: MetabolicState?, modifier: Modifier = Modi
     var showOverview by remember { mutableStateOf(false) }
     Surface(
         onClick = { showOverview = true },
-        modifier = modifier.heightIn(min = 138.dp),
+        modifier = modifier.heightIn(min = 154.dp),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("今日代谢", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.weight(1f))
+                Text(
+                    state?.title ?: "今日健康状态",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
                 Text("${state?.score ?: 0}", color = metabolicLevelColor(state?.level), fontWeight = FontWeight.Bold)
             }
             Text(
-                state?.headline ?: "等待代谢状态",
+                state?.headline ?: "先建立今天的健康基线",
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
             )
             Text(
-                state?.action ?: "同步 CGM 后会给出今天最小行动。",
+                state?.action ?: "记录一餐、完成一次计划或上传健康资料，小捷就能给出今天的最小行动。",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
+            )
+            Text(
+                "依据：${sourceSummary(state?.data_sources)} · ${confidenceText(state)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("总览", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
@@ -256,7 +267,7 @@ private fun MetabolicStateCard(state: MetabolicState?, modifier: Modifier = Modi
 @Composable
 private fun WeeklyValidationCard(weekly: WeeklyValidation?, modifier: Modifier = Modifier) {
     Surface(
-        modifier = modifier.heightIn(min = 138.dp),
+        modifier = modifier.heightIn(min = 154.dp),
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
@@ -305,14 +316,14 @@ private fun MiniMetric(value: String, label: String, modifier: Modifier = Modifi
 private fun MetabolicOverviewDialog(days: List<MetabolicDayState>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("代谢总览") },
+        title = { Text("健康状态总览") },
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    "连续 7 天代谢状态根据 CGM 完整率、TIR、波动等级和异常区间生成。",
+                    "有 CGM 时优先结合连续血糖；没有 CGM 时根据饮食、计划、运动、健康资料和状态反馈生成低负担行动。",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -333,12 +344,34 @@ private fun MetabolicOverviewDialog(days: List<MetabolicDayState>, onDismiss: ()
                         }
                         Text(day.reason, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("行动：${day.action}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "依据：${sourceSummary(day.data_sources)} · ${confidenceText(day.confidence)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("完成") } },
     )
+}
+
+private fun sourceSummary(sources: List<String>?): String {
+    val values = sources.orEmpty().filter { it.isNotBlank() }
+    if (values.isEmpty()) return "待补数据"
+    return values.take(3).joinToString("/")
+}
+
+private fun confidenceText(state: MetabolicState?): String {
+    state?.confidence_label?.takeIf { it.isNotBlank() }?.let { return it }
+    return confidenceText(state?.confidence)
+}
+
+private fun confidenceText(confidence: String?): String = when (confidence) {
+    "high" -> "依据充分"
+    "medium" -> "依据一般"
+    else -> "信息较少"
 }
 
 private fun metabolicLevelColor(level: String?): Color = when (level) {
