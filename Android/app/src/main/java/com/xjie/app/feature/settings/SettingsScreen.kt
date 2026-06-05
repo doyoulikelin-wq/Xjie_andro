@@ -79,6 +79,7 @@ fun SettingsScreen(
                 user = state.user,
                 onEdit = { vm.showProfileEdit(true) },
             )
+            FeedbackEntryCard(onOpen = { showFeedback = true })
             InterventionCard(state.settings?.intervention_level, vm::updateLevel)
             GlucoseUnitCard(unit, vm::updateGlucoseUnit)
             Surface(
@@ -115,7 +116,6 @@ fun SettingsScreen(
                 onAiChat = { vm.toggleAiChat() },
                 onDataUpload = { vm.toggleDataUpload() },
             )
-            FeedbackEntryCard(onOpen = { showFeedback = true })
             if (state.user?.is_admin == true) {
                 Surface(
                     onClick = onOpenAdmin,
