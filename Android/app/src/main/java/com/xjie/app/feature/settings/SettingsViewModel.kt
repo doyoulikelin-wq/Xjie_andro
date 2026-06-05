@@ -26,6 +26,7 @@ data class SettingsUiState(
     val showLogoutAlert: Boolean = false,
     val showProfileEdit: Boolean = false,
     val error: String? = null,
+    val message: String? = null,
 )
 
 @HiltViewModel
@@ -68,6 +69,10 @@ class SettingsViewModel @Inject constructor(
     fun toggleAiChat() = launchOp { repo.toggleAiChat(state.value.user?.consent?.allow_ai_chat ?: false); load() }
     fun toggleDataUpload() = launchOp { repo.toggleDataUpload(state.value.user?.consent?.allow_data_upload ?: false); load() }
     fun toggleOmicsDemo(v: Boolean) = viewModelScope.launch { repo.setOmicsDemo(v) }
+    fun submitFeedback(category: String, content: String, contact: String?) = launchOp {
+        repo.submitFeedback(category, content, contact)
+        _state.update { it.copy(message = "反馈已提交") }
+    }
     fun showLogoutAlert(v: Boolean) = _state.update { it.copy(showLogoutAlert = v) }
     fun showProfileEdit(v: Boolean) = _state.update { it.copy(showProfileEdit = v) }
     fun updateProfile(
@@ -96,6 +101,7 @@ class SettingsViewModel @Inject constructor(
     }
     fun confirmLogout() = viewModelScope.launch { repo.logout() }
     fun clearError() = _state.update { it.copy(error = null) }
+    fun clearMessage() = _state.update { it.copy(message = null) }
 
     private fun launchOp(block: suspend () -> Unit) = viewModelScope.launch {
         runCatching { block() }.onFailure { e ->

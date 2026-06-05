@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
@@ -43,10 +44,14 @@ fun SettingsScreen(
     val demo by vm.omicsDemo.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     var showChangePwd by remember { mutableStateOf(false) }
+    var showFeedback by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { vm.load() }
     LaunchedEffect(state.error) {
         state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
+    }
+    LaunchedEffect(state.message) {
+        state.message?.let { snackbar.showSnackbar(it); vm.clearMessage() }
     }
 
     Scaffold(
@@ -110,6 +115,7 @@ fun SettingsScreen(
                 onAiChat = { vm.toggleAiChat() },
                 onDataUpload = { vm.toggleDataUpload() },
             )
+            FeedbackEntryCard(onOpen = { showFeedback = true })
             if (state.user?.is_admin == true) {
                 Surface(
                     onClick = onOpenAdmin,
@@ -145,6 +151,16 @@ fun SettingsScreen(
 
     if (showChangePwd) {
         ChangePasswordDialog(onDismiss = { showChangePwd = false })
+    }
+
+    if (showFeedback) {
+        FeedbackDialog(
+            onDismiss = { showFeedback = false },
+            onSubmit = { category, content, contact ->
+                vm.submitFeedback(category, content, contact)
+                showFeedback = false
+            },
+        )
     }
 
     if (state.showLogoutAlert) {        AlertDialog(
@@ -450,4 +466,96 @@ private fun ConsentCard(
             Switch(checked = dataUpload, onCheckedChange = { onDataUpload() })
         }
     }
+}
+
+@Composable
+private fun FeedbackEntryCard(onOpen: () -> Unit) {
+    Surface(
+        onClick = onOpen,
+        modifier = Modifier.cardStyle(),
+        color = Color.Transparent,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Edit, null, tint = XjiePalette.Primary)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("意见反馈", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "提交问题、建议或异常现象，开发者会在 Dashboard 中查看",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(Icons.Filled.ChevronRight, null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun FeedbackDialog(
+    onDismiss: () -> Unit,
+    onSubmit: (String, String, String?) -> Unit,
+) {
+    val categories = remember {
+        listOf("general" to "建议", "bug" to "问题", "data" to "数据异常", "ui" to "界面体验")
+    }
+    var category by remember { mutableStateOf("general") }
+    var content by remember { mutableStateOf("") }
+    var contact by remember { mutableStateOf("") }
+    val trimmed = content.trim()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("意见反馈") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                categories.chunked(2).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        row.forEach { item ->
+                            FilterChip(
+                                selected = category == item.first,
+                                onClick = { category = item.first },
+                                label = { Text(item.second, maxLines = 1) },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { if (it.length <= 2000) content = it },
+                    label = { Text("反馈内容") },
+                    minLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "${trimmed.length}/2000",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = contact,
+                    onValueChange = { if (it.length <= 128) contact = it },
+                    label = { Text("联系方式（可选）") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = trimmed.length >= 2,
+                onClick = {
+                    onSubmit(category, trimmed, contact.trim().ifBlank { null })
+                },
+            ) { Text("提交") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        },
+    )
 }

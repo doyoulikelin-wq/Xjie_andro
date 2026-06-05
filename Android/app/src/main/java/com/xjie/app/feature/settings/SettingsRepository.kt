@@ -1,6 +1,7 @@
 package com.xjie.app.feature.settings
 
 import com.xjie.app.core.auth.AuthManager
+import com.xjie.app.core.model.FeedbackCreate
 import com.xjie.app.core.model.GlucoseUnit
 import com.xjie.app.core.model.UpdateConsentBody
 import com.xjie.app.core.model.UpdateProfileBody
@@ -78,6 +79,17 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setOmicsDemo(enabled: Boolean) = prefs.setOmicsDemoEnabled(enabled)
+
+    suspend fun submitFeedback(category: String, content: String, contact: String?) = safeApiCall(json) {
+        userApi.submitFeedback(
+            FeedbackCreate(
+                category = category,
+                content = content,
+                contact = contact,
+                app_platform = "android",
+            )
+        )
+    }
 
     suspend fun logout() {
         runCatching { safeApiCall(json) { authApi.logout() } }
