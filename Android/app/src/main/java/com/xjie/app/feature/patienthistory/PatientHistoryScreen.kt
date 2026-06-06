@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -41,11 +42,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.core.model.PatientHistoryField
@@ -223,6 +228,10 @@ private fun DoctorSummaryCard(
     updatedAt: String?,
     onValueChange: (String) -> Unit,
 ) {
+    var editing by rememberSaveable(summary) { mutableStateOf(summary.isBlank()) }
+    val preview = remember(summary) {
+        summary.trim().ifBlank { "暂未整理医生摘要。上传资料或手动补充病史后，这里会生成给医生看的简洁版本。" }
+    }
     Surface(modifier = Modifier.cardStyle(), color = Color.Transparent) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,15 +242,39 @@ private fun DoctorSummaryCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.SemiBold,
                 )
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { editing = !editing }) {
+                    Text(if (editing) "收起" else "展开编辑")
+                }
             }
-            OutlinedTextField(
-                value = summary,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                label = { Text("给医生看的摘要") },
-                placeholder = { Text("例如：2 年前确诊脂肪肝，目前口服二甲双胍，无药物过敏。") },
-            )
+            if (editing) {
+                OutlinedTextField(
+                    value = summary,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 140.dp, max = 260.dp),
+                    minLines = 4,
+                    maxLines = 8,
+                    label = { Text("给医生看的摘要") },
+                    placeholder = { Text("例如：2 年前确诊脂肪肝，目前口服二甲双胍，无药物过敏。") },
+                )
+            } else {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                ) {
+                    Text(
+                        preview,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 4,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
             Text(
                 updatedAt?.let { "最近更新 ${it.replace('T', ' ').take(16)}" } ?: "尚未保存",
                 style = MaterialTheme.typography.labelSmall,

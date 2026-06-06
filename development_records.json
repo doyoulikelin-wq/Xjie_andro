@@ -2359,5 +2359,59 @@
       "Deployed fixed xjie_dashboard_api.py to /home/mayl/XJie_IOS/tools and restarted xjie-dashboard.service",
       "After fix, dashboard feedback proxy returned HTTP 200 and listed feedback ids 2 and 1"
     ]
+  },
+  {
+    "id": "2026-06-07-android-emulator-ui-regression-fix",
+    "time": "2026-06-07T03:05:57+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android UI / Emulator QA",
+    "feature": "Android 端无真机替代测试与交互修复",
+    "description": "在没有安卓真机的情况下安装 Android API 35 arm64 模拟器并进行登录态真实点击测试；修复首页今日血糖卡无法跳转血糖曲线页的问题，并将病史整理医生摘要改为默认折叠预览、展开后限制编辑框高度，避免长摘要吞掉滚动手势导致关键异常值、待补充项和结构化字段不可达。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "home",
+      "glucose",
+      "healthdata",
+      "patienthistory",
+      "healthplan",
+      "settings",
+      "chat"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/home/HomeScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/patienthistory/PatientHistoryScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        }
+      ]
+    },
+    "verification": [
+      "Built Android debug APK successfully with ./gradlew :app:assembleDebug",
+      "Ran ./gradlew :app:testDebugUnitTest; project currently has no debug unit test source so Gradle reported NO-SOURCE",
+      "Created and booted Android API 35 Google APIs arm64 emulator Xjie_Test_API35 at 1080x2400",
+      "Installed the debug APK, logged in with the existing test account, skipped the care questionnaire, and verified the care questionnaire and care review card contain no emoji text",
+      "Verified Home loads real dashboard data and the 今日血糖 card now opens 血糖曲线; verified 24h, 7 天 and 全部分段 controls render",
+      "Verified 健康数据 page scrolls to 病史整理 and indicator trend sections",
+      "Verified 病史整理 opens with 医生摘要 collapsed, key abnormal metrics visible, and scrolling reaches 待补充与待核对",
+      "Verified 计划 page shows 有用药需求 text, 今日计划详情 opens with 运动/饮食/睡眠/饮水 content, and 成长路径 opens",
+      "Verified 助手小捷 opens, input field accepts text without sending a test message",
+      "Verified 设置 page shows 意见反馈 and the feedback dialog opens"
+    ]
   }
 ]

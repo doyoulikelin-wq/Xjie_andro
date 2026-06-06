@@ -100,7 +100,7 @@ fun HomeScreen(
         }
 
         state.dashboard?.glucose?.last_24h?.let { g ->
-            GlucoseCard(g, unit = unit)
+            GlucoseCard(g, unit = unit, onOpen = onOpenGlucose)
         }
 
         HealthTreeSummaryCard(
@@ -528,41 +528,49 @@ private fun InterventionCard(index: Int, onChange: (Int) -> Unit) {
 }
 
 @Composable
-private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit) {
-    Column(Modifier.cardStyle()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.ShowChart, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(6.dp))
-            Text("今日血糖", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold)
-        }
-        Spacer(Modifier.height(10.dp))
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(IntrinsicSize.Min),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MetricItem(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                label = "平均",
-                value = GlucoseFormat.format(g.avg, unit, withUnit = false),
-                unit = unit.label,
-            )
-            MetricItem(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                label = "TIR",
-                value = g.tir_70_180_pct?.let { "%.1f".format(it) } ?: "--",
-                unit = "%",
-                accent = XjiePalette.Success,
-            )
-            MetricItem(
-                modifier = Modifier.weight(1f).fillMaxHeight(),
-                label = "范围",
-                value = "${GlucoseFormat.threshold(g.min ?: 0.0, unit)}~${GlucoseFormat.threshold(g.max ?: 0.0, unit)}",
-                unit = unit.label,
-            )
+private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit, onOpen: () -> Unit) {
+    Surface(
+        onClick = onOpen,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+    ) {
+        Column(Modifier.cardStyle()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.ShowChart, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(6.dp))
+                Text("今日血糖", style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                MetricItem(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    label = "平均",
+                    value = GlucoseFormat.format(g.avg, unit, withUnit = false),
+                    unit = unit.label,
+                )
+                MetricItem(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    label = "TIR",
+                    value = g.tir_70_180_pct?.let { "%.1f".format(it) } ?: "--",
+                    unit = "%",
+                    accent = XjiePalette.Success,
+                )
+                MetricItem(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    label = "范围",
+                    value = "${GlucoseFormat.threshold(g.min ?: 0.0, unit)}~${GlucoseFormat.threshold(g.max ?: 0.0, unit)}",
+                    unit = unit.label,
+                )
+            }
         }
     }
 }
