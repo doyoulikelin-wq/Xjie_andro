@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import javax.inject.Inject
 
 data class FamilyUiState(
@@ -43,31 +45,32 @@ class FamilyViewModel @Inject constructor(
     fun load() = viewModelScope.launch {
         _state.update { it.copy(loading = true) }
         runCatching {
-            val user = repo.me()
-            val groups = repo.groups()
-            val members = repo.members()
-            val subjects = repo.subjects()
-            val currentId = user.id?.toLongOrNull()
-            val selected = _state.value.selectedSubject?.let { old ->
-                subjects.firstOrNull { it.user_id == old.user_id }
-            } ?: subjects.firstOrNull()
-            val permissions = loadPermissions(members, currentId)
-            val summary = selected?.let { repo.summary(it.user_id) }
-            _state.update {
-                it.copy(
-                    loading = false,
-                    groups = groups,
-                    members = members,
-                    subjects = subjects,
-                    selectedSubject = selected,
-                    selectedSummary = summary,
-                    permissionsByViewer = permissions,
-                    currentUserId = currentId,
-                    error = null,
-                )
+            withTimeout(10_000) {
+                val groups = repo.groups()
+                val members = repo.members()
+                val subjects = repo.subjects()
+                val currentId = subjects.firstOrNull { it.member_id == null }?.user_id
+                val selected = _state.value.selectedSubject?.let { old ->
+                    subjects.firstOrNull { it.user_id == old.user_id }
+                } ?: subjects.firstOrNull()
+                val permissions = loadPermissions(members, currentId)
+                val summary = selected?.let { repo.summary(it.user_id) }
+                _state.update {
+                    it.copy(
+                        loading = false,
+                        groups = groups,
+                        members = members,
+                        subjects = subjects,
+                        selectedSubject = selected,
+                        selectedSummary = summary,
+                        permissionsByViewer = permissions,
+                        currentUserId = currentId,
+                        error = null,
+                    )
+                }
             }
         }.onFailure { e ->
-            _state.update { it.copy(loading = false, error = (e as? ApiException)?.message ?: e.message) }
+            _state.update { it.copy(loading = false, error = e.userMessage()) }
         }
     }
 
@@ -79,7 +82,7 @@ class FamilyViewModel @Inject constructor(
             _state.update { it.copy(latestInvite = invite, message = "邀请码已生成") }
             load()
         }.onFailure { e ->
-            _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) }
+            _state.update { it.copy(error = e.userMessage()) }
         }
     }
 
@@ -89,14 +92,14 @@ class FamilyViewModel @Inject constructor(
                 _state.update { it.copy(message = "已加入家庭") }
                 load()
             }
-            .onFailure { e -> _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) } }
+            .onFailure { e -> _state.update { it.copy(error = e.userMessage()) } }
     }
 
     fun selectSubject(subject: FamilySubject) = viewModelScope.launch {
         _state.update { it.copy(selectedSubject = subject, loading = true) }
         runCatching { repo.summary(subject.user_id) }
             .onSuccess { summary -> _state.update { it.copy(loading = false, selectedSummary = summary) } }
-            .onFailure { e -> _state.update { it.copy(loading = false, error = (e as? ApiException)?.message ?: e.message) } }
+            .onFailure { e -> _state.update { it.copy(loading = false, error = e.userMessage()) } }
     }
 
     fun sendCareEvent(type: String, message: String?) = viewModelScope.launch {
@@ -106,7 +109,7 @@ class FamilyViewModel @Inject constructor(
                 _state.update { it.copy(message = "已记录关心提醒") }
                 selectSubject(subject)
             }
-            .onFailure { e -> _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) } }
+            .onFailure { e -> _state.update { it.copy(error = e.userMessage()) } }
     }
 
     fun permissionValue(viewerUserId: Long, field: FamilyPermissionField): Boolean {
@@ -132,7 +135,7 @@ class FamilyViewModel @Inject constructor(
                     )
                 }
             }
-            .onFailure { e -> _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) } }
+            .onFailure { e -> _state.update { it.copy(error = e.userMessage()) } }
     }
 
     fun clearError() = _state.update { it.copy(error = null) }
@@ -149,5 +152,11 @@ class FamilyViewModel @Inject constructor(
                 runCatching { member.user_id to repo.permission(member.user_id) }.getOrNull()
             }
             .toMap()
+    }
+
+    private fun Throwable.userMessage(): String = when (this) {
+        is TimeoutCancellationException -> "网络响应较慢，请稍后重试"
+        is ApiException -> message ?: "请求失败，请稍后重试"
+        else -> message ?: "请求失败，请稍后重试"
     }
 }

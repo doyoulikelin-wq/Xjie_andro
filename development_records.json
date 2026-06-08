@@ -1,5 +1,44 @@
 [
   {
+    "id": "2026-06-09-android-family-loading-guard",
+    "time": "2026-06-09T01:53:39+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / Family Mode",
+    "feature": "fix(android): 家庭模式加载态保护",
+    "description": "安卓模拟器验证发现家庭模式页面在网络慢或超时时会长时间显示加载圈；去掉对额外 /users/me 请求的依赖，改用家庭主体中的本人记录推断当前用户，并给加载流程增加 10 秒超时保护，避免页面无限转圈。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "Family"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/family/FamilyViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ]
+    },
+    "verification": [
+      "Android API 35 emulator Xjie_Test_API35 started successfully",
+      "Installed app-debug.apk and launched com.xjie.app/.MainActivity with am start -W",
+      "Clicked 首页设置入口 and verified 设置 page shows 家庭模式",
+      "Clicked 家庭模式 and verified 家庭照护协作、邀请家人、输入邀请码、授权管理 are visible with no AndroidRuntime/FATAL crash"
+    ]
+  },
+  {
     "id": "2026-06-09-family-mode-p0",
     "time": "2026-06-08T17:21:40.076087+00:00",
     "author": "Codex",
