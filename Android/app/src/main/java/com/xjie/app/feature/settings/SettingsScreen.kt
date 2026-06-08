@@ -36,6 +36,7 @@ fun SettingsScreen(
     onBack: (() -> Unit)? = null,
     onOpenAdmin: () -> Unit = {},
     onOpenElderlyHistory: () -> Unit = {},
+    onOpenFamily: () -> Unit = {},
     onOpenMedications: () -> Unit = {},
     vm: SettingsViewModel = hiltViewModel(),
 ) {
@@ -80,6 +81,7 @@ fun SettingsScreen(
                 onEdit = { vm.showProfileEdit(true) },
             )
             FeedbackEntryCard(onOpen = { showFeedback = true })
+            FamilyEntryCard(onOpen = onOpenFamily)
             InterventionCard(state.settings?.intervention_level, vm::updateLevel)
             GlucoseUnitCard(unit, vm::updateGlucoseUnit)
             Surface(
@@ -186,6 +188,29 @@ fun SettingsScreen(
                 vm.updateProfile(sex, age, height.toDouble(), weight.toDouble())
             },
         )
+    }
+}
+
+@Composable
+private fun FamilyEntryCard(onOpen: () -> Unit) {
+    Surface(
+        onClick = onOpen,
+        modifier = Modifier.cardStyle(),
+        color = Color.Transparent,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Person, null, tint = XjiePalette.Primary)
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("家庭模式", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "邀请家人协作照护，敏感数据需单独授权，计划只读不可修改",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(Icons.Filled.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 

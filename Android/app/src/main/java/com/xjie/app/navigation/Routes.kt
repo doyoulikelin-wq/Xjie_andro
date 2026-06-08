@@ -24,6 +24,7 @@ sealed class Route(val path: String) {
     data object MedicalRecords : Route("medical_records")
     data object ExamReports : Route("exam_reports")
     data object ElderlyHistory : Route("elderly_history")
+    data object FamilyMode : Route("family_mode")
     data object Medications : Route("medications")
 
     data class HealthDataFocus(val focus: String) : Route("health_data_focus/$focus") {

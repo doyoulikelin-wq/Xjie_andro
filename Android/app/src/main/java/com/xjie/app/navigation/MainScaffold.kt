@@ -227,7 +227,13 @@ fun MainScaffold(
                         onBack = { navController.popBackStack() },
                         onOpenAdmin = { navController.navigate(Route.Admin.path) },
                         onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
+                        onOpenFamily = { navController.navigate(Route.FamilyMode.path) },
                         onOpenMedications = { navController.navigate(Route.Medications.path) },
+                    )
+                }
+                composable(Route.FamilyMode.path) {
+                    com.xjie.app.feature.family.FamilyModeScreen(
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.Medications.path) {
