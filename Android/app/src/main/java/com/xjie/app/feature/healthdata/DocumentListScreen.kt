@@ -204,7 +204,7 @@ private fun handleHealthDocUri(
             cr.openAssetFileDescriptor(uri, "r")?.use { it.length }
         }.getOrNull() ?: -1L
         if (size in 1 until 30_000L) {
-            onError("文件过小（${size / 1024}KB），可能不是有效的体检/病例照片。请重新拍摄清晰内容。")
+            onError("文件过小（${size / 1024}KB），可能不是有效的体检/病例文件。请重新选择清晰完整的 PDF 或图片。")
             return
         }
         if (mime.startsWith("image/")) {

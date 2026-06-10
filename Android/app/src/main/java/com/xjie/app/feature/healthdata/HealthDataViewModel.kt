@@ -76,7 +76,7 @@ class HealthDataViewModel @Inject constructor(
                             uploading = false,
                             uploadStage = "",
                             toast = "上传成功，AI 正在后台识别",
-                            backgroundTaskHint = "AI 正在后台识别文件内容，您可以离开此页继续使用。识别完成后会自动出现在「关注指标趋势」中。",
+                            backgroundTaskHint = "AI 正在后台识别文件内容。PDF 会同时解析文字和页面图像，您可以离开此页继续使用。识别完成后会自动出现在「关注指标趋势」中。",
                         )
                     }
                     // 异步轮询：不阻塞 UI，仅用于完成后刷新计数 & 自动消除横幅
@@ -84,7 +84,7 @@ class HealthDataViewModel @Inject constructor(
                     if (status == "failed") {
                         _state.update {
                             it.copy(
-                                error = "AI 无法识别该文件，请重新拍照或换张更清晰的图片。",
+                                error = "AI 无法识别该文件，请确认 PDF/图片清晰完整，或换一份可复制文字/扫描更清楚的文件。",
                                 backgroundTaskHint = null,
                             )
                         }
@@ -232,8 +232,15 @@ class DocumentListViewModel @Inject constructor(
     fun upload(docType: String, uri: Uri, filename: String) = viewModelScope.launch {
         _state.update { it.copy(uploading = true) }
         runCatching { repo.uploadDocument(uri, filename, docType) }
-            .onFailure { e -> _state.update { it.copy(error = e.message) } }
-        _state.update { it.copy(uploading = false, toast = "上传成功") }
+            .onSuccess { doc ->
+                val toast = if (doc.extraction_status == "pending") {
+                    "上传成功，AI 正在混合识别文字和页面图像"
+                } else {
+                    "上传成功"
+                }
+                _state.update { it.copy(uploading = false, toast = toast) }
+            }
+            .onFailure { e -> _state.update { it.copy(uploading = false, error = e.message) } }
         fetch(docType)
     }
 
