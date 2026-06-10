@@ -6,9 +6,7 @@ import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.DashboardHealth
 import com.xjie.app.core.model.GlucoseUnit
 import com.xjie.app.core.model.HealthTreeSummary
-import com.xjie.app.core.model.ProactiveMessage
 import com.xjie.app.core.storage.PreferencesStore
-import com.xjie.app.core.util.AppLogger
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,12 +21,9 @@ data class HomeUiState(
     val loading: Boolean = false,
     val refreshing: Boolean = false,
     val dashboard: DashboardHealth? = null,
-    val proactive: ProactiveMessage? = null,
     val treeSummary: HealthTreeSummary? = null,
     val contextPrecision: ContextPrecisionSummary = ContextPrecisionSummary(),
     val isOffline: Boolean = false,
-    val interventionIndex: Int = 1,   // 0..4 对应 L1..L5
-    val elderlyMode: Boolean = false,
     val error: String? = null,
 )
 
@@ -95,45 +90,18 @@ class HomeViewModel @Inject constructor(
                 if (isPullToRefresh) it.copy(refreshing = true) else it.copy(loading = true)
             }
             val (dashboard, fromCache) = repo.loadDashboard()
-            val proactive = repo.loadProactive()
             val treeSummary = repo.loadTreeSummary()
             val contextPrecision = repo.loadContextPrecision()
-            val settings = repo.loadSettings()
-            val idx = when (settings?.intervention_level) {
-                "L1" -> 0
-                "L3" -> 2
-                "L4" -> 3
-                "L5" -> 4
-                else -> 1
-            }
             _state.update {
                 it.copy(
                     loading = false,
                     refreshing = false,
                     dashboard = dashboard ?: it.dashboard,
-                    proactive = proactive,
                     treeSummary = treeSummary,
                     contextPrecision = contextPrecision,
                     isOffline = fromCache,
-                    interventionIndex = idx,
-                    elderlyMode = settings?.elderly_mode == true,
                 )
             }
-        }
-    }
-
-    fun setInterventionIndex(i: Int) {
-        _state.update { it.copy(interventionIndex = i) }
-        viewModelScope.launch {
-            val level = when (i) {
-                0 -> "L1"
-                2 -> "L3"
-                3 -> "L4"
-                4 -> "L5"
-                else -> "L2"
-            }
-            runCatching { repo.updateInterventionLevel(level) }
-                .onFailure { AppLogger.ui.w(it, "update intervention failed") }
         }
     }
 

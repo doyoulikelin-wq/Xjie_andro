@@ -14,11 +14,9 @@ import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.Monitor
-import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,7 +38,6 @@ import com.xjie.app.core.model.GlucoseUnit
 import com.xjie.app.core.model.HealthTreeSummary
 import com.xjie.app.core.model.MetabolicDayState
 import com.xjie.app.core.model.MetabolicState
-import com.xjie.app.core.model.ProactiveMessage
 import com.xjie.app.core.model.WeeklyValidation
 import androidx.compose.foundation.Image
 import androidx.compose.ui.res.painterResource
@@ -91,14 +88,6 @@ fun HomeScreen(
             weekly = state.dashboard?.weekly_validation,
         )
 
-        if (state.elderlyMode) {
-            // 老年模式：“关怀复查”取代主动提醒 + 干预滑块
-            com.xjie.app.feature.elderly.ElderlyCareCard(onOpenHistory = onOpenElderlyHistory)
-        } else {
-            // 主动提醒：后端有真实文案时展示后端内容；否则轮播 18 条默认关怀文案
-            ProactiveCard(state.proactive, onOpenChat = onOpenChat)
-        }
-
         state.dashboard?.glucose?.last_24h?.let { g ->
             GlucoseCard(g, unit = unit, onOpen = onOpenGlucose)
         }
@@ -122,13 +111,6 @@ fun HomeScreen(
             onOpenChat = onOpenChat,
             onOpenHealth = onOpenHealth,
         )
-
-        if (!state.elderlyMode) {
-            InterventionCard(
-                index = state.interventionIndex,
-                onChange = vm::setInterventionIndex,
-            )
-        }
 
         if (state.loading && state.dashboard == null) {
             Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
@@ -383,149 +365,6 @@ private fun metabolicLevelColor(level: String?): Color = when (level) {
 
 private fun deltaText(value: Double?): String =
     value?.let { "${if (it >= 0) "+" else ""}${"%.1f".format(it)}%" } ?: "--"
-
-@Composable
-private fun ProactiveCard(p: ProactiveMessage?, onOpenChat: () -> Unit) {
-    val backendMessage = p?.message?.takeIf { it.isNotBlank() }
-    Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            "主动提醒",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Image(
-                painter = painterResource(id = com.xjie.app.R.drawable.ic_logo),
-                contentDescription = "Xjie",
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-            )
-            if (backendMessage != null) {
-                Text(
-                    backendMessage,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-            } else {
-                RotatingProactiveText(modifier = Modifier.weight(1f))
-            }
-        }
-        if (p?.has_rescue == true) {
-            Surface(
-                onClick = onOpenChat,
-                shape = RoundedCornerShape(14.dp),
-                color = XjiePalette.Danger.copy(alpha = 0.08f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, XjiePalette.Danger.copy(alpha = 0.2f)),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = XjiePalette.Danger,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "有待处理的救援建议",
-                        color = XjiePalette.Danger,
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun RotatingProactiveText(modifier: Modifier = Modifier) {
-    val pool = remember { PROACTIVE_FALLBACK_MESSAGES.shuffled() }
-    var index by remember { mutableStateOf(0) }
-    LaunchedEffect(pool) {
-        while (true) {
-            kotlinx.coroutines.delay(5000)
-            index = (index + 1) % pool.size
-        }
-    }
-    androidx.compose.animation.Crossfade(
-        targetState = pool[index],
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 700),
-        label = "proactive-rotation",
-        modifier = modifier,
-    ) { text ->
-        Text(
-            text,
-            style = MaterialTheme.typography.bodyMedium,
-        )
-    }
-}
-
-@Composable
-private fun InterventionCard(index: Int, onChange: (Int) -> Unit) {
-    val labels = listOf("温和", "标准", "积极", "强化", "全场景")
-    val descs = listOf(
-        "仅高风险时提醒（1条/日）",
-        "高风险提醒 + 每日复查（2条/日）",
-        "中风险提醒 + 餐后建议（4条/日）",
-        "低风险提醒 + 餐后复查 + 运动提醒（6条/日）",
-        "错餐推送 + 夜间安眠 + 服药提醒（10条/日）",
-    )
-    val safeIdx = index.coerceIn(0, 4)
-    Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.NotificationsActive, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.width(6.dp))
-            Text("主动交互", style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                contentColor = MaterialTheme.colorScheme.primary,
-            ) {
-                Text(
-                    labels[safeIdx],
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-            }
-        }
-        Slider(
-            value = safeIdx.toFloat(),
-            onValueChange = { onChange(it.toInt().coerceIn(0, 4)) },
-            valueRange = 0f..4f,
-            steps = 3,
-            colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-            ),
-        )
-        Row(Modifier.fillMaxWidth()) {
-            labels.forEachIndexed { i, name ->
-                Text(
-                    name,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (i == safeIdx) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Text(
-            descs[safeIdx],
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
 
 @Composable
 private fun GlucoseCard(g: GlucoseSummary, unit: GlucoseUnit, onOpen: () -> Unit) {

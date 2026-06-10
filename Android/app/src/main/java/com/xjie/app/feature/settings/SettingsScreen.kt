@@ -416,7 +416,7 @@ private fun ElderlyModeCard(
     Column(Modifier.cardStyle(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(Icons.Filled.Person, "关怀模式")
         Text(
-            "开启后，应用会定期主动询问您的活动、身体感觉与心情，并在首页显示大字号关怀卡片。",
+            "开启后，应用会定期主动询问您的活动、身体感觉与心情，并保存为历史记录。相关设置和记录只在设置中查看。",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
