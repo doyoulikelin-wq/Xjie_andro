@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.xjie.app.core.ui.theme.XjieTheme
+import com.xjie.app.core.update.AppUpdatePrompt
 import com.xjie.app.feature.splash.SplashScreen
 import com.xjie.app.navigation.AppNavGraph
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
             XjieTheme {
                 Box(Modifier.fillMaxSize()) {
                     AppNavGraph()
+                    AppUpdatePrompt()
                     var splashVisible by remember { mutableStateOf(true) }
                     AnimatedVisibility(
                         visible = splashVisible,

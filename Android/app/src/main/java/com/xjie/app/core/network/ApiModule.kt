@@ -2,6 +2,7 @@ package com.xjie.app.core.network
 
 import com.xjie.app.core.network.api.AdminApi
 import com.xjie.app.core.network.api.AgentApi
+import com.xjie.app.core.network.api.AppUpdateApi
 import com.xjie.app.core.network.api.AuthApi
 import com.xjie.app.core.network.api.ChatApi
 import com.xjie.app.core.network.api.DashboardApi
@@ -32,6 +33,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object ApiModule {
     @Provides @Singleton fun authApi(r: Retrofit): AuthApi = r.create(AuthApi::class.java)
+    @Provides @Singleton fun appUpdateApi(r: Retrofit): AppUpdateApi = r.create(AppUpdateApi::class.java)
     @Provides @Singleton fun userApi(r: Retrofit): UserApi = r.create(UserApi::class.java)
     @Provides @Singleton fun dashboardApi(r: Retrofit): DashboardApi = r.create(DashboardApi::class.java)
     @Provides @Singleton fun agentApi(r: Retrofit): AgentApi = r.create(AgentApi::class.java)
