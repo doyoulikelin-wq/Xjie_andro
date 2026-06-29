@@ -56,70 +56,23 @@ fun MainScaffold(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 4.dp, bottom = 6.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
-                shadowElevation = 14.dp,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
-                ),
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp,
-                    windowInsets = WindowInsets(0.dp),
-                ) {
-                    val backStack by navController.currentBackStackEntryAsState()
-                    val currentDest = backStack?.destination
-                    tabs.forEach { tab ->
-                        val selected = isTabSelected(tab.route, currentDest)
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                val current = currentDest?.route
-                                if (current == tab.route.path) return@NavigationBarItem
-                                // 先把所有非 tab 的二级页面（如血糖/膳食/健康详情等）弹出，
-                                // 避免它们被作为 tab 的保存状态恢复。
-                                val startId = navController.graph.findStartDestination().id
-                                navController.popBackStack(startId, inclusive = false)
-                                if (tab.route != Route.Home) {
-                                    navController.navigate(tab.route.path) {
-                                        popUpTo(startId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
-                    }
-                }
-            }
-        },
     ) { padding: PaddingValues ->
         androidx.compose.foundation.layout.Column(Modifier.padding(padding).fillMaxSize()) {
             OfflineBanner(isOnline = isOnline)
             NavHost(
                 navController = navController,
-                startDestination = Route.Home.path,
+                startDestination = Route.XAgeShell.path,
                 modifier = Modifier.fillMaxSize(),
             ) {
+                composable(Route.XAgeShell.path) {
+                    com.xjie.app.feature.xage.XAgeMainScreen(
+                        onOpenUpload = { navController.navigate(Route.HealthDataFocus("upload").path) },
+                        onOpenSettings = { navController.navigate(Route.Settings.path) },
+                        onOpenLegacyHome = { navController.navigate(Route.Home.path) },
+                        onOpenHealthPlan = { navController.navigate(Route.HealthPlan.path) },
+                        onOpenOmics = { navController.navigate(Route.Omics.path) },
+                    )
+                }
                 composable(Route.Home.path) {
                     com.xjie.app.feature.home.HomeScreen(
                         onOpenSettings = { navController.navigate(Route.Settings.path) },

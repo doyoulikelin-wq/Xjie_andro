@@ -5,6 +5,7 @@ sealed class Route(val path: String) {
     data object Splash : Route("splash")
     data object Login : Route("login")
     data object Main : Route("main")
+    data object XAgeShell : Route("xage_shell")
 
     // 主 Tab
     data object Home : Route("home")
