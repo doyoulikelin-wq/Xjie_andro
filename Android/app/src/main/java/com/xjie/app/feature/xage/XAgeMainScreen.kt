@@ -26,7 +26,7 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SwapVert
@@ -192,12 +192,17 @@ private fun XAgeTopBar(
         IconButton(
             onClick = {},
             modifier = Modifier
-                .size(34.dp)
+                .size(if (selected == XAgeSection.Chat) 38.dp else 34.dp)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.48f))
                 .border(1.dp, Color.White.copy(alpha = 0.86f), CircleShape),
         ) {
-            Icon(Icons.Filled.Info, contentDescription = "说明", tint = Color(0xFF2A79BB), modifier = Modifier.size(17.dp))
+            Icon(
+                if (selected == XAgeSection.Chat) Icons.Filled.Refresh else Icons.Filled.Info,
+                contentDescription = if (selected == XAgeSection.Chat) "历史" else "说明",
+                tint = if (selected == XAgeSection.Chat) XAgeTextPrimary else Color(0xFF2A79BB),
+                modifier = Modifier.size(if (selected == XAgeSection.Chat) 20.dp else 17.dp),
+            )
         }
     }
 }
@@ -519,7 +524,7 @@ private fun XAgeChatPage(vm: ChatViewModel = hiltViewModel()) {
         LazyColumn(
             modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 18.dp, bottom = 12.dp),
+            contentPadding = PaddingValues(top = 34.dp, bottom = 12.dp),
         ) {
             if (state.messages.isEmpty()) {
                 item { XAgeChatWelcome(vm) }
@@ -573,43 +578,148 @@ private fun XAgeChatPage(vm: ChatViewModel = hiltViewModel()) {
 @Composable
 private fun XAgeChatWelcome(vm: ChatViewModel) {
     Column(
-        modifier = Modifier.xAgeGlass(28.dp).padding(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Text("助手小捷", color = XAgeTextPrimary, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("先问一个具体问题，我会给出可执行建议。", color = XAgeTextSecondary, fontSize = 14.sp)
-        XAgeStarterRow("整理病史摘要", "诊断、用药、过敏和异常检查", "整理") {}
-        XAgeStarterRow("解读血糖波动", "结合 TIR、异常时段和饮食记录", "提问") {
-            vm.setInput("最近空腹血糖偏高，要怎么调整？")
-            vm.send()
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            XAgeAssistantOrb()
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "下午好，想问什么？",
+                    color = Color(0xFF111827),
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "小捷先帮你问清关键问题。",
+                    color = Color(0xFF637083),
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
-        XAgeStarterRow("低负担饮食建议", "按当前健康资料给出下一餐选择", "提问") {
-            vm.setInput("帮我做一个低负担饮食建议")
+        Spacer(Modifier.height(50.dp))
+        Text("你可以这样问", color = Color(0xFF111827), fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Spacer(Modifier.height(28.dp))
+        XAgeStarterRow(
+            iconKind = "document",
+            title = "整理病史摘要",
+            subtitle = "诊断、用药、过敏信息",
+            primary = true,
+        ) {}
+        Spacer(Modifier.height(32.dp))
+        XAgeStarterRow(
+            iconKind = "chart",
+            title = "分析报告趋势",
+            subtitle = null,
+            primary = false,
+        ) {
+            vm.setInput("帮我分析最近报告趋势")
             vm.send()
         }
     }
 }
 
 @Composable
-private fun XAgeStarterRow(title: String, subtitle: String, action: String, onClick: () -> Unit) {
+private fun XAgeAssistantOrb() {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.42f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier
+                .size(20.dp)
+                .clip(RoundedCornerShape(9.dp))
+                .background(Brush.linearGradient(listOf(Color(0xFF00C9A7), Color(0xFF1565C0)))),
+        )
+        Box(
+            Modifier
+                .offset(x = 8.dp, y = (-4).dp)
+                .width(10.dp)
+                .height(28.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.26f))
+                .blur(1.dp),
+        )
+    }
+}
+
+@Composable
+private fun XAgeStarterRow(
+    iconKind: String,
+    title: String,
+    subtitle: String?,
+    primary: Boolean,
+    onClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.36f))
+            .height(if (primary) 84.dp else 66.dp)
+            .xAgeGlass(if (primary) 34.dp else 33.dp)
             .clickable { onClick() }
-            .padding(12.dp),
+            .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box(Modifier.size(38.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.52f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.MoreHoriz, null, tint = XjiePalette.Primary, modifier = Modifier.size(18.dp))
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFE7FAFF).copy(alpha = 0.46f))
+                .border(1.dp, Color.White.copy(alpha = 0.62f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            XAgePromptGlyph(iconKind)
         }
-        Column(Modifier.weight(1f)) {
-            Text(title, color = XAgeTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text(subtitle, color = Color(0xFF657E94), fontSize = 12.sp, maxLines = 1)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, color = Color(0xFF111827), fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            subtitle?.let {
+                Text(it, color = Color(0xFF637083), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
-        Text(action, color = Color(0xFF1268BD), fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.xAgePill().width(48.dp).height(28.dp).wrapContentHeight(Alignment.CenterVertically), textAlign = TextAlign.Center)
+        Text("›", color = Color(0xFF6F7F91).copy(alpha = 0.72f), fontSize = 34.sp, fontWeight = FontWeight.Light)
+    }
+}
+
+@Composable
+private fun XAgePromptGlyph(kind: String) {
+    if (kind == "chart") {
+        Row(
+            modifier = Modifier.size(22.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            listOf(9.dp, 15.dp, 6.dp).forEach { h ->
+                Box(
+                    Modifier
+                        .width(3.dp)
+                        .height(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFF1565C0), Color(0xFF00C9A7)))),
+                )
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .width(17.dp)
+                .height(21.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .border(2.dp, Color(0xFF1565C0), RoundedCornerShape(3.dp)),
+        ) {
+            Box(Modifier.align(Alignment.TopEnd).size(6.dp).background(Color(0xFF1565C0).copy(alpha = 0.18f)))
+            Box(Modifier.offset(x = 4.dp, y = 8.dp).width(9.dp).height(2.dp).background(Color(0xFF1565C0), RoundedCornerShape(1.dp)))
+            Box(Modifier.offset(x = 4.dp, y = 13.dp).width(7.dp).height(2.dp).background(Color(0xFF00C9A7), RoundedCornerShape(1.dp)))
+        }
     }
 }
 
@@ -679,7 +789,7 @@ private fun XAgeChatInput(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(Icons.Filled.Mic, null, tint = Color(0xFF2A79BB), modifier = Modifier.size(24.dp))
+        Icon(Icons.Filled.Mic, null, tint = Color(0xFF172033), modifier = Modifier.size(24.dp))
         TextField(
             value = value,
             onValueChange = onValueChange,
@@ -694,8 +804,17 @@ private fun XAgeChatInput(
                 unfocusedIndicatorColor = Color.Transparent,
             ),
         )
-        Icon(Icons.Filled.CameraAlt, null, tint = Color(0xFF2A79BB), modifier = Modifier.size(22.dp))
-        Icon(Icons.Filled.Add, null, tint = Color(0xFF2A79BB), modifier = Modifier.size(22.dp))
+        Icon(Icons.Filled.CameraAlt, null, tint = Color(0xFF172033), modifier = Modifier.size(22.dp))
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.58f))
+                .border(1.dp, Color.White.copy(alpha = 0.7f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Filled.Add, null, tint = Color(0xFF172033), modifier = Modifier.size(22.dp))
+        }
         Box(
             modifier = Modifier
                 .size(36.dp)
