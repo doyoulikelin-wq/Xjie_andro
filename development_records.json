@@ -4019,6 +4019,10 @@
         {
           "status": "M",
           "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
         }
       ],
       "Android": [
@@ -4035,6 +4039,7 @@
     "verification": [
       "Android development_records.json parsed successfully as JSON.",
       "Android development_history.html regenerated from the existing dashboard renderer without touching iOS files.",
+      "tools/xjie_memory.py summary shows the current 三栏切换 Android XAGE thread as Android-only.",
       "No Android business code was changed in this documentation-only update."
     ],
     "notes": [
