@@ -14,6 +14,7 @@ import androidx.lifecycle.ViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.xjie.app.BuildConfig
 import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.feature.login.LoginScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,7 +29,7 @@ fun AppNavGraph(vm: AppNavViewModel = hiltViewModel()) {
     val state by vm.state.collectAsState()
     val navController = rememberNavController()
 
-    val target = if (state.isLoggedIn) Route.Main.path else Route.Login.path
+    val target = if (BuildConfig.DEBUG || state.isLoggedIn) Route.Main.path else Route.Login.path
 
     LaunchedEffect(state.isLoggedIn) {
         val current = navController.currentDestination?.route

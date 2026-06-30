@@ -41,17 +41,19 @@ class MainActivity : ComponentActivity() {
             XjieTheme {
                 Box(Modifier.fillMaxSize()) {
                     AppNavGraph()
-                    AppUpdatePrompt()
-                    var splashVisible by remember { mutableStateOf(true) }
-                    AnimatedVisibility(
-                        visible = splashVisible,
-                        enter = androidx.compose.animation.EnterTransition.None,
-                        exit = fadeOut(tween(420)) + scaleOut(
-                            targetScale = 1.08f,
-                            animationSpec = tween(420),
-                        ),
-                    ) {
-                        SplashScreen(onFinished = { splashVisible = false })
+                    if (!BuildConfig.DEBUG) {
+                        AppUpdatePrompt()
+                        var splashVisible by remember { mutableStateOf(true) }
+                        AnimatedVisibility(
+                            visible = splashVisible,
+                            enter = androidx.compose.animation.EnterTransition.None,
+                            exit = fadeOut(tween(420)) + scaleOut(
+                                targetScale = 1.08f,
+                                animationSpec = tween(420),
+                            ),
+                        ) {
+                            SplashScreen(onFinished = { splashVisible = false })
+                        }
                     }
                 }
             }
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun ensureNotificationPermission() {
+        if (BuildConfig.DEBUG) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val perm = Manifest.permission.POST_NOTIFICATIONS
             val granted = ContextCompat.checkSelfPermission(this, perm) ==
