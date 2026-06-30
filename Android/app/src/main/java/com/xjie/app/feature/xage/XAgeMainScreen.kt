@@ -10,7 +10,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -37,7 +39,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -202,57 +207,71 @@ private fun XAgeDataPage(onOpenUpload: () -> Unit) {
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
     var metrics by remember { mutableStateOf(XAgeMetric.defaults) }
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val peelDistancePx = with(density) { 126.dp.toPx() }
+    val peelTranslationPx = with(density) { 34.dp.toPx() }
+    val titleCollapseDistancePx = with(density) { 92.dp.toPx() }
+    val firstMetricIndex = listState.firstVisibleItemIndex
+    val firstMetricOffset = listState.firstVisibleItemScrollOffset.toFloat()
+    val headerCollapse = if (sortMode) {
+        0f
+    } else if (firstMetricIndex > 0) {
+        1f
+    } else {
+        (firstMetricOffset / titleCollapseDistancePx).coerceIn(0f, 1f)
+    }
 
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
             .padding(bottom = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(top = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        XAgeDataStickyHeader(
+            sortMode = sortMode,
+            collapse = headerCollapse,
+            onToggleSort = { sortMode = !sortMode },
+            onSelectDetail = { detail = it },
+        )
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp),
         ) {
-            Column(Modifier.weight(1f)) {
-                Text("今日数据", color = XAgeTextPrimary, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-                Text("三项评分固定可见，卡片逐张滚动查看", color = XAgeTextSecondary, fontSize = 13.sp)
-            }
-            Surface(
-                onClick = { sortMode = !sortMode },
-                modifier = Modifier
-                    .width(54.dp)
-                    .height(34.dp)
-                    .testTag(if (sortMode) "xage.data.sort.done" else "xage.data.sort"),
-                shape = RoundedCornerShape(17.dp),
-                color = Color.White.copy(alpha = 0.58f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.88f)),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(if (sortMode) "完成" else "排序", color = Color(0xFF1268BD), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            itemsIndexed(metrics, key = { _, metric -> metric.id }) { index, metric ->
+                val progress = if (!sortMode && index == firstMetricIndex) {
+                    (firstMetricOffset / peelDistancePx).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
+                Box(
+                    Modifier
+                        .graphicsLayer {
+                            alpha = 1f - 0.78f * progress
+                            translationY = -peelTranslationPx * progress
+                            rotationX = -5f * progress
+                            transformOrigin = TransformOrigin(0.5f, 0f)
+                        }
+                        .testTag("xage.data.metric.${metric.id}"),
+                ) {
+                    XAgeMetricCard(
+                        metric = metric,
+                        sortMode = sortMode,
+                        onMoveUp = { if (index > 0) metrics = metrics.swap(index, index - 1) },
+                        onMoveDown = { if (index < metrics.lastIndex) metrics = metrics.swap(index, index + 1) },
+                    )
                 }
             }
+
+            item(key = "bottom-panel") {
+                XAgeBottomPanel(onOpenUpload = onOpenUpload)
+            }
         }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
-            XAgeScoreRing(XAgeDataKind.Pressure, 68, Modifier.weight(1f)) { detail = XAgeDataKind.Pressure }
-            XAgeScoreRing(XAgeDataKind.Recovery, 82, Modifier.weight(1f)) { detail = XAgeDataKind.Recovery }
-            XAgeScoreRing(XAgeDataKind.Inflammation, 57, Modifier.weight(1f)) { detail = XAgeDataKind.Inflammation }
-        }
-
-        XAgeScoreSummaryCard()
-
-        metrics.forEachIndexed { index, metric ->
-            XAgeMetricCard(
-                metric = metric,
-                sortMode = sortMode,
-                onMoveUp = { if (index > 0) metrics = metrics.swap(index, index - 1) },
-                onMoveDown = { if (index < metrics.lastIndex) metrics = metrics.swap(index, index + 1) },
-            )
-        }
-
-        XAgeBottomPanel(onOpenUpload = onOpenUpload)
     }
 
     detail?.let { kind ->
@@ -274,6 +293,69 @@ private fun XAgeDataPage(onOpenUpload: () -> Unit) {
                 }
             },
         )
+    }
+}
+
+@Composable
+private fun XAgeDataStickyHeader(
+    sortMode: Boolean,
+    collapse: Float,
+    onToggleSort: () -> Unit,
+    onSelectDetail: (XAgeDataKind) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp - 3.dp * collapse),
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "今日数据",
+                    color = XAgeTextPrimary,
+                    fontSize = (27f - 4f * collapse).sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "三项评分固定可见，卡片逐张滚动查看",
+                    modifier = Modifier
+                        .height(17.dp * (1f - collapse))
+                        .graphicsLayer { alpha = 1f - collapse },
+                    color = XAgeTextSecondary,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                )
+            }
+            Surface(
+                onClick = onToggleSort,
+                modifier = Modifier
+                    .width(54.dp)
+                    .height(34.dp)
+                    .testTag(if (sortMode) "xage.data.sort.done" else "xage.data.sort"),
+                shape = RoundedCornerShape(17.dp),
+                color = Color.White.copy(alpha = 0.58f),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.88f)),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(if (sortMode) "完成" else "排序", color = Color(0xFF1268BD), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(122.dp),
+        ) {
+            XAgeScoreRing(XAgeDataKind.Pressure, 68, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Pressure) }
+            XAgeScoreRing(XAgeDataKind.Recovery, 82, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Recovery) }
+            XAgeScoreRing(XAgeDataKind.Inflammation, 57, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Inflammation) }
+        }
+
+        XAgeScoreSummaryCard()
     }
 }
 
