@@ -98,7 +98,11 @@ fun XAgeMainScreen(
                 modifier = Modifier.fillMaxSize(),
             ) { page ->
                 when (sections[page]) {
-                    XAgeSection.Data -> XAgeDataPage(onOpenUpload = onOpenUpload)
+                    XAgeSection.Data -> XAgeDataPage(
+                        onOpenUpload = onOpenUpload,
+                        onOpenSettings = onOpenSettings,
+                        onOpenHealthPlan = onOpenHealthPlan,
+                    )
                     XAgeSection.Chat -> XAgeChatPage()
                     XAgeSection.XAge -> XAgeHealthspanPage()
                 }
@@ -208,7 +212,11 @@ private fun XAgeTopBar(
 }
 
 @Composable
-private fun XAgeDataPage(onOpenUpload: () -> Unit) {
+private fun XAgeDataPage(
+    onOpenUpload: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenHealthPlan: () -> Unit,
+) {
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
     var metrics by remember { mutableStateOf(XAgeMetric.defaults) }
@@ -274,7 +282,11 @@ private fun XAgeDataPage(onOpenUpload: () -> Unit) {
             }
 
             item(key = "bottom-panel") {
-                XAgeBottomPanel(onOpenUpload = onOpenUpload)
+                XAgeBottomPanel(
+                    onOpenUpload = onOpenUpload,
+                    onOpenSettings = onOpenSettings,
+                    onOpenHealthPlan = onOpenHealthPlan,
+                )
             }
         }
     }
@@ -470,46 +482,123 @@ private fun XAgeMetricCard(
 }
 
 @Composable
-private fun XAgeBottomPanel(onOpenUpload: () -> Unit) {
+private fun XAgeBottomPanel(
+    onOpenUpload: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenHealthPlan: () -> Unit,
+) {
+    var selected by remember { mutableStateOf(XAgePanelCategory.HealthData) }
+    val action = when (selected) {
+        XAgePanelCategory.HealthData,
+        XAgePanelCategory.Medical -> onOpenUpload
+        XAgePanelCategory.Activity -> onOpenHealthPlan
+        XAgePanelCategory.Profile -> onOpenSettings
+    }
+
     Column(
-        modifier = Modifier.xAgeGlass(28.dp).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .xAgeGlass(28.dp)
+            .padding(horizontal = 16.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("健康数据", "运动睡眠", "就医资料", "健康信息").forEach { title ->
-                Text(
-                    title,
+            XAgePanelCategory.entries.forEach { category ->
+                val active = selected == category
+                Surface(
+                    onClick = { selected = category },
                     modifier = Modifier
                         .weight(1f)
-                        .height(28.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(if (title == "健康数据") Color.White.copy(alpha = 0.7f) else Color.White.copy(alpha = 0.22f))
-                        .wrapContentHeight(Alignment.CenterVertically),
-                    color = if (title == "健康数据") Color(0xFF1268BD) else Color(0xFF5D7890),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                )
+                        .height(30.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = if (active) 0.88f else 0.46f)),
+                ) {
+                    Box(
+                        modifier = Modifier.background(
+                            if (active) {
+                                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.78f), Color.White.copy(alpha = 0.46f)))
+                            } else {
+                                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.18f)))
+                            },
+                        ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            category.title,
+                            color = if (active) Color(0xFF1268BD) else Color(0xFF5D7890),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.58f)),
-                contentAlignment = Alignment.Center,
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color.White.copy(alpha = 0.58f))
+                .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(24.dp))
+                .clickable { action() }
+                .testTag(if (selected == XAgePanelCategory.HealthData) "xage.data.upload" else "xage.data.panel.${selected.name.lowercase()}"),
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Icon(Icons.Filled.CloudUpload, null, tint = Color(0xFF1268BD))
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(Color(0xFF238AD6), Color(0xFF20CDB1)))),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        when (selected) {
+                            XAgePanelCategory.HealthData -> Icons.Filled.CloudUpload
+                            XAgePanelCategory.Activity -> Icons.Filled.SwapVert
+                            XAgePanelCategory.Medical -> Icons.Filled.Info
+                            XAgePanelCategory.Profile -> Icons.Filled.Add
+                        },
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(23.dp),
+                    )
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(selected.headline, color = XAgeTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(selected.subtitle, color = Color(0xFF6C8194), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Box(
+                    modifier = Modifier
+                        .width(62.dp)
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF238AD6), Color(0xFF20CDB1))))
+                        .clickable { action() },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(selected.actionTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                }
             }
-            Column(Modifier.weight(1f)) {
-                Text("上传报告", color = XAgeTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("体检报告、病历、化验单", color = Color(0xFF6C8194), fontSize = 12.sp, maxLines = 1)
-            }
-            XAgeSmallButton("上传", onOpenUpload, modifier = Modifier.testTag("xage.data.upload"))
         }
     }
+}
+
+private enum class XAgePanelCategory(
+    val title: String,
+    val headline: String,
+    val subtitle: String,
+    val actionTitle: String,
+) {
+    HealthData("健康数据", "上传报告", "体检报告、病历、化验单", "上传"),
+    Activity("运动睡眠", "同步运动睡眠", "步数、睡眠、训练负荷", "查看"),
+    Medical("就医资料", "管理就医资料", "病历、处方、化验单", "管理"),
+    Profile("健康信息", "完善健康信息", "基础资料、慢病、用药", "完善"),
 }
 
 @Composable
