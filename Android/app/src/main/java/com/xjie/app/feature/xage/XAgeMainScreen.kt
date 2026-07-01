@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -371,7 +373,7 @@ private fun XAgeDataStickyHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .xAgeGlass(28.dp)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(start = 12.dp, top = 18.dp, end = 12.dp, bottom = 14.dp),
         ) {
             XAgeScoreRing(XAgeDataKind.Pressure, 68, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Pressure) }
             XAgeScoreRing(XAgeDataKind.Recovery, 82, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Recovery) }
@@ -424,11 +426,15 @@ private fun XAgeLargeScoreRing(kind: XAgeDataKind, score: Int) {
         Box(Modifier.size(154.dp), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+                val inset = stroke.width / 2f + 1.dp.toPx()
+                val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
                 drawArc(
                     color = Color.White.copy(alpha = 0.54f),
                     startAngle = 112f,
                     sweepAngle = 310f,
                     useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
                     style = stroke,
                 )
                 drawArc(
@@ -438,6 +444,8 @@ private fun XAgeLargeScoreRing(kind: XAgeDataKind, score: Int) {
                     startAngle = 112f,
                     sweepAngle = 310f * score / 100f,
                     useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
                     style = stroke,
                 )
             }
@@ -462,11 +470,15 @@ private fun XAgeScoreRing(kind: XAgeDataKind, score: Int, modifier: Modifier = M
         Box(Modifier.size(90.dp), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
+                val inset = stroke.width / 2f + 1.dp.toPx()
+                val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
                 drawArc(
                     color = Color.White.copy(alpha = 0.52f),
                     startAngle = 112f,
                     sweepAngle = 310f,
                     useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
                     style = stroke,
                 )
                 drawArc(
@@ -474,6 +486,8 @@ private fun XAgeScoreRing(kind: XAgeDataKind, score: Int, modifier: Modifier = M
                     startAngle = 112f,
                     sweepAngle = 310f * score / 100f,
                     useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = arcSize,
                     style = stroke,
                 )
             }

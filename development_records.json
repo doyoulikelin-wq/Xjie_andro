@@ -4241,5 +4241,101 @@
       "A system IME handwriting toolbar appeared during input testing; it was treated as emulator/system overlay, while the XAGE input bar and send result were still verified.",
       "Debug-only overlay bypass is for repeatable Android XAGE UI auditing; Release behavior is unchanged."
     ]
+  },
+  {
+    "id": "2026-07-01-android-xage-ring-inset-fix",
+    "time": "2026-07-01T13:06:56+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Data UI",
+    "feature": "fix(android-xage): 修复数据页圆环上沿自裁切",
+    "description": "按用户截图定位数据页三评分圆环上沿反复贴边/裁切的问题。根因是 Compose Canvas.drawArc 使用完整画布 bounds 绘制粗 Stroke，描边外半部分会被 Canvas 自身裁掉；前几轮调整外层卡片无法根治。已将小圆环和详情大圆环都改为按 stroke.width / 2 + 1dp inset 后绘制 arc，并把评分玻璃卡顶部 padding 调整为 18dp，确保圆环和圆头端点完整落在画布内且与卡片上沿保持呼吸空间。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/01_data_ring_inset_full.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/02_data_ring_inset_crop.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/03_pressure_detail_large_ring.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ring_fix_20260701/02_data_ring_inset_crop.png",
+        "result": "self-reviewed: three score rings have visible top breathing room and no stroke/cap clipping"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ring_fix_20260701/03_pressure_detail_large_ring.png",
+        "result": "self-reviewed: pressure detail large ring renders fully inside the custom glass dialog"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The fix targets the arc drawing geometry itself; changing only the outer card cannot prevent Canvas stroke self-clipping."
+    ]
   }
 ]
