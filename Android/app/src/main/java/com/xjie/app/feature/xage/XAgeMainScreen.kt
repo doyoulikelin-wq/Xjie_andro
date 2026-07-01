@@ -23,11 +23,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.filled.SwapVert
@@ -45,6 +50,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -79,6 +85,7 @@ fun XAgeMainScreen(
     onOpenSettings: () -> Unit,
     onOpenLegacyHome: () -> Unit,
     onOpenHealthPlan: () -> Unit,
+    onOpenPatientHistory: () -> Unit,
     onOpenOmics: () -> Unit,
 ) {
     val sections = remember { XAgeSection.entries }
@@ -114,6 +121,7 @@ fun XAgeMainScreen(
                         onOpenUpload = onOpenUpload,
                         onOpenSettings = onOpenSettings,
                         onOpenHealthPlan = onOpenHealthPlan,
+                        onOpenPatientHistory = onOpenPatientHistory,
                     )
                     XAgeSection.Chat -> XAgeChatPage(historySignal = chatHistorySignal)
                     XAgeSection.XAge -> XAgeHealthspanPage()
@@ -229,6 +237,7 @@ private fun XAgeDataPage(
     onOpenUpload: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHealthPlan: () -> Unit,
+    onOpenPatientHistory: () -> Unit,
 ) {
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
@@ -311,6 +320,7 @@ private fun XAgeDataPage(
                     onOpenUpload = onOpenUpload,
                     onOpenSettings = onOpenSettings,
                     onOpenHealthPlan = onOpenHealthPlan,
+                    onOpenPatientHistory = onOpenPatientHistory,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -575,24 +585,25 @@ private fun XAgeBottomPanel(
     onOpenUpload: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenHealthPlan: () -> Unit,
+    onOpenPatientHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selected by remember { mutableStateOf(XAgePanelCategory.HealthData) }
+    var selected by remember { mutableStateOf(XAgePanelCategory.Reports) }
     val action = when (selected) {
-        XAgePanelCategory.HealthData,
-        XAgePanelCategory.Medical -> onOpenUpload
-        XAgePanelCategory.Activity -> onOpenHealthPlan
+        XAgePanelCategory.Reports -> onOpenUpload
+        XAgePanelCategory.Daily -> onOpenHealthPlan
+        XAgePanelCategory.Medical -> onOpenPatientHistory
         XAgePanelCategory.Profile -> onOpenSettings
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFFF8FCFF))
-            .border(1.dp, Color.White.copy(alpha = 0.96f), RoundedCornerShape(28.dp))
-            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .clip(RoundedCornerShape(30.dp))
+            .background(Color.White.copy(alpha = 0.92f))
+            .border(1.dp, Color.White.copy(alpha = 0.90f), RoundedCornerShape(30.dp))
+            .padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 34.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             XAgePanelCategory.entries.forEach { category ->
@@ -601,21 +612,22 @@ private fun XAgeBottomPanel(
                     onClick = { selected = category },
                     modifier = Modifier
                         .weight(1f)
-                        .height(30.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color.Transparent,
+                        .height(36.dp),
+                    shape = RoundedCornerShape(18.dp),
+                    color = if (active) Color.White.copy(alpha = 0.76f) else Color.White.copy(alpha = 0.28f),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = if (active) 0.88f else 0.46f)),
                 ) {
-                    Box(
-                        modifier = Modifier.background(
-                            if (active) {
-                                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.78f), Color.White.copy(alpha = 0.46f)))
-                            } else {
-                                Brush.linearGradient(listOf(Color.White.copy(alpha = 0.30f), Color.White.copy(alpha = 0.18f)))
-                            },
-                        ),
-                        contentAlignment = Alignment.Center,
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                     ) {
+                        XAgePanelCategoryGlyph(
+                            category = category,
+                            selected = active,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(Modifier.width(5.dp))
                         Text(
                             category.title,
                             color = if (active) Color(0xFF1268BD) else Color(0xFF5D7890),
@@ -623,6 +635,7 @@ private fun XAgeBottomPanel(
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
+                            overflow = TextOverflow.Clip,
                         )
                     }
                 }
@@ -636,32 +649,14 @@ private fun XAgeBottomPanel(
                 .background(Color.White.copy(alpha = 0.58f))
                 .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(24.dp))
                 .clickable { action() }
-                .testTag(if (selected == XAgePanelCategory.HealthData) "xage.data.upload" else "xage.data.panel.${selected.name.lowercase()}"),
+                .testTag(if (selected == XAgePanelCategory.Reports) "xage.data.upload" else "xage.data.panel.${selected.tagId}"),
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(0xFF238AD6), Color(0xFF20CDB1)))),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        when (selected) {
-                            XAgePanelCategory.HealthData -> Icons.Filled.CloudUpload
-                            XAgePanelCategory.Activity -> Icons.Filled.SwapVert
-                            XAgePanelCategory.Medical -> Icons.Filled.Info
-                            XAgePanelCategory.Profile -> Icons.Filled.Add
-                        },
-                        null,
-                        tint = Color.White,
-                        modifier = Modifier.size(23.dp),
-                    )
-                }
+                XAgePanelHeroAsset(category = selected)
                 Column(Modifier.weight(1f)) {
                     Text(selected.headline, color = XAgeTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                     Text(selected.subtitle, color = Color(0xFF6C8194), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -671,7 +666,7 @@ private fun XAgeBottomPanel(
                         .width(62.dp)
                         .height(34.dp)
                         .clip(RoundedCornerShape(17.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFF238AD6), Color(0xFF20CDB1))))
+                        .background(Brush.linearGradient(selected.gradient))
                         .clickable { action() },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -687,11 +682,157 @@ private enum class XAgePanelCategory(
     val headline: String,
     val subtitle: String,
     val actionTitle: String,
+    val tagId: String,
+    val gradient: List<Color>,
+    val heroIcon: ImageVector,
 ) {
-    HealthData("健康数据", "上传报告", "体检报告、病历、化验单", "上传"),
-    Activity("运动睡眠", "同步运动睡眠", "步数、睡眠、训练负荷", "查看"),
-    Medical("就医资料", "管理就医资料", "病历、处方、化验单", "管理"),
-    Profile("健康信息", "完善健康信息", "基础资料、慢病、用药", "完善"),
+    Reports(
+        "报告",
+        "报告入库",
+        "体检、化验、影像",
+        "上传",
+        "reports",
+        listOf(Color(0xFF238AD6), Color(0xFF20CDB1)),
+        Icons.Filled.Description,
+    ),
+    Daily(
+        "日常",
+        "日常同步",
+        "睡眠、步数、HRV",
+        "查看",
+        "daily",
+        listOf(Color(0xFF18B7D6), Color(0xFF34D6A6)),
+        Icons.Filled.Favorite,
+    ),
+    Medical(
+        "就医",
+        "就医整理",
+        "诊断、处方、随访",
+        "整理",
+        "medical",
+        listOf(Color(0xFF4E8FE9), Color(0xFF7BD5F1)),
+        Icons.Filled.MedicalServices,
+    ),
+    Profile(
+        "画像",
+        "健康画像",
+        "基础、慢病、过敏",
+        "完善",
+        "profile",
+        listOf(Color(0xFF2A79C7), Color(0xFF6EE4C6)),
+        Icons.Filled.Person,
+    ),
+}
+
+@Composable
+private fun XAgePanelCategoryGlyph(
+    category: XAgePanelCategory,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(
+                if (selected) {
+                    Brush.linearGradient(category.gradient)
+                } else {
+                    Brush.linearGradient(listOf(Color(0xFFB8DFF5).copy(alpha = 0.30f), Color(0xFFB8DFF5).copy(alpha = 0.30f)))
+                },
+            )
+            .border(0.8.dp, Color.White.copy(alpha = if (selected) 0.84f else 0.58f), CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        val glyphColor = if (selected) Color.White else Color(0xFF347FB7)
+        when (category) {
+            XAgePanelCategory.Reports -> Column(
+                verticalArrangement = Arrangement.spacedBy(1.6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                listOf(8.dp, 5.8.dp, 7.2.dp).forEach { width ->
+                    Box(
+                        Modifier
+                            .width(width)
+                            .height(1.8.dp)
+                            .clip(RoundedCornerShape(1.2.dp))
+                            .background(glyphColor),
+                    )
+                }
+            }
+
+            XAgePanelCategory.Daily -> Row(
+                modifier = Modifier.height(12.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+            ) {
+                listOf(5.dp, 9.dp, 6.dp, 11.dp).forEach { height ->
+                    Box(
+                        Modifier
+                            .width(2.dp)
+                            .height(height)
+                            .clip(RoundedCornerShape(1.2.dp))
+                            .background(glyphColor),
+                    )
+                }
+            }
+
+            XAgePanelCategory.Medical -> Box(contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .width(9.dp)
+                        .height(2.2.dp)
+                        .clip(RoundedCornerShape(1.1.dp))
+                        .background(glyphColor),
+                )
+                Box(
+                    Modifier
+                        .width(2.2.dp)
+                        .height(9.dp)
+                        .clip(RoundedCornerShape(1.1.dp))
+                        .background(glyphColor),
+                )
+            }
+
+            XAgePanelCategory.Profile -> Icon(
+                Icons.Filled.Check,
+                contentDescription = null,
+                tint = glyphColor,
+                modifier = Modifier.size(10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun XAgePanelHeroAsset(category: XAgePanelCategory) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(Brush.linearGradient(category.gradient)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .border(1.dp, Color.White.copy(alpha = 0.42f), CircleShape),
+        )
+        XAgePanelCategoryGlyph(
+            category = category,
+            selected = true,
+            modifier = Modifier.size(24.dp),
+        )
+        Icon(
+            category.heroIcon,
+            contentDescription = null,
+            tint = Color.White.copy(alpha = 0.92f),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 7.dp, end = 7.dp)
+                .size(9.dp),
+        )
+    }
 }
 
 @Composable

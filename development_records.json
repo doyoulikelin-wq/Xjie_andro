@@ -4571,5 +4571,130 @@
       "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
       "The issue was navigation-scope reuse of old main pages, not only the upload report button."
     ]
+  },
+  {
+    "id": "2026-07-01-android-xage-ios-panel-match",
+    "time": "2026-07-01T15:27:53+08:00",
+    "author": "Codex",
+    "type": "style",
+    "type_label": "样式",
+    "scope": "Android / XAGE / Data Bottom Panel",
+    "feature": "style(android-xage): 对齐 iOS 底部四分类按钮",
+    "description": "按用户要求参照 Xcode Simulator 中 iOS 当前数据页底部面板，将 Android 原健康数据、运动睡眠、就医资料、健康信息四个按钮改为 iOS 同款报告、日常、就医、画像；补齐 18dp 小圆形分类资产、48dp 主入口圆形资产、36dp 选中胶囊、四组蓝绿渐变和 iOS 同款主入口文案。行为也同步 iOS：报告进入上传聚焦页，日常进入健康计划，就医进入病史整理，画像进入设置。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "Navigation",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/00_ios_xage_panel_reference_reports.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/02_android_reports_default_no_shadow.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/03_android_daily_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/04_android_medical_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/05_android_profile_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/08_medical_opens_patient_history.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/02_android_reports_default_no_shadow.png",
+        "result": "self-reviewed: default Android panel matches iOS labels, small glyphs, main asset, button text and no default black shadow"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/03_android_daily_selected.png",
+        "result": "self-reviewed: daily capsule and main entry match iOS 日常同步 state without text overflow"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/04_android_medical_selected.png",
+        "result": "self-reviewed: medical capsule and 就医整理 state match iOS and use the blue medical gradient"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/05_android_profile_selected.png",
+        "result": "self-reviewed: profile capsule and 健康画像 state match iOS and stay above the gesture bar"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/08_medical_opens_patient_history.png",
+        "result": "self-reviewed: 就医 action now opens PatientHistory instead of upload"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS file changes because iOS was used only as visual and behavioral reference.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The active Xcode Simulator was not modified; confirmed iOS panel reference screenshots were copied from the existing iOS audit directory into this audit folder."
+    ]
   }
 ]

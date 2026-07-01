@@ -70,6 +70,7 @@ fun MainScaffold(
                         onOpenSettings = { navController.navigate(Route.Settings.path) },
                         onOpenLegacyHome = { navController.navigate(Route.Home.path) },
                         onOpenHealthPlan = { navController.navigate(Route.HealthPlan.path) },
+                        onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                         onOpenOmics = { navController.navigate(Route.Omics.path) },
                     )
                 }
