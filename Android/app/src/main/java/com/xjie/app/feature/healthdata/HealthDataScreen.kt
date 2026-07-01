@@ -9,6 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudUpload
@@ -45,6 +46,7 @@ fun HealthDataScreen(
     onOpenExams: () -> Unit,
     onOpenPatientHistory: () -> Unit,
     initialFocus: String? = null,
+    onBack: (() -> Unit)? = null,
     vm: HealthDataViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -70,7 +72,18 @@ fun HealthDataScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { TopAppBar(title = { BrandTitle("健康数据") }) },
+        topBar = {
+            TopAppBar(
+                title = { BrandTitle("健康数据") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
+                    }
+                },
+            )
+        },
     ) { inner ->
         Column(
             Modifier

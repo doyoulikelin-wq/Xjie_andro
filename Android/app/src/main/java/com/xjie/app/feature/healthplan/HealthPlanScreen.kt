@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CheckCircle
@@ -64,8 +65,10 @@ import com.xjie.app.core.ui.theme.cardStyle
 import kotlinx.coroutines.delay
 import kotlin.math.max
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthPlanScreen(
+    onBack: (() -> Unit)? = null,
     vm: HealthPlanViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
@@ -77,58 +80,85 @@ fun HealthPlanScreen(
         state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
     }
 
-    Box(Modifier.fillMaxSize()) {
-        Column(
+    Scaffold(
+        topBar = {
+            if (onBack != null) {
+                TopAppBar(
+                    title = {
+                        Text(
+                            "健康计划",
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
+                    },
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { inner ->
+        Box(
             Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 10.dp, bottom = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(inner)
+                .fillMaxSize(),
         ) {
-            Text(
-                "健康计划",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
-            )
-            state.week?.let { week ->
-                HealthTreeWeekCard(
-                    week = week,
-                    currentWeek = state.weekStart == java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY),
-                    completingType = state.completingType,
-                    recentEffect = state.lastCompletedType,
-                    onPrevious = vm::previousWeek,
-                    onNext = vm::nextWeek,
-                    onThisWeek = vm::backToThisWeek,
-                    onComplete = vm::completeToday,
-                    onEffectFinished = vm::clearCompletionEffect,
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 10.dp, bottom = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (onBack == null) {
+                    Text(
+                        "健康计划",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 2.dp),
+                    )
+                }
+                state.week?.let { week ->
+                    HealthTreeWeekCard(
+                        week = week,
+                        currentWeek = state.weekStart == java.time.LocalDate.now().with(java.time.DayOfWeek.MONDAY),
+                        completingType = state.completingType,
+                        recentEffect = state.lastCompletedType,
+                        onPrevious = vm::previousWeek,
+                        onNext = vm::nextWeek,
+                        onThisWeek = vm::backToThisWeek,
+                        onComplete = vm::completeToday,
+                        onEffectFinished = vm::clearCompletionEffect,
+                        onGeneratePlan = { showPlanQuestionnaire = true },
+                    )
+                }
+                PlanOverviewCard(
+                    plans = state.plans,
+                    selectedId = state.selectedPlan?.id,
+                    onSelect = vm::selectPlan,
                     onGeneratePlan = { showPlanQuestionnaire = true },
                 )
-            }
-            PlanOverviewCard(
-                plans = state.plans,
-                selectedId = state.selectedPlan?.id,
-                onSelect = vm::selectPlan,
-                onGeneratePlan = { showPlanQuestionnaire = true },
-            )
-            PlanDetailCard(
-                plan = state.selectedPlan,
-                isRevisionLoading = state.revisionLoading,
-                onEditTask = vm::updateTask,
-                onAIRevision = vm::generateAIRevision,
-            )
-            if (state.plans.isEmpty() && !state.loading) {
-                EmptyState(
-                    title = "暂无健康计划",
-                    description = "在助手小捷生成饮食、运动、用药方案后，点击「保存为健康计划」。",
+                PlanDetailCard(
+                    plan = state.selectedPlan,
+                    isRevisionLoading = state.revisionLoading,
+                    onEditTask = vm::updateTask,
+                    onAIRevision = vm::generateAIRevision,
                 )
+                if (state.plans.isEmpty() && !state.loading) {
+                    EmptyState(
+                        title = "暂无健康计划",
+                        description = "在助手小捷生成饮食、运动、用药方案后，点击「保存为健康计划」。",
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
             }
-            Spacer(Modifier.height(6.dp))
-        }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
-        if (state.loading) {
-            CircularProgressIndicator(Modifier.align(Alignment.Center))
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp))
+            if (state.loading) {
+                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
         }
     }
     if (showPlanQuestionnaire) {

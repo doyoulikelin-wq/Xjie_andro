@@ -75,6 +75,7 @@ fun MainScaffold(
                 }
                 composable(Route.Home.path) {
                     com.xjie.app.feature.home.HomeScreen(
+                        onBack = { navController.popBackStack() },
                         onOpenSettings = { navController.navigate(Route.Settings.path) },
                         onOpenGlucose = { navController.navigate(Route.Glucose.path) },
                         onOpenMeals = { navController.navigate(Route.Meals.path) },
@@ -124,10 +125,13 @@ fun MainScaffold(
                         onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.HealthPlan.path) {
-                    com.xjie.app.feature.healthplan.HealthPlanScreen()
+                    com.xjie.app.feature.healthplan.HealthPlanScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
                 composable(
                     Route.HealthDataFocus.PATTERN,
@@ -141,13 +145,17 @@ fun MainScaffold(
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                         initialFocus = focus,
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.Omics.path) {
-                    com.xjie.app.feature.omics.OmicsScreen()
+                    com.xjie.app.feature.omics.OmicsScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
                 composable(Route.Chat.path) {
                     com.xjie.app.feature.chat.ChatScreen(
+                        onBack = { navController.popBackStack() },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                     )
                 }

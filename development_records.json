@@ -4437,5 +4437,139 @@
       "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
       "Fixed bottom panel spacing should be handled by scroll viewport reserve, not large internal top padding inside the panel."
     ]
+  },
+  {
+    "id": "2026-07-01-android-xage-legacy-back-navigation",
+    "time": "2026-07-01T14:16:10+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Navigation",
+    "feature": "fix(android-xage): 补齐上传报告及旧页面返回按钮",
+    "description": "按用户反馈排查上传报告页缺少返回按钮的问题，并确认同类问题普遍存在于 XAGE 外跳旧主页面。为健康数据/上传聚焦、健康计划和旧首页页面补可选返回顶栏，并在 XAGE 导航层对旧首页、健康数据、上传聚焦、健康计划、多组学和助手聊天统一传入返回动作；设置页沿用已有返回参数。旧页面未传入 onBack 时仍保持原外观。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Navigation",
+      "HealthData",
+      "HealthPlan",
+      "Home",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/healthdata/HealthDataScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/healthplan/HealthPlanScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/home/HomeScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/02_upload_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/04_health_plan_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/06_settings_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/09_legacy_home_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/10_omics_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/11_omics_system_back_returned_xage.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/02_upload_back_button.png",
+        "result": "self-reviewed: upload-focused health data page now shows a visible back button with no title/content overlap"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/04_health_plan_back_button.png",
+        "result": "self-reviewed: health plan page shows a visible back button and first content card starts below the app bar"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/09_legacy_home_back_button.png",
+        "result": "self-reviewed: legacy home page gets a return app bar without covering the hero card"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/10_omics_back_button.png",
+        "result": "self-reviewed: omics page receives the existing optional back button from XAGE navigation"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/11_omics_system_back_returned_xage.png",
+        "result": "self-reviewed: system back from an XAGE-launched legacy page returns to the XAGE data screen"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The issue was navigation-scope reuse of old main pages, not only the upload report button."
+    ]
   }
 ]

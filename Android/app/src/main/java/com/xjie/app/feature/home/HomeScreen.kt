@@ -6,6 +6,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
@@ -46,9 +47,11 @@ import com.xjie.app.core.ui.components.MetricItem
 import com.xjie.app.core.ui.theme.XjiePalette
 import com.xjie.app.core.ui.theme.cardStyle
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     vm: HomeViewModel = hiltViewModel(),
+    onBack: (() -> Unit)? = null,
     onOpenSettings: () -> Unit = {},
     onOpenGlucose: () -> Unit = {},
     onOpenMeals: () -> Unit = {},
@@ -74,47 +77,64 @@ fun HomeScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        WelcomeBar(subjectId = subjectId, onOpenSettings = onOpenSettings)
+    Scaffold(
+        topBar = {
+            if (onBack != null) {
+                TopAppBar(
+                    title = { BrandTitle("首页") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
+                    },
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { inner ->
+        Column(
+            Modifier
+                .padding(inner)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            WelcomeBar(subjectId = subjectId, onOpenSettings = onOpenSettings)
 
-        MetabolicTopRow(
-            metabolic = state.dashboard?.metabolic_state,
-            weekly = state.dashboard?.weekly_validation,
-        )
+            MetabolicTopRow(
+                metabolic = state.dashboard?.metabolic_state,
+                weekly = state.dashboard?.weekly_validation,
+            )
 
-        state.dashboard?.glucose?.last_24h?.let { g ->
-            GlucoseCard(g, unit = unit, onOpen = onOpenGlucose)
-        }
+            state.dashboard?.glucose?.last_24h?.let { g ->
+                GlucoseCard(g, unit = unit, onOpen = onOpenGlucose)
+            }
 
-        HealthTreeSummaryCard(
-            summary = state.treeSummary ?: HealthTreeSummary(),
-            precision = state.contextPrecision,
-            isLive = state.treeSummary != null,
-            onOpenHealthData = onOpenHealthData,
-            onOpenHistory = onOpenElderlyHistory,
-            onOpenOmics = onOpenOmics,
-        )
+            HealthTreeSummaryCard(
+                summary = state.treeSummary ?: HealthTreeSummary(),
+                precision = state.contextPrecision,
+                isLive = state.treeSummary != null,
+                onOpenHealthData = onOpenHealthData,
+                onOpenHistory = onOpenElderlyHistory,
+                onOpenOmics = onOpenOmics,
+            )
 
-        MealsCard(state.dashboard)
+            MealsCard(state.dashboard)
 
-        com.xjie.app.feature.exercise.ExerciseCard()
+            com.xjie.app.feature.exercise.ExerciseCard()
 
-        QuickGrid(
-            onOpenGlucose = onOpenGlucose,
-            onOpenMeals = onOpenMeals,
-            onOpenChat = onOpenChat,
-            onOpenHealth = onOpenHealth,
-        )
+            QuickGrid(
+                onOpenGlucose = onOpenGlucose,
+                onOpenMeals = onOpenMeals,
+                onOpenChat = onOpenChat,
+                onOpenHealth = onOpenHealth,
+            )
 
-        if (state.loading && state.dashboard == null) {
-            Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+            if (state.loading && state.dashboard == null) {
+                Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
             }
         }
     }
