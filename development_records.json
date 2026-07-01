@@ -4337,5 +4337,105 @@
       "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
       "The fix targets the arc drawing geometry itself; changing only the outer card cannot prevent Canvas stroke self-clipping."
     ]
+  },
+  {
+    "id": "2026-07-01-android-xage-bottom-panel-compact",
+    "time": "2026-07-01T13:54:07+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Data UI",
+    "feature": "fix(android-xage): 收紧数据页底部资料面板空白",
+    "description": "按用户截图修复数据页底部资料面板分类胶囊上方空白过多的问题。移除此前用于遮挡底层列表的 50dp 内部 top padding，改为紧凑玻璃面板内边距；同时通过非排序态 LazyColumn 底部 viewport reserve 避让固定面板，避免再用面板内部空白遮挡后方指标卡。排序态继续隐藏底部面板。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/12_bottom_panel_compact_final_190_full.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/13_bottom_panel_compact_final_190_crop.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/04_sort_after_panel_padding.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/13_bottom_panel_compact_final_190_crop.png",
+        "result": "self-reviewed: bottom panel category row is no longer pushed down by excessive top whitespace"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/12_bottom_panel_compact_final_190_full.png",
+        "result": "self-reviewed: sleep metric card remains complete and next metric text does not bleed behind the fixed panel"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/04_sort_after_panel_padding.png",
+        "result": "self-reviewed: sort mode still hides the bottom panel and keeps sort controls visible"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "Fixed bottom panel spacing should be handled by scroll viewport reserve, not large internal top padding inside the panel."
+    ]
   }
 ]

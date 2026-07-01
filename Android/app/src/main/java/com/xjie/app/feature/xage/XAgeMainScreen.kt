@@ -274,9 +274,11 @@ private fun XAgeDataPage(
         ) {
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = if (sortMode) 0.dp else 190.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = if (sortMode) 24.dp else 176.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = if (sortMode) 24.dp else 12.dp),
             ) {
                 itemsIndexed(metrics, key = { _, metric -> metric.id }) { index, metric ->
                     val progress = if (!sortMode && index == firstMetricIndex) {
@@ -589,7 +591,7 @@ private fun XAgeBottomPanel(
             .clip(RoundedCornerShape(28.dp))
             .background(Color(0xFFF8FCFF))
             .border(1.dp, Color.White.copy(alpha = 0.96f), RoundedCornerShape(28.dp))
-            .padding(start = 16.dp, top = 50.dp, end = 16.dp, bottom = 18.dp),
+            .padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
