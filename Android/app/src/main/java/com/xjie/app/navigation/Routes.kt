@@ -6,6 +6,9 @@ sealed class Route(val path: String) {
     data object Login : Route("login")
     data object Main : Route("main")
     data object XAgeShell : Route("xage_shell")
+    data class XAgePanelDestination(val category: String) : Route("xage_panel/$category") {
+        companion object { const val PATTERN = "xage_panel/{category}" }
+    }
 
     // 主 Tab
     data object Home : Route("home")

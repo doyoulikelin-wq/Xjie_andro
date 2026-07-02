@@ -22,6 +22,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudUpload
@@ -81,12 +82,11 @@ private enum class XAgeSection(val label: String) {
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun XAgeMainScreen(
-    onOpenUpload: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenLegacyHome: () -> Unit,
     onOpenHealthPlan: () -> Unit,
-    onOpenPatientHistory: () -> Unit,
     onOpenOmics: () -> Unit,
+    onOpenPanelDestination: (String) -> Unit,
 ) {
     val sections = remember { XAgeSection.entries }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { sections.size })
@@ -118,10 +118,7 @@ fun XAgeMainScreen(
             ) { page ->
                 when (sections[page]) {
                     XAgeSection.Data -> XAgeDataPage(
-                        onOpenUpload = onOpenUpload,
-                        onOpenSettings = onOpenSettings,
-                        onOpenHealthPlan = onOpenHealthPlan,
-                        onOpenPatientHistory = onOpenPatientHistory,
+                        onOpenPanelDestination = onOpenPanelDestination,
                     )
                     XAgeSection.Chat -> XAgeChatPage(historySignal = chatHistorySignal)
                     XAgeSection.XAge -> XAgeHealthspanPage()
@@ -234,10 +231,7 @@ private fun XAgeTopBar(
 
 @Composable
 private fun XAgeDataPage(
-    onOpenUpload: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenHealthPlan: () -> Unit,
-    onOpenPatientHistory: () -> Unit,
+    onOpenPanelDestination: (String) -> Unit,
 ) {
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
@@ -317,10 +311,7 @@ private fun XAgeDataPage(
 
             if (!sortMode) {
                 XAgeBottomPanel(
-                    onOpenUpload = onOpenUpload,
-                    onOpenSettings = onOpenSettings,
-                    onOpenHealthPlan = onOpenHealthPlan,
-                    onOpenPatientHistory = onOpenPatientHistory,
+                    onOpenCategory = { category -> onOpenPanelDestination(category.tagId) },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -582,19 +573,10 @@ private fun XAgeMetricCard(
 
 @Composable
 private fun XAgeBottomPanel(
-    onOpenUpload: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenHealthPlan: () -> Unit,
-    onOpenPatientHistory: () -> Unit,
+    onOpenCategory: (XAgePanelCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf(XAgePanelCategory.Reports) }
-    val action = when (selected) {
-        XAgePanelCategory.Reports -> onOpenUpload
-        XAgePanelCategory.Daily -> onOpenHealthPlan
-        XAgePanelCategory.Medical -> onOpenPatientHistory
-        XAgePanelCategory.Profile -> onOpenSettings
-    }
 
     Column(
         modifier = modifier
@@ -648,7 +630,7 @@ private fun XAgeBottomPanel(
                 .clip(RoundedCornerShape(24.dp))
                 .background(Color.White.copy(alpha = 0.58f))
                 .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(24.dp))
-                .clickable { action() }
+                .clickable { onOpenCategory(selected) }
                 .testTag(if (selected == XAgePanelCategory.Reports) "xage.data.upload" else "xage.data.panel.${selected.tagId}"),
         ) {
             Row(
@@ -667,7 +649,7 @@ private fun XAgeBottomPanel(
                         .height(34.dp)
                         .clip(RoundedCornerShape(17.dp))
                         .background(Brush.linearGradient(selected.gradient))
-                        .clickable { action() },
+                        .clickable { onOpenCategory(selected) },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(selected.actionTitle, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1)
@@ -721,8 +703,81 @@ private enum class XAgePanelCategory(
         "profile",
         listOf(Color(0xFF2A79C7), Color(0xFF6EE4C6)),
         Icons.Filled.Person,
-    ),
+    );
+
+    val detailSummary: String
+        get() = when (this) {
+            Reports -> "把体检、化验和影像资料先入库，小捷会在后台识别结构化字段，并提示缺失项。"
+            Daily -> "聚合睡眠、步数、HRV 和训练负荷，用来解释当天压力、恢复和炎症评分变化。"
+            Medical -> "把诊断、处方和随访整理成连续时间线，方便下一次问诊前快速回顾。"
+            Profile -> "维护基础资料、慢病、过敏和长期用药，让问答和计划生成更贴近个人状态。"
+        }
+
+    val stats: List<XAgePanelStat>
+        get() = when (this) {
+            Reports -> listOf(
+                XAgePanelStat("待识别", "3", "份"),
+                XAgePanelStat("已结构化", "18", "项"),
+                XAgePanelStat("完整度", "76", "%"),
+            )
+            Daily -> listOf(
+                XAgePanelStat("睡眠", "7:18", ""),
+                XAgePanelStat("步数", "8.2k", ""),
+                XAgePanelStat("HRV", "43", "ms"),
+            )
+            Medical -> listOf(
+                XAgePanelStat("诊断", "4", "条"),
+                XAgePanelStat("处方", "2", "组"),
+                XAgePanelStat("随访", "1", "次"),
+            )
+            Profile -> listOf(
+                XAgePanelStat("基础", "92", "%"),
+                XAgePanelStat("慢病", "2", "项"),
+                XAgePanelStat("过敏", "1", "项"),
+            )
+        }
+
+    val rows: List<XAgePanelRow>
+        get() = when (this) {
+            Reports -> listOf(
+                XAgePanelRow(Icons.Filled.CameraAlt, "拍照上传", "体检报告、化验单、影像截图"),
+                XAgePanelRow(Icons.Filled.Description, "AI 识别队列", "抽取指标、异常值和参考范围"),
+                XAgePanelRow(Icons.Filled.Check, "需要确认", "核对姓名、日期和关键指标"),
+            )
+            Daily -> listOf(
+                XAgePanelRow(Icons.Filled.Favorite, "Apple Health", "同步睡眠、步数、静息心率"),
+                XAgePanelRow(Icons.Filled.Refresh, "恢复信号", "HRV、呼吸率和训练负荷"),
+                XAgePanelRow(Icons.Filled.Sort, "趋势解释", "连接日常变化与三项评分"),
+            )
+            Medical -> listOf(
+                XAgePanelRow(Icons.Filled.Description, "诊断摘要", "按科室和时间整理病程"),
+                XAgePanelRow(Icons.Filled.MedicalServices, "处方核对", "剂量、频次和注意事项"),
+                XAgePanelRow(Icons.Filled.Refresh, "随访提醒", "复诊、复查和报告回传"),
+            )
+            Profile -> listOf(
+                XAgePanelRow(Icons.Filled.Person, "基础资料", "年龄、身高、体重和目标"),
+                XAgePanelRow(Icons.Filled.CloudUpload, "长期标签", "慢病、家族史和风险因素"),
+                XAgePanelRow(Icons.Filled.Info, "安全信息", "过敏、禁忌和长期用药"),
+            )
+        }
+
+    companion object {
+        fun fromTagId(id: String): XAgePanelCategory =
+            entries.firstOrNull { it.tagId == id } ?: Reports
+    }
 }
+
+private data class XAgePanelStat(
+    val title: String,
+    val value: String,
+    val unit: String,
+)
+
+private data class XAgePanelRow(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+)
 
 @Composable
 private fun XAgePanelCategoryGlyph(
@@ -831,6 +886,286 @@ private fun XAgePanelHeroAsset(category: XAgePanelCategory) {
                 .align(Alignment.TopEnd)
                 .padding(top = 7.dp, end = 7.dp)
                 .size(9.dp),
+        )
+    }
+}
+
+@Composable
+fun XAgePanelDestinationScreen(
+    categoryId: String,
+    onBack: () -> Unit,
+) {
+    val category = remember(categoryId) { XAgePanelCategory.fromTagId(categoryId) }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .xAgeLiquidBackground(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 30.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            XAgePanelDestinationHeader(
+                category = category,
+                onBack = onBack,
+                modifier = Modifier.padding(top = 18.dp),
+            )
+
+            Column(
+                modifier = Modifier
+                    .xAgeGlass(28.dp)
+                    .padding(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
+                        XAgePanelHeroAsset(category = category)
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(5.dp),
+                    ) {
+                        Text(
+                            category.headline,
+                            color = XAgeTextPrimary,
+                            fontSize = 27.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            category.subtitle,
+                            color = Color(0xFF5D7890),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+
+                Text(
+                    category.detailSummary,
+                    color = Color(0xFF496A83),
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                category.stats.forEach { stat ->
+                    XAgePanelStatCard(
+                        stat = stat,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                category.rows.forEach { row ->
+                    XAgePanelActionRow(category = category, row = row)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp)
+                    .height(46.dp)
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(Brush.linearGradient(category.gradient))
+                    .testTag("xage.panel.destination.${category.tagId}.cta"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    category.actionTitle,
+                    color = Color.White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun XAgePanelDestinationHeader(
+    category: XAgePanelCategory,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("xage.panel.destination.${category.tagId}"),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(42.dp)
+                .height(34.dp)
+                .xAgePill()
+                .clickable { onBack() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Filled.ArrowBack,
+                contentDescription = "返回",
+                tint = Color(0xFF347FB7),
+                modifier = Modifier.size(17.dp),
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .height(34.dp)
+                .xAgePill()
+                .padding(horizontal = 18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                category.title,
+                color = XAgeTextPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
+
+        Spacer(Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .width(42.dp)
+                .height(34.dp)
+                .clip(RoundedCornerShape(17.dp))
+                .background(Brush.linearGradient(category.gradient))
+                .border(1.dp, Color.White.copy(alpha = 0.72f), RoundedCornerShape(17.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                category.heroIcon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun XAgePanelStatCard(
+    stat: XAgePanelStat,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(70.dp)
+            .xAgeGlass(22.dp)
+            .padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(
+            stat.title,
+            color = Color(0xFF6C8194),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(5.dp))
+        Row(
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                stat.value,
+                color = Color(0xFF12324F),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+            if (stat.unit.isNotEmpty()) {
+                Spacer(Modifier.width(2.dp))
+                Text(
+                    stat.unit,
+                    color = Color(0xFF6C8194),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun XAgePanelActionRow(
+    category: XAgePanelCategory,
+    row: XAgePanelRow,
+) {
+    Row(
+        modifier = Modifier
+            .height(66.dp)
+            .xAgeGlass(22.dp)
+            .padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Brush.linearGradient(category.gradient)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                row.icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                row.title,
+                color = Color(0xFF173F64),
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                row.subtitle,
+                color = Color(0xFF6C8194),
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+
+        Text(
+            "›",
+            color = Color(0xFF7D9AB1),
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
         )
     }
 }

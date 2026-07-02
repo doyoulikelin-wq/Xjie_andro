@@ -66,12 +66,25 @@ fun MainScaffold(
             ) {
                 composable(Route.XAgeShell.path) {
                     com.xjie.app.feature.xage.XAgeMainScreen(
-                        onOpenUpload = { navController.navigate(Route.HealthDataFocus("upload").path) },
                         onOpenSettings = { navController.navigate(Route.Settings.path) },
                         onOpenLegacyHome = { navController.navigate(Route.Home.path) },
                         onOpenHealthPlan = { navController.navigate(Route.HealthPlan.path) },
-                        onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                         onOpenOmics = { navController.navigate(Route.Omics.path) },
+                        onOpenPanelDestination = { category ->
+                            navController.navigate(Route.XAgePanelDestination(category).path)
+                        },
+                    )
+                }
+                composable(
+                    Route.XAgePanelDestination.PATTERN,
+                    arguments = listOf(androidx.navigation.navArgument("category") {
+                        type = androidx.navigation.NavType.StringType
+                    }),
+                ) { entry ->
+                    val category = entry.arguments?.getString("category").orEmpty()
+                    com.xjie.app.feature.xage.XAgePanelDestinationScreen(
+                        categoryId = category,
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.Home.path) {
