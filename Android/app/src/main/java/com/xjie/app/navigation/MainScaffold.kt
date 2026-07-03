@@ -66,10 +66,6 @@ fun MainScaffold(
             ) {
                 composable(Route.XAgeShell.path) {
                     com.xjie.app.feature.xage.XAgeMainScreen(
-                        onOpenSettings = { navController.navigate(Route.Settings.path) },
-                        onOpenLegacyHome = { navController.navigate(Route.Home.path) },
-                        onOpenHealthPlan = { navController.navigate(Route.HealthPlan.path) },
-                        onOpenOmics = { navController.navigate(Route.Omics.path) },
                         onOpenPanelDestination = { category ->
                             navController.navigate(Route.XAgePanelDestination(category).path)
                         },

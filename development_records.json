@@ -4825,5 +4825,161 @@
       "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
       "Bottom panel category entry now routes to XAGE-native liquid-glass destination pages instead of directly opening old HealthData, HealthPlan, PatientHistory or Settings screens."
     ]
+  },
+  {
+    "id": "2026-07-04-android-xage-ios-progress-sync",
+    "time": "2026-07-04T02:01:22+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "Android / XAGE / iOS Progress Sync",
+    "feature": "feat(android-xage): 对齐 iOS 最新数据、面板与问答交互进度",
+    "description": "按照 iOS XAGE 最新更新和已修过的问题，全面补齐 Android XAGE：数据页移除旧 3D peel/头部折叠，改为只在上滑时隐藏 今日状态；左上菜单只保留 XAGE 内部 数据 / 问答 / X年龄；新增 Android 健康同步卡、添加指标卡和候选指标弹层；四分类目标页补齐行选中、互动详情和 CTA 已更新反馈；问答输入栏 mic/camera/plus 接入真实系统语音、相机、文件/相册选择和新对话。验证中发现 Android 15 相机入口未请求 CAMERA 运行时权限会崩溃，已改为先请求权限再启动 TakePicture，并加中文失败提示兜底。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "Chat",
+      "Navigation",
+      "UI",
+      "Permissions",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/chat/ChatViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/01_launch.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/02_data_scrolled.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/03_metric_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/04_metric_added.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/06_health_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/07_sort_mode.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/08_xage_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/09_panel_reports.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/12_panel_daily.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/14_panel_medical.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/15_panel_profile.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/17_chat_attachment_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/18_document_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/19_voice_entry.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/21_camera_permission.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/22_camera_open.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 + adb/UIAutomator screenshots",
+        "result": "passed: verified data default/scroll hide today status/add metric/health sync/sort mode/menu/panel destinations/chat attachment menu/document picker/voice recognition/camera permission/camera activity"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/",
+    "notes": [
+      "iOS repo was used only as reference and was not modified.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
+      "Camera crash was reproduced on emulator before fix and resolved by runtime CAMERA permission flow."
+    ]
   }
 ]
