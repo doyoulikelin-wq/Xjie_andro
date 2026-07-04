@@ -68,6 +68,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -104,54 +106,57 @@ fun XAgeMainScreen(
     var showMenu by remember { mutableStateOf(false) }
     var chatHistorySignal by remember { mutableStateOf(0) }
 
-    Box(
+    BoxWithConstraints(
         Modifier
             .fillMaxSize()
             .xAgeLiquidBackground(),
     ) {
-        Column(Modifier.fillMaxSize()) {
-            XAgeTopBar(
-                selected = sections[pagerState.currentPage],
-                onSelect = { section ->
-                    scope.launch { pagerState.animateScrollToPage(section.ordinal) }
-                },
-                onMenu = { showMenu = true },
-                onTrailingAction = {
-                    if (sections[pagerState.currentPage] == XAgeSection.Chat) {
-                        chatHistorySignal += 1
+        val adaptive = XAgeAdaptiveMetrics.from(maxWidth, maxHeight)
+        CompositionLocalProvider(LocalXAgeAdaptive provides adaptive) {
+            Column(Modifier.fillMaxSize()) {
+                XAgeTopBar(
+                    selected = sections[pagerState.currentPage],
+                    onSelect = { section ->
+                        scope.launch { pagerState.animateScrollToPage(section.ordinal) }
+                    },
+                    onMenu = { showMenu = true },
+                    onTrailingAction = {
+                        if (sections[pagerState.currentPage] == XAgeSection.Chat) {
+                            chatHistorySignal += 1
+                        }
+                    },
+                )
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                ) { page ->
+                    when (sections[page]) {
+                        XAgeSection.Data -> XAgeDataPage(
+                            onOpenPanelDestination = onOpenPanelDestination,
+                        )
+                        XAgeSection.Chat -> XAgeChatPage(historySignal = chatHistorySignal)
+                        XAgeSection.XAge -> XAgeHealthspanPage()
                     }
-                },
-            )
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-            ) { page ->
-                when (sections[page]) {
-                    XAgeSection.Data -> XAgeDataPage(
-                        onOpenPanelDestination = onOpenPanelDestination,
-                    )
-                    XAgeSection.Chat -> XAgeChatPage(historySignal = chatHistorySignal)
-                    XAgeSection.XAge -> XAgeHealthspanPage()
                 }
             }
-        }
-    }
 
-    if (showMenu) {
-        XAgeGlassDialog(title = "XAGE", onDismiss = { showMenu = false }) {
-            sections.forEach { section ->
-                val icon = when (section) {
-                    XAgeSection.Data -> Icons.Filled.Sort
-                    XAgeSection.Chat -> Icons.AutoMirrored.Filled.Send
-                    XAgeSection.XAge -> Icons.Filled.Info
-                }
-                XAgeMenuRow(
-                    title = section.label,
-                    icon = icon,
-                    selected = sections[pagerState.currentPage] == section,
-                ) {
-                    showMenu = false
-                    scope.launch { pagerState.animateScrollToPage(section.ordinal) }
+            if (showMenu) {
+                XAgeGlassDialog(title = "XAGE", onDismiss = { showMenu = false }) {
+                    sections.forEach { section ->
+                        val icon = when (section) {
+                            XAgeSection.Data -> Icons.Filled.Sort
+                            XAgeSection.Chat -> Icons.AutoMirrored.Filled.Send
+                            XAgeSection.XAge -> Icons.Filled.Info
+                        }
+                        XAgeMenuRow(
+                            title = section.label,
+                            icon = icon,
+                            selected = sections[pagerState.currentPage] == section,
+                        ) {
+                            showMenu = false
+                            scope.launch { pagerState.animateScrollToPage(section.ordinal) }
+                        }
+                    }
                 }
             }
         }
@@ -165,20 +170,21 @@ private fun XAgeTopBar(
     onMenu: () -> Unit,
     onTrailingAction: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = adaptive.topBarHorizontalPadding)
             .padding(top = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 8.dp else 10.dp),
     ) {
         Box {
             IconButton(
                 onClick = onMenu,
                 modifier = Modifier
-                    .size(34.dp)
+                    .size(adaptive.topBarButtonSize)
                     .testTag("xage.more"),
             ) {
                 Icon(Icons.Filled.Menu, contentDescription = "更多", tint = XAgeTextPrimary)
@@ -194,7 +200,7 @@ private fun XAgeTopBar(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp)
+                .height(adaptive.segmentHeight)
                 .clip(RoundedCornerShape(24.dp))
                 .background(Color.White.copy(alpha = 0.46f))
                 .border(1.dp, Color.White.copy(alpha = 0.86f), RoundedCornerShape(24.dp))
@@ -218,9 +224,10 @@ private fun XAgeTopBar(
                         .testTag("xage.segment.${section.label}"),
                     textAlign = TextAlign.Center,
                     color = textColor,
-                    fontSize = 15.sp,
+                    fontSize = adaptive.segmentFontSize,
                     fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -228,7 +235,7 @@ private fun XAgeTopBar(
         IconButton(
             onClick = onTrailingAction,
             modifier = Modifier
-                .size(if (selected == XAgeSection.Chat) 38.dp else 34.dp)
+                .size(if (selected == XAgeSection.Chat && !adaptive.compactWidth) 38.dp else adaptive.topBarButtonSize)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.48f))
                 .border(1.dp, Color.White.copy(alpha = 0.86f), CircleShape),
@@ -247,6 +254,7 @@ private fun XAgeTopBar(
 private fun XAgeDataPage(
     onOpenPanelDestination: (String) -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
     var metrics by remember { mutableStateOf(XAgeMetric.defaults) }
@@ -257,18 +265,20 @@ private fun XAgeDataPage(
     val scope = rememberCoroutineScope()
     val showsTodayStatus by remember {
         derivedStateOf {
-            sortMode || (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 28)
+            !adaptive.shortHeight &&
+                (sortMode || (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 28))
         }
     }
     val availableMetrics = remember(metrics) {
         val currentIds = metrics.map { it.id }.toSet()
         XAgeMetric.androidHealthCandidates.filterNot { it.id in currentIds }
     }
+    val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     Column(
         Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = adaptive.contentHorizontalPadding)
             .padding(bottom = 0.dp),
     ) {
         XAgeDataStickyHeader(
@@ -291,10 +301,12 @@ private fun XAgeDataPage(
             LazyColumn(
                 state = listState,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = if (sortMode) 0.dp else 210.dp),
+                    .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 10.dp, bottom = if (sortMode) 32.dp else 28.dp),
+                contentPadding = PaddingValues(
+                    top = 10.dp,
+                    bottom = if (sortMode) navigationBottomPadding + 32.dp else adaptive.bottomPanelReserve + 28.dp,
+                ),
             ) {
                 if (!sortMode) {
                     item(key = "android-health-sync") {
@@ -341,10 +353,23 @@ private fun XAgeDataPage(
             }
 
             if (!sortMode) {
-                XAgeBottomPanel(
-                    onOpenCategory = { category -> onOpenPanelDestination(category.tagId) },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                ) {
+                    XAgeBottomPanel(
+                        onOpenCategory = { category -> onOpenPanelDestination(category.tagId) },
+                    )
+                    if (navigationBottomPadding > 0.dp) {
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(navigationBottomPadding)
+                                .background(Color(0xFFFCFEFF)),
+                        )
+                    }
+                }
             }
         }
 
@@ -356,13 +381,12 @@ private fun XAgeDataPage(
                 metrics = availableMetrics,
                 onDismiss = { showMetricPicker = false },
                 onSelect = { metric ->
-                    if (metrics.none { it.id == metric.id }) {
-                        metrics = metrics + metric
-                    }
+                    val updatedMetrics = if (metrics.none { it.id == metric.id }) metrics + metric else metrics
+                    metrics = updatedMetrics
                     showMetricPicker = false
                     scope.launch {
                         delay(120)
-                        val listIndex = metrics.indexOfFirst { it.id == metric.id }
+                        val listIndex = updatedMetrics.indexOfFirst { it.id == metric.id }
                         if (listIndex >= 0) {
                             listState.animateScrollToItem(listIndex + 1)
                         }
@@ -380,18 +404,19 @@ private fun XAgeDataStickyHeader(
     onToggleSort: () -> Unit,
     onSelectDetail: (XAgeDataKind) -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 16.dp, bottom = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(top = if (adaptive.shortHeight) 10.dp else 16.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.shortHeight) 8.dp else 10.dp),
     ) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text(
                     "今日健康数据",
                     color = XAgeTextPrimary,
-                    fontSize = 27.sp,
+                    fontSize = adaptive.dataTitleFontSize,
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
@@ -405,7 +430,7 @@ private fun XAgeDataStickyHeader(
             Surface(
                 onClick = onToggleSort,
                 modifier = Modifier
-                    .width(54.dp)
+                    .width(if (adaptive.compactWidth) 50.dp else 54.dp)
                     .height(34.dp)
                     .testTag(if (sortMode) "xage.data.sort.done" else "xage.data.sort"),
                 shape = RoundedCornerShape(17.dp),
@@ -419,11 +444,16 @@ private fun XAgeDataStickyHeader(
         }
 
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 6.dp else 10.dp),
             modifier = Modifier
                 .fillMaxWidth()
                 .xAgeGlass(28.dp)
-                .padding(start = 12.dp, top = 18.dp, end = 12.dp, bottom = 14.dp),
+                .padding(
+                    start = adaptive.scoreCardHorizontalPadding,
+                    top = if (adaptive.shortHeight) 14.dp else 18.dp,
+                    end = adaptive.scoreCardHorizontalPadding,
+                    bottom = if (adaptive.shortHeight) 12.dp else 14.dp,
+                ),
         ) {
             XAgeScoreRing(XAgeDataKind.Pressure, 68, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Pressure) }
             XAgeScoreRing(XAgeDataKind.Recovery, 82, Modifier.weight(1f)) { onSelectDetail(XAgeDataKind.Recovery) }
@@ -511,17 +541,18 @@ private fun XAgeLargeScoreRing(kind: XAgeDataKind, score: Int) {
 
 @Composable
 private fun XAgeScoreRing(kind: XAgeDataKind, score: Int, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(20.dp))
             .clickable { onClick() }
             .testTag("xage.data.score.${kind.name.lowercase()}"),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 6.dp else 8.dp),
     ) {
-        Box(Modifier.size(90.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(adaptive.scoreRingSize), contentAlignment = Alignment.Center) {
             androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-                val stroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
+                val stroke = Stroke(width = adaptive.scoreRingStroke.toPx(), cap = StrokeCap.Round)
                 val inset = stroke.width / 2f + 1.dp.toPx()
                 val arcSize = Size(size.width - inset * 2f, size.height - inset * 2f)
                 drawArc(
@@ -543,20 +574,21 @@ private fun XAgeScoreRing(kind: XAgeDataKind, score: Int, modifier: Modifier = M
                     style = stroke,
                 )
             }
-            Text("$score", color = XAgeTextDark, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            Text("$score", color = XAgeTextDark, fontSize = adaptive.scoreNumberFontSize, fontWeight = FontWeight.Bold)
         }
-        Text(kind.label, color = Color(0xFF43657F), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(kind.label, color = Color(0xFF43657F), fontSize = adaptive.scoreLabelFontSize, fontWeight = FontWeight.SemiBold, maxLines = 1)
     }
 }
 
 @Composable
 private fun XAgeScoreSummaryCard() {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
-        modifier = Modifier.xAgeGlass(24.dp).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.xAgeGlass(24.dp).padding(if (adaptive.compactWidth) 14.dp else 16.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.shortHeight) 8.dp else 10.dp),
     ) {
-        Text("今日状态", color = XAgeTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("今日状态", color = XAgeTextPrimary, fontSize = if (adaptive.compactWidth) 16.sp else 17.sp, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 6.dp else 8.dp)) {
             listOf(
                 "压力中等" to XAgeDataKind.Pressure.color,
                 "恢复良好" to XAgeDataKind.Recovery.color,
@@ -571,10 +603,11 @@ private fun XAgeScoreSummaryCard() {
                         .background(Color.White.copy(alpha = 0.46f))
                         .wrapContentHeight(Alignment.CenterVertically),
                     color = item.second,
-                    fontSize = 12.sp,
+                    fontSize = if (adaptive.compactWidth) 11.sp else 12.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -593,13 +626,14 @@ private fun XAgeAndroidHealthSyncCard(
     syncedCount: Int,
     onSync: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     val working = status == XAgeAndroidHealthStatus.Syncing
     Column(
         modifier = Modifier
             .xAgeGlass(24.dp)
-            .padding(16.dp)
+            .padding(if (adaptive.shortHeight) 14.dp else 16.dp)
             .testTag("xage.androidHealth.sync"),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.shortHeight) 8.dp else 12.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -646,10 +680,21 @@ private fun XAgeAndroidHealthSyncCard(
             }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            XAgeSyncBadge(status.title)
-            XAgeSyncBadge(if (status == XAgeAndroidHealthStatus.Synced) "$syncedCount 项已写入" else "只读授权")
-            XAgeSyncBadge("${if (syncedCount > 0) syncedCount else XAgeMetric.androidHealthSamples.size} 项本地数据")
+        if (adaptive.shortHeight) {
+            Text(
+                "${status.title} · ${if (status == XAgeAndroidHealthStatus.Synced) "$syncedCount 项已写入" else "只读授权"} · ${if (syncedCount > 0) syncedCount else XAgeMetric.androidHealthSamples.size} 项本地数据",
+                color = Color(0xFF347FB7),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                XAgeSyncBadge(status.title)
+                XAgeSyncBadge(if (status == XAgeAndroidHealthStatus.Synced) "$syncedCount 项已写入" else "只读授权")
+                XAgeSyncBadge("${if (syncedCount > 0) syncedCount else XAgeMetric.androidHealthSamples.size} 项本地数据")
+            }
         }
     }
 }
@@ -683,8 +728,9 @@ private fun XAgeMetricCard(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
-        modifier = Modifier.xAgeGlass(24.dp).padding(horizontal = 20.dp, vertical = 16.dp),
+        modifier = Modifier.xAgeGlass(24.dp).padding(horizontal = adaptive.metricCardHorizontalPadding, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -694,8 +740,15 @@ private fun XAgeMetricCard(
                     .clip(CircleShape)
                     .background(Brush.linearGradient(listOf(metric.accent, Color(0xFF20CDB1)))),
             )
-            Text(metric.title, color = metric.accent, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            Spacer(Modifier.weight(1f))
+            Text(
+                metric.title,
+                modifier = Modifier.weight(1f),
+                color = metric.accent,
+                fontSize = if (adaptive.compactWidth) 16.sp else 17.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Text(metric.time, color = Color(0xFF6A8198), fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
             Text("›", color = Color(0xFFA0B1C0), fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
@@ -926,25 +979,31 @@ private fun XAgeBottomPanel(
     onOpenCategory: (XAgePanelCategory) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     var selected by remember { mutableStateOf(XAgePanelCategory.Reports) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(30.dp))
-            .background(Color.White.copy(alpha = 0.92f))
+            .background(Color(0xFFFCFEFF))
             .border(1.dp, Color.White.copy(alpha = 0.90f), RoundedCornerShape(30.dp))
-            .padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 34.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(
+                start = adaptive.bottomPanelHorizontalPadding,
+                top = adaptive.bottomPanelTopPadding,
+                end = adaptive.bottomPanelHorizontalPadding,
+                bottom = adaptive.bottomPanelBottomPadding,
+            ),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.shortHeight || adaptive.compactWidth) 6.dp else 14.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 6.dp else 8.dp)) {
             XAgePanelCategory.entries.forEach { category ->
                 val active = selected == category
                 Surface(
                     onClick = { selected = category },
                     modifier = Modifier
                         .weight(1f)
-                        .height(36.dp),
+                        .height(adaptive.bottomPanelCategoryHeight),
                     shape = RoundedCornerShape(18.dp),
                     color = if (active) Color.White.copy(alpha = 0.76f) else Color.White.copy(alpha = 0.28f),
                     border = BorderStroke(1.dp, Color.White.copy(alpha = if (active) 0.88f else 0.46f)),
@@ -957,17 +1016,17 @@ private fun XAgeBottomPanel(
                         XAgePanelCategoryGlyph(
                             category = category,
                             selected = active,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(if (adaptive.compactWidth) 16.dp else 18.dp),
                         )
-                        Spacer(Modifier.width(5.dp))
+                        Spacer(Modifier.width(if (adaptive.compactWidth) 3.dp else 5.dp))
                         Text(
                             category.title,
                             color = if (active) Color(0xFF1268BD) else Color(0xFF5D7890),
-                            fontSize = 11.sp,
+                            fontSize = adaptive.bottomPanelCategoryFontSize,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
-                            overflow = TextOverflow.Clip,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -978,24 +1037,27 @@ private fun XAgeBottomPanel(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color.White.copy(alpha = 0.58f))
+                .background(Color.White.copy(alpha = 0.82f))
                 .border(1.dp, Color.White.copy(alpha = 0.82f), RoundedCornerShape(24.dp))
                 .clickable { onOpenCategory(selected) }
                 .testTag(if (selected == XAgePanelCategory.Reports) "xage.data.upload" else "xage.data.panel.${selected.tagId}"),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                modifier = Modifier.padding(
+                    horizontal = 14.dp,
+                    vertical = if (adaptive.shortHeight || adaptive.compactWidth) 6.dp else 12.dp,
+                ),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 XAgePanelHeroAsset(category = selected)
                 Column(Modifier.weight(1f)) {
-                    Text(selected.headline, color = XAgeTextPrimary, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    Text(selected.headline, color = XAgeTextPrimary, fontSize = if (adaptive.compactWidth) 16.sp else 17.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(selected.subtitle, color = Color(0xFF6C8194), fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Box(
                     modifier = Modifier
-                        .width(62.dp)
+                        .width(adaptive.bottomPanelActionWidth)
                         .height(34.dp)
                         .clip(RoundedCornerShape(17.dp))
                         .background(Brush.linearGradient(selected.gradient))
@@ -1254,155 +1316,158 @@ fun XAgePanelDestinationScreen(
     var primaryActionCount by remember(category) { mutableStateOf(0) }
     var healthSyncStatus by remember(category) { mutableStateOf(XAgeAndroidHealthStatus.Idle) }
     val scope = rememberCoroutineScope()
-    Box(
+    BoxWithConstraints(
         Modifier
             .fillMaxSize()
             .xAgeLiquidBackground(),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 30.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            XAgePanelDestinationHeader(
-                category = category,
-                onBack = onBack,
-                modifier = Modifier.padding(top = 18.dp),
-            )
-
+        val adaptive = XAgeAdaptiveMetrics.from(maxWidth, maxHeight)
+        CompositionLocalProvider(LocalXAgeAdaptive provides adaptive) {
             Column(
                 modifier = Modifier
-                    .xAgeGlass(28.dp)
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = adaptive.contentHorizontalPadding)
+                    .padding(bottom = if (adaptive.shortHeight) 24.dp else 30.dp),
+                verticalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 12.dp else 16.dp),
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Box(Modifier.size(62.dp), contentAlignment = Alignment.Center) {
-                        XAgePanelHeroAsset(category = category)
-                    }
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(5.dp),
-                    ) {
-                        Text(
-                            category.headline,
-                            color = XAgeTextPrimary,
-                            fontSize = 27.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            category.subtitle,
-                            color = Color(0xFF5D7890),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-
-                Text(
-                    category.detailSummary,
-                    color = Color(0xFF496A83),
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                XAgePanelDestinationHeader(
+                    category = category,
+                    onBack = onBack,
+                    modifier = Modifier.padding(top = if (adaptive.shortHeight) 12.dp else 18.dp),
                 )
-            }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                category.stats.forEach { stat ->
-                    XAgePanelStatCard(
-                        stat = stat,
-                        modifier = Modifier.weight(1f),
+                Column(
+                    modifier = Modifier
+                        .xAgeGlass(28.dp)
+                        .padding(if (adaptive.compactWidth) 16.dp else 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 12.dp else 16.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 10.dp else 14.dp),
+                    ) {
+                        Box(Modifier.size(if (adaptive.compactWidth) 56.dp else 62.dp), contentAlignment = Alignment.Center) {
+                            XAgePanelHeroAsset(category = category)
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Text(
+                                category.headline,
+                                color = XAgeTextPrimary,
+                                fontSize = if (adaptive.compactWidth) 24.sp else 27.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                category.subtitle,
+                                color = Color(0xFF5D7890),
+                                fontSize = if (adaptive.compactWidth) 13.sp else 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+
+                    Text(
+                        category.detailSummary,
+                        color = Color(0xFF496A83),
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
                     )
                 }
-            }
 
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                category.rows.forEach { row ->
-                    val selected = selectedRow.title == row.title
-                    XAgePanelActionRow(
-                        category = category,
-                        row = row,
-                        isSelected = selected,
-                        trailingTitle = if (selected) "查看中" else null,
-                        showsProgress = category == XAgePanelCategory.Daily &&
-                            row.title == "Android 健康" &&
-                            healthSyncStatus == XAgeAndroidHealthStatus.Syncing,
-                        onClick = {
-                            selectedRow = row
-                            if (category == XAgePanelCategory.Daily && row.title == "Android 健康") {
+                Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 7.dp else 9.dp)) {
+                    category.stats.forEach { stat ->
+                        XAgePanelStatCard(
+                            stat = stat,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    category.rows.forEach { row ->
+                        val selected = selectedRow.title == row.title
+                        XAgePanelActionRow(
+                            category = category,
+                            row = row,
+                            isSelected = selected,
+                            trailingTitle = if (selected) "查看中" else null,
+                            showsProgress = category == XAgePanelCategory.Daily &&
+                                row.title == "Android 健康" &&
+                                healthSyncStatus == XAgeAndroidHealthStatus.Syncing,
+                            onClick = {
+                                selectedRow = row
+                                if (category == XAgePanelCategory.Daily && row.title == "Android 健康") {
+                                    scope.launch {
+                                        healthSyncStatus = XAgeAndroidHealthStatus.Syncing
+                                        delay(420)
+                                        healthSyncStatus = XAgeAndroidHealthStatus.Synced
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+
+                XAgePanelInteractiveDetail(
+                    category = category,
+                    row = selectedRow,
+                    completedActionIds = completedActionIds,
+                    selectedTagIds = selectedTagIds,
+                    primaryActionCount = primaryActionCount,
+                    healthSyncStatus = healthSyncStatus,
+                    onToggleAction = { key ->
+                        completedActionIds = if (key in completedActionIds) completedActionIds - key else completedActionIds + key
+                    },
+                    onToggleTag = { key ->
+                        selectedTagIds = if (key in selectedTagIds) selectedTagIds - key else selectedTagIds + key
+                    },
+                    onHealthSync = {
+                        scope.launch {
+                            healthSyncStatus = XAgeAndroidHealthStatus.Syncing
+                            delay(420)
+                            healthSyncStatus = XAgeAndroidHealthStatus.Synced
+                        }
+                    },
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(23.dp))
+                        .background(Brush.linearGradient(category.gradient))
+                        .clickable {
+                            primaryActionCount += 1
+                            completedActionIds = completedActionIds + "primary-${category.tagId}-${selectedRow.key}-$primaryActionCount"
+                            if (category == XAgePanelCategory.Daily && selectedRow.title == "Android 健康") {
                                 scope.launch {
                                     healthSyncStatus = XAgeAndroidHealthStatus.Syncing
                                     delay(420)
                                     healthSyncStatus = XAgeAndroidHealthStatus.Synced
                                 }
                             }
-                        },
+                        }
+                        .testTag("xage.panel.destination.${category.tagId}.cta"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (primaryActionCount > 0) "已更新" else category.primaryButtonTitle(selectedRow),
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
                     )
                 }
-            }
-
-            XAgePanelInteractiveDetail(
-                category = category,
-                row = selectedRow,
-                completedActionIds = completedActionIds,
-                selectedTagIds = selectedTagIds,
-                primaryActionCount = primaryActionCount,
-                healthSyncStatus = healthSyncStatus,
-                onToggleAction = { key ->
-                    completedActionIds = if (key in completedActionIds) completedActionIds - key else completedActionIds + key
-                },
-                onToggleTag = { key ->
-                    selectedTagIds = if (key in selectedTagIds) selectedTagIds - key else selectedTagIds + key
-                },
-                onHealthSync = {
-                    scope.launch {
-                        healthSyncStatus = XAgeAndroidHealthStatus.Syncing
-                        delay(420)
-                        healthSyncStatus = XAgeAndroidHealthStatus.Synced
-                    }
-                },
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 2.dp)
-                    .height(46.dp)
-                    .clip(RoundedCornerShape(23.dp))
-                    .background(Brush.linearGradient(category.gradient))
-                    .clickable {
-                        primaryActionCount += 1
-                        completedActionIds = completedActionIds + "primary-${category.tagId}-${selectedRow.key}-$primaryActionCount"
-                        if (category == XAgePanelCategory.Daily && selectedRow.title == "Android 健康") {
-                            scope.launch {
-                                healthSyncStatus = XAgeAndroidHealthStatus.Syncing
-                                delay(420)
-                                healthSyncStatus = XAgeAndroidHealthStatus.Synced
-                            }
-                        }
-                    }
-                    .testTag("xage.panel.destination.${category.tagId}.cta"),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    if (primaryActionCount > 0) "已更新" else category.primaryButtonTitle(selectedRow),
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                )
             }
         }
     }
@@ -1480,9 +1545,10 @@ private fun XAgePanelStatCard(
     stat: XAgePanelStat,
     modifier: Modifier = Modifier,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         modifier = modifier
-            .height(70.dp)
+            .height(if (adaptive.compactWidth) 66.dp else 70.dp)
             .xAgeGlass(22.dp)
             .padding(horizontal = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1504,7 +1570,7 @@ private fun XAgePanelStatCard(
             Text(
                 stat.value,
                 color = Color(0xFF12324F),
-                fontSize = 20.sp,
+                fontSize = if (adaptive.compactWidth) 18.sp else 20.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
@@ -1531,9 +1597,10 @@ private fun XAgePanelActionRow(
     showsProgress: Boolean,
     onClick: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Row(
         modifier = Modifier
-            .height(66.dp)
+            .height(if (adaptive.compactWidth) 62.dp else 66.dp)
             .xAgeGlass(22.dp)
             .border(
                 1.2.dp,
@@ -1544,11 +1611,11 @@ private fun XAgePanelActionRow(
             .testTag("xage.panel.${category.tagId}.row.${row.key}")
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 10.dp else 12.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
+                .size(if (adaptive.compactWidth) 34.dp else 38.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(category.gradient)),
             contentAlignment = Alignment.Center,
@@ -1568,7 +1635,7 @@ private fun XAgePanelActionRow(
             Text(
                 row.title,
                 color = Color(0xFF173F64),
-                fontSize = 16.sp,
+                fontSize = if (adaptive.compactWidth) 15.sp else 16.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1590,7 +1657,7 @@ private fun XAgePanelActionRow(
             )
             trailingTitle != null -> Box(
                 modifier = Modifier
-                    .width(72.dp)
+                    .width(if (adaptive.compactWidth) 64.dp else 72.dp)
                     .height(30.dp)
                     .xAgePill(),
                 contentAlignment = Alignment.Center,
@@ -1634,12 +1701,13 @@ private fun XAgePanelInteractiveDetail(
     onToggleTag: (String) -> Unit,
     onHealthSync: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         modifier = Modifier
             .xAgeGlass(24.dp)
-            .padding(16.dp)
+            .padding(if (adaptive.compactWidth) 14.dp else 16.dp)
             .testTag("xage.panel.${category.tagId}.detail.${row.key}"),
-        verticalArrangement = Arrangement.spacedBy(13.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 11.dp else 13.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1648,7 +1716,7 @@ private fun XAgePanelInteractiveDetail(
             }
             Box(
                 modifier = Modifier
-                    .width(62.dp)
+                    .width(if (adaptive.compactWidth) 58.dp else 62.dp)
                     .height(28.dp)
                     .xAgePill(),
                 contentAlignment = Alignment.Center,
@@ -1834,7 +1902,8 @@ private fun XAgePanelChipRow(
     selectedTagIds: Set<String>,
     onToggleTag: (String) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+    val adaptive = LocalXAgeAdaptive.current
+    Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 6.dp else 9.dp)) {
         titles.forEach { title ->
             val key = tagKey(category, row, title)
             val selected = key in selectedTagIds
@@ -1854,7 +1923,7 @@ private fun XAgePanelChipRow(
                     Text(
                         title,
                         color = if (selected) Color.White else Color(0xFF347FB7),
-                        fontSize = 12.sp,
+                        fontSize = if (adaptive.compactWidth) 11.sp else 12.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -2000,6 +2069,7 @@ private fun XAgeChatPage(
     vm: ChatViewModel = hiltViewModel(),
     uploadVm: HealthDataViewModel = hiltViewModel(),
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     val state by vm.state.collectAsState()
     val uploadState by uploadVm.state.collectAsState()
     val context = LocalContext.current
@@ -2102,9 +2172,9 @@ private fun XAgeChatPage(
 
     Column(Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = 24.dp),
+            modifier = Modifier.weight(1f).padding(horizontal = adaptive.contentHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 34.dp, bottom = 12.dp),
+            contentPadding = PaddingValues(top = adaptive.chatTopPadding, bottom = 12.dp),
         ) {
             if (state.messages.isEmpty()) {
                 item { XAgeChatWelcome(vm) }
@@ -2176,7 +2246,7 @@ private fun XAgeChatPage(
             },
             onPlusTap = { showAttachmentMenu = true },
             modifier = Modifier
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = adaptive.contentHorizontalPadding)
                 .padding(top = 12.dp, bottom = 16.dp)
                 .navigationBarsPadding()
                 .imePadding(),
@@ -2222,6 +2292,7 @@ private fun XAgeChatPage(
 
 @Composable
 private fun XAgeChatWelcome(vm: ChatViewModel) {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -2234,7 +2305,7 @@ private fun XAgeChatWelcome(vm: ChatViewModel) {
                 Text(
                     "下午好，想问什么？",
                     color = Color(0xFF111827),
-                    fontSize = 25.sp,
+                    fontSize = if (adaptive.compactWidth) 22.sp else 25.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -2248,16 +2319,16 @@ private fun XAgeChatWelcome(vm: ChatViewModel) {
                 )
             }
         }
-        Spacer(Modifier.height(50.dp))
-        Text("你可以这样问", color = Color(0xFF111827), fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(adaptive.chatWelcomeGap))
+        Text("你可以这样问", color = Color(0xFF111827), fontSize = if (adaptive.compactWidth) 19.sp else 21.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Spacer(Modifier.height(adaptive.chatStarterGap))
         XAgeStarterRow(
             iconKind = "document",
             title = "整理病史摘要",
             subtitle = "诊断、用药、过敏信息",
             primary = true,
         ) {}
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(if (adaptive.shortHeight) 22.dp else 32.dp))
         XAgeStarterRow(
             iconKind = "chart",
             title = "分析报告趋势",
@@ -2305,10 +2376,15 @@ private fun XAgeStarterRow(
     primary: Boolean,
     onClick: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (primary) 84.dp else 66.dp)
+            .height(if (primary) {
+                if (adaptive.shortHeight) 76.dp else 84.dp
+            } else {
+                if (adaptive.shortHeight) 60.dp else 66.dp
+            })
             .xAgeGlass(if (primary) 34.dp else 33.dp)
             .clickable { onClick() }
             .padding(horizontal = 18.dp),
@@ -2375,13 +2451,18 @@ private fun XAgeChatBubble(
     onAnalysis: () -> Unit,
     onEvidence: () -> Unit,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     val isUser = msg.role == "user"
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
         Column(
-            modifier = Modifier.widthIn(max = if (isUser) 286.dp else 320.dp),
+            modifier = Modifier.widthIn(max = if (isUser) {
+                if (adaptive.compactWidth) 260.dp else 286.dp
+            } else {
+                if (adaptive.compactWidth) 288.dp else 320.dp
+            }),
             horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -2430,17 +2511,18 @@ private fun XAgeChatInput(
     onPlusTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val adaptive = LocalXAgeAdaptive.current
     Row(
         modifier = modifier
-            .height(58.dp)
+            .height(adaptive.chatInputHeight)
             .xAgeGlass(29.dp)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = if (adaptive.compactWidth) 8.dp else 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(adaptive.chatInputSpacing),
     ) {
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(adaptive.chatToolButtonSize)
                 .clip(CircleShape)
                 .clickable { onMicTap() }
                 .testTag("xage.chat.mic"),
@@ -2464,7 +2546,7 @@ private fun XAgeChatInput(
         )
         Box(
             modifier = Modifier
-                .size(30.dp)
+                .size(if (adaptive.compactWidth) 28.dp else 30.dp)
                 .clip(CircleShape)
                 .clickable(enabled = !isUploading) { onCameraTap() }
                 .testTag("xage.chat.camera"),
@@ -2479,7 +2561,7 @@ private fun XAgeChatInput(
         }
         Box(
             modifier = Modifier
-                .size(32.dp)
+                .size(adaptive.chatToolButtonSize)
                 .clip(CircleShape)
                 .background(Color.White.copy(alpha = 0.58f))
                 .border(1.dp, Color.White.copy(alpha = 0.7f), CircleShape)
@@ -2496,7 +2578,7 @@ private fun XAgeChatInput(
         }
         Box(
             modifier = Modifier
-                .size(36.dp)
+                .size(if (adaptive.compactWidth) 34.dp else 36.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(Color(0xFF228DD8), Color(0xFF1DC8AE))))
                 .clickable(enabled = value.isNotBlank() && !sending) { onSend() }
@@ -2695,53 +2777,66 @@ private fun XAgeGlassDialog(
             dismissOnClickOutside = dismissOnClickOutside,
         ),
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0C243A).copy(alpha = 0.16f))
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 34.dp),
-            contentAlignment = Alignment.Center,
+                .background(Color(0xFF0C243A).copy(alpha = 0.16f)),
         ) {
-            Column(
+            val constrainedWidth = maxWidth
+            val constrainedHeight = maxHeight
+            val compactDialog = constrainedWidth < 360.dp
+            val horizontalPadding = if (compactDialog) 14.dp else 20.dp
+            val verticalPadding = if (constrainedHeight < 720.dp) 20.dp else 34.dp
+            val maxDialogHeight = if (constrainedHeight < 720.dp) constrainedHeight - 40.dp else 670.dp
+            val dialogMaxWidth = if (constrainedWidth >= 600.dp) 460.dp else constrainedWidth
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 670.dp)
-                    .clip(RoundedCornerShape(30.dp))
-                    .background(Color(0xFFF8FCFF))
-                    .border(1.dp, Color.White.copy(alpha = 0.96f), RoundedCornerShape(30.dp))
-                    .padding(18.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                contentAlignment = Alignment.Center,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        title,
-                        modifier = Modifier.weight(1f),
-                        color = XAgeTextPrimary,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                    )
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.56f))
-                            .border(1.dp, Color.White.copy(alpha = 0.84f), CircleShape),
-                    ) {
-                        Icon(Icons.Filled.Close, contentDescription = "关闭", tint = XAgeTextPrimary, modifier = Modifier.size(18.dp))
-                    }
-                }
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    content = content,
-                )
+                        .fillMaxWidth(if (constrainedWidth >= 600.dp) 0.6f else 1f)
+                        .widthIn(max = dialogMaxWidth)
+                        .heightIn(max = maxDialogHeight)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(Color(0xFFF8FCFF))
+                        .border(1.dp, Color.White.copy(alpha = 0.96f), RoundedCornerShape(30.dp))
+                        .padding(if (compactDialog) 16.dp else 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            modifier = Modifier.weight(1f),
+                            color = XAgeTextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                        )
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.56f))
+                                .border(1.dp, Color.White.copy(alpha = 0.84f), CircleShape),
+                        ) {
+                            Icon(Icons.Filled.Close, contentDescription = "关闭", tint = XAgeTextPrimary, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        content = content,
+                    )
+                }
             }
         }
     }
@@ -2749,17 +2844,18 @@ private fun XAgeGlassDialog(
 
 @Composable
 private fun XAgeHealthspanPage() {
+    val adaptive = LocalXAgeAdaptive.current
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
+            .padding(horizontal = adaptive.contentHorizontalPadding)
             .navigationBarsPadding()
-            .padding(bottom = 54.dp),
+            .padding(bottom = if (adaptive.shortHeight) 36.dp else 54.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (adaptive.shortHeight) 9.dp else 12.dp),
     ) {
-        Text("X年龄", modifier = Modifier.padding(top = 16.dp), color = XAgeTextPrimary, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+        Text("X年龄", modifier = Modifier.padding(top = if (adaptive.shortHeight) 10.dp else 16.dp), color = XAgeTextPrimary, fontSize = if (adaptive.compactWidth) 23.sp else 25.sp, fontWeight = FontWeight.Bold)
         Text("下次更新：6天后", color = XAgeTextSecondary, fontSize = 13.sp)
         Row(
             modifier = Modifier
@@ -2771,16 +2867,16 @@ private fun XAgeHealthspanPage() {
         ) {
             Text("‹  6月24日 - 6月30日  ›", color = Color(0xFF347FB7), fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
-        Box(Modifier.size(314.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(306.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFF8EF7E6).copy(alpha = 0.44f), Color(0xFF21B5FF).copy(alpha = 0.16f), Color.Transparent))).blur(10.dp))
+        Box(Modifier.size(adaptive.healthRingContainerSize), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(adaptive.healthRingContainerSize - 8.dp).clip(CircleShape).background(Brush.radialGradient(listOf(Color(0xFF8EF7E6).copy(alpha = 0.44f), Color(0xFF21B5FF).copy(alpha = 0.16f), Color.Transparent))).blur(10.dp))
             Image(
                 painter = painterResource(R.drawable.x_age_particle_ring_blue_green),
                 contentDescription = "蓝绿色粒子圆环",
-                modifier = Modifier.size(294.dp).testTag("xage.particle.ring"),
+                modifier = Modifier.size(adaptive.healthRingImageSize).testTag("xage.particle.ring"),
             )
-            Box(Modifier.size(178.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.58f)).border(1.dp, Color.White.copy(alpha = 0.78f), CircleShape))
+            Box(Modifier.size(adaptive.healthRingInnerSize).clip(CircleShape).background(Color.White.copy(alpha = 0.58f)).border(1.dp, Color.White.copy(alpha = 0.78f), CircleShape))
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("29.9", color = Color(0xFF12324F), fontSize = 50.sp, fontWeight = FontWeight.Bold)
+                Text("29.9", color = Color(0xFF12324F), fontSize = adaptive.healthAgeFontSize, fontWeight = FontWeight.Bold)
                 Text("X年龄", color = Color(0xFF45677F), fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 Text("年轻 4.7 岁", color = Color(0xFF10A88E), fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
@@ -3020,6 +3116,109 @@ private fun createXAgeReportImageUri(context: Context): Pair<Uri, String> {
     val file = File(dir, fileName)
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     return uri to fileName
+}
+
+private val LocalXAgeAdaptive = compositionLocalOf { XAgeAdaptiveMetrics.Default }
+
+private data class XAgeAdaptiveMetrics(
+    val compactWidth: Boolean,
+    val shortHeight: Boolean,
+    val contentHorizontalPadding: Dp,
+    val topBarHorizontalPadding: Dp,
+    val topBarButtonSize: Dp,
+    val segmentHeight: Dp,
+    val segmentFontSize: TextUnit,
+    val dataTitleFontSize: TextUnit,
+    val scoreRingSize: Dp,
+    val scoreRingStroke: Dp,
+    val scoreNumberFontSize: TextUnit,
+    val scoreLabelFontSize: TextUnit,
+    val scoreCardHorizontalPadding: Dp,
+    val bottomPanelReserve: Dp,
+    val bottomPanelHorizontalPadding: Dp,
+    val bottomPanelTopPadding: Dp,
+    val bottomPanelBottomPadding: Dp,
+    val bottomPanelCategoryHeight: Dp,
+    val bottomPanelCategoryFontSize: TextUnit,
+    val bottomPanelActionWidth: Dp,
+    val metricCardHorizontalPadding: Dp,
+    val chatTopPadding: Dp,
+    val chatWelcomeGap: Dp,
+    val chatStarterGap: Dp,
+    val chatInputHeight: Dp,
+    val chatInputSpacing: Dp,
+    val chatToolButtonSize: Dp,
+    val healthRingContainerSize: Dp,
+    val healthRingImageSize: Dp,
+    val healthRingInnerSize: Dp,
+    val healthAgeFontSize: TextUnit,
+) {
+    companion object {
+        val Default = from(390.dp, 844.dp)
+
+        fun from(width: Dp, height: Dp): XAgeAdaptiveMetrics {
+            val compact = width < 360.dp
+            val short = height < 720.dp
+            val wide = width >= 600.dp
+            val contentPadding = when {
+                compact -> 16.dp
+                width < 420.dp -> 20.dp
+                wide -> 32.dp
+                else -> 24.dp
+            }
+            val ringContainer = when {
+                compact -> 270.dp
+                short -> 286.dp
+                width < 390.dp -> 298.dp
+                else -> 314.dp
+            }
+            return XAgeAdaptiveMetrics(
+                compactWidth = compact,
+                shortHeight = short,
+                contentHorizontalPadding = contentPadding,
+                topBarHorizontalPadding = if (compact) 14.dp else 20.dp,
+                topBarButtonSize = if (compact) 32.dp else 34.dp,
+                segmentHeight = if (compact) 44.dp else 48.dp,
+                segmentFontSize = if (compact) 14.sp else 15.sp,
+                dataTitleFontSize = if (compact) 24.sp else 27.sp,
+                scoreRingSize = when {
+                    compact -> 76.dp
+                    width < 390.dp -> 84.dp
+                    else -> 90.dp
+                },
+                scoreRingStroke = if (compact) 7.dp else 9.dp,
+                scoreNumberFontSize = if (compact) 22.sp else 25.sp,
+                scoreLabelFontSize = if (compact) 12.sp else 13.sp,
+                scoreCardHorizontalPadding = if (compact) 8.dp else 12.dp,
+                bottomPanelReserve = when {
+                    compact -> 184.dp
+                    short -> 194.dp
+                    else -> 210.dp
+                },
+                bottomPanelHorizontalPadding = if (compact) 14.dp else 20.dp,
+                bottomPanelTopPadding = if (compact || short) 10.dp else 22.dp,
+                bottomPanelBottomPadding = if (compact || short) 8.dp else 34.dp,
+                bottomPanelCategoryHeight = if (compact || short) 30.dp else 36.dp,
+                bottomPanelCategoryFontSize = if (compact) 10.sp else 11.sp,
+                bottomPanelActionWidth = if (compact) 56.dp else 62.dp,
+                metricCardHorizontalPadding = if (compact) 16.dp else 20.dp,
+                chatTopPadding = if (short) 24.dp else 34.dp,
+                chatWelcomeGap = if (short) 34.dp else 50.dp,
+                chatStarterGap = if (short) 20.dp else 28.dp,
+                chatInputHeight = if (compact) 54.dp else 58.dp,
+                chatInputSpacing = if (compact) 6.dp else 8.dp,
+                chatToolButtonSize = if (compact) 30.dp else 32.dp,
+                healthRingContainerSize = ringContainer,
+                healthRingImageSize = ringContainer - if (compact) 24.dp else 20.dp,
+                healthRingInnerSize = when {
+                    compact -> 150.dp
+                    short -> 162.dp
+                    else -> 178.dp
+                },
+                healthAgeFontSize = if (compact || short) 44.sp else 50.sp,
+            )
+        }
+    }
 }
 
 private val XAgeTextPrimary = Color(0xFF123E67)
