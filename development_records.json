@@ -5230,5 +5230,144 @@
       "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
       "Server snapshot displayed in Android UI: records 14, exams 271, indicators 257, watched 3, trends 46, conversations 2, plans 2, profile completion 80%, latest report 6月30日, header 6月28日 · 已同步."
     ]
+  },
+  {
+    "id": "2026-07-05-android-xage-ios-latest-parity",
+    "time": "2026-07-05T00:31:39+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / iOS Latest Parity",
+    "feature": "fix(android-xage): 复刻 iOS 最新 XAGE 修复",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Chat",
+      "Panel",
+      "QA",
+      "Memory"
+    ],
+    "description": "参照 iOS 最新 XAGE 修复，将 Android 数据页底部资料入口残留彻底删除，左上菜单改为 资料 且只保留 报告 / 日常 / 就医 / 画像；顶层 数据 / 问答 / X年龄 从 HorizontalPager 改为状态切换，避免弹层关闭后的半屏残影；数据页右上角承载 排序 / 完成，问答和 X年龄分别保留历史与说明。报告详情页拍照、PDF、相册和主 CTA 全部接入真实 Android picker/camera，并增加图片大小和分辨率校验；底部 CTA 改为布局内固定区域，避免覆盖滚动内容。问答证据展示只显示与当前回答主题匹配的 citations；TokenAuthenticator 不再对 /api/auth/ 或无 Authorization 的请求做 token refresh，避免登录、注册、重置错误被吞。",
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/core/network/TokenAuthenticator.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_tap_login.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_reports_detail_no_overlap.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_pdf_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_album_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_camera_after_allow.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_cta_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_chat_history_loaded.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_info_dialog.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_compact_report.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "Android Emulator Xjie_Test_API35 authorized-account login and sync verification",
+        "result": "passed: data page displayed synced server history, ALT/AST cards, four XAGE category detail pages, chat history and X年龄 states; no password or token recorded"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 step-by-step UI picker verification",
+        "result": "passed: reports page back button, PDF picker, photo picker, camera permission and camera Activity, main CTA document picker, chat history/analysis and X年龄 info/week switching all opened correctly"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 visual QA",
+        "result": "passed: standard 1080x2400 and compact 900x1800 screenshots showed no bottom panel residue, no CTA/content overlap, no capsule text overflow and no liquid-glass style regression"
+      },
+      {
+        "command": "rg \"XAgeBottomPanel|xage.data.panel|bottomPanelReserve|xage.data.upload|HorizontalPager|rememberPagerState\" Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt",
+        "result": "passed: no stale bottom-panel or pager identifiers remained"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug",
+        "result": "passed; :app:testDebugUnitTest was NO-SOURCE"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "adb logcat -d -t 2000 AndroidRuntime:E '*:S'",
+        "result": "passed: no AndroidRuntime crash output"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/",
+    "notes": [
+      "iOS repo was only used as reference and was not modified.",
+      "No test account password, token or other secret was written to memory, records, commits or final notes.",
+      "Report picker and camera entry points were verified without submitting a real document, to avoid polluting the user's account data.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched."
+    ]
   }
 ]

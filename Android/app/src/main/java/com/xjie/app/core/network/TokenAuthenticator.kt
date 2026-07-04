@@ -37,11 +37,12 @@ class TokenAuthenticator @Inject constructor(
 
     override fun authenticate(route: Route?, response: Response): Request? {
         if (responseCount(response) >= 2) return null  // 防止无限循环
+        if (response.request.url.encodedPath.startsWith("/api/auth/")) return null
 
         val triedToken = response.request.header("Authorization")
             ?.removePrefix("Bearer ")
             ?.trim()
-            .orEmpty()
+            ?: return null
 
         return runBlocking {
             refreshMutex.withLock {
