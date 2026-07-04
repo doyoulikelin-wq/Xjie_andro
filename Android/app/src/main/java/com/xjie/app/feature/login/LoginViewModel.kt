@@ -22,7 +22,7 @@ data class LoginUiState(
     val phone: String = "",
     val username: String = "",
     val password: String = "",
-    val isSignup: Boolean = true,
+    val isSignup: Boolean = false,
     // 注册阶段个人资料（默认值：女 / 30岁 / 165cm / 55kg）
     val sex: String = "female",
     val age: Int = 30,

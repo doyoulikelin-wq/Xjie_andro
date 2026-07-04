@@ -5094,5 +5094,141 @@
       "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
       "Short screens intentionally hide the auxiliary 今日状态 card so the core score rings and bottom panel remain usable without clipping."
     ]
+  },
+  {
+    "id": "2026-07-04-android-xage-account-history-sync",
+    "time": "2026-07-04T13:08:00+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "feature": "Android XAGE account history sync",
+    "scope": "Android / XAGE / Auth / Server Sync",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Server Sync",
+      "Health Data",
+      "Panel",
+      "QA",
+      "Memory"
+    ],
+    "description": "使用用户授权的既有线上账号验证 Android XAGE 历史信息同步，修复 Debug 包绕过登录、登录页默认注册态、数据页和四分类详情仍显示固定样例数的问题。新增 XAgeServerSyncViewModel，在登录后并行拉取用户画像、dashboard、today、健康摘要、病历/体检文档、指标、关注指标、趋势、问答历史、健康计划和长者反馈，并把服务端快照合并到数据首页和 报告 / 日常 / 就医 / 画像 四分类详情。清空数据后的默认页现在直接是手机号登录，登录成功后显示服务端同步日期和真实 ALT/AST 指标卡。",
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/login/LoginViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/AppNavGraph.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "A",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeServerSyncViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/00_login_start.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/03_reports_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/04_daily_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/05_medical_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/06_profile_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/08_login_default_after_fix.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/10_second_login_synced_after_default_fix.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/11_cold_start_after_default_fix.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "Direct production API login and authenticated sync endpoint probe",
+        "result": "passed: summary, records, exams, indicators, watched indicators, trends, chat history, health plans and dashboard/today endpoints returned account data"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 clean install/login/detail/cold-start UIAutomator verification",
+        "result": "passed: default login screen, real login, synced data page, four XAGE category detail pages, token cold start and visual screenshot review"
+      },
+      {
+        "command": "adb logcat -d -t 2000 AndroidRuntime:E '*:S'",
+        "result": "passed: no AndroidRuntime crash output"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_login_sync_20260704/",
+    "notes": [
+      "No test account password or token was written to memory, records, commits or final notes.",
+      "iOS repo was not modified.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
+      "Server snapshot displayed in Android UI: records 14, exams 271, indicators 257, watched 3, trends 46, conversations 2, plans 2, profile completion 80%, latest report 6月30日, header 6月28日 · 已同步."
+    ]
   }
 ]

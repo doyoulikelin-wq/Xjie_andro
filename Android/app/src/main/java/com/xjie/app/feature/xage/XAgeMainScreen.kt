@@ -99,9 +99,11 @@ private enum class XAgeSection(val label: String) {
 @Composable
 fun XAgeMainScreen(
     onOpenPanelDestination: (String) -> Unit,
+    syncVm: XAgeServerSyncViewModel = hiltViewModel(),
 ) {
     val sections = remember { XAgeSection.entries }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { sections.size })
+    val syncState by syncVm.state.collectAsState()
     val scope = rememberCoroutineScope()
     var showMenu by remember { mutableStateOf(false) }
     var chatHistorySignal by remember { mutableStateOf(0) }
@@ -132,6 +134,7 @@ fun XAgeMainScreen(
                 ) { page ->
                     when (sections[page]) {
                         XAgeSection.Data -> XAgeDataPage(
+                            syncState = syncState,
                             onOpenPanelDestination = onOpenPanelDestination,
                         )
                         XAgeSection.Chat -> XAgeChatPage(historySignal = chatHistorySignal)
@@ -252,12 +255,14 @@ private fun XAgeTopBar(
 
 @Composable
 private fun XAgeDataPage(
+    syncState: XAgeServerSyncState,
     onOpenPanelDestination: (String) -> Unit,
 ) {
     val adaptive = LocalXAgeAdaptive.current
     var sortMode by remember { mutableStateOf(false) }
     var detail by remember { mutableStateOf<XAgeDataKind?>(null) }
     var metrics by remember { mutableStateOf(XAgeMetric.defaults) }
+    val serverMetrics = remember(syncState.metricCards) { syncState.metricCards.toXAgeMetrics() }
     var showMetricPicker by remember { mutableStateOf(false) }
     var healthSyncStatus by remember { mutableStateOf(XAgeAndroidHealthStatus.Idle) }
     var healthSyncCount by remember { mutableStateOf(0) }
@@ -275,6 +280,15 @@ private fun XAgeDataPage(
     }
     val navigationBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
+    LaunchedEffect(serverMetrics) {
+        if (serverMetrics.isNotEmpty()) {
+            val localOnly = metrics.filter { metric ->
+                !metric.id.startsWith("server-") && XAgeMetric.defaults.none { it.id == metric.id }
+            }
+            metrics = (serverMetrics + localOnly).distinctBy { it.id }
+        }
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -284,6 +298,11 @@ private fun XAgeDataPage(
         XAgeDataStickyHeader(
             sortMode = sortMode,
             showsTodayStatus = showsTodayStatus,
+            caption = when {
+                syncState.isLoading -> "正在同步历史数据"
+                syncState.errorMessage != null -> "同步失败 · 显示本地样例"
+                else -> syncState.snapshot.headerCaption
+            },
             onToggleSort = {
                 if (!sortMode) {
                     scope.launch { listState.scrollToItem(0) }
@@ -401,6 +420,7 @@ private fun XAgeDataPage(
 private fun XAgeDataStickyHeader(
     sortMode: Boolean,
     showsTodayStatus: Boolean,
+    caption: String,
     onToggleSort: () -> Unit,
     onSelectDetail: (XAgeDataKind) -> Unit,
 ) {
@@ -420,7 +440,7 @@ private fun XAgeDataStickyHeader(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "6月29日 · 自动同步",
+                    caption,
                     color = XAgeTextSecondary,
                     fontSize = 13.sp,
                     maxLines = 1,
@@ -1185,6 +1205,30 @@ private data class XAgePanelStat(
     val unit: String,
 )
 
+private fun XAgeServerSyncSnapshot.statsFor(category: XAgePanelCategory): List<XAgePanelStat> =
+    when (category) {
+        XAgePanelCategory.Reports -> listOf(
+            XAgePanelStat("病历", "$recordCount", "份"),
+            XAgePanelStat("体检", "$examCount", "份"),
+            XAgePanelStat("指标", "$indicatorCount", "项"),
+        )
+        XAgePanelCategory.Daily -> listOf(
+            XAgePanelStat("关注", "$watchedIndicatorCount", "项"),
+            XAgePanelStat("趋势", "$trendPointCount", "点"),
+            XAgePanelStat("目标", "$todayGoalCount", "条"),
+        )
+        XAgePanelCategory.Medical -> listOf(
+            XAgePanelStat("计划", "$planCount", "个"),
+            XAgePanelStat("问答", "$conversationCount", "次"),
+            XAgePanelStat("反馈", "$feedbackCount", "条"),
+        )
+        XAgePanelCategory.Profile -> listOf(
+            XAgePanelStat("基础", "$profileCompletion", "%"),
+            XAgePanelStat("摘要", if (hasSummary) "有" else "待", ""),
+            XAgePanelStat("评分", dashboardScore?.toString() ?: "--", ""),
+        )
+    }
+
 private data class XAgePanelRow(
     val icon: ImageVector,
     val title: String,
@@ -1308,8 +1352,11 @@ private fun XAgePanelHeroAsset(category: XAgePanelCategory) {
 fun XAgePanelDestinationScreen(
     categoryId: String,
     onBack: () -> Unit,
+    syncVm: XAgeServerSyncViewModel = hiltViewModel(),
 ) {
     val category = remember(categoryId) { XAgePanelCategory.fromTagId(categoryId) }
+    val syncState by syncVm.state.collectAsState()
+    val snapshot = syncState.snapshot
     var selectedRow by remember(category) { mutableStateOf(category.rows.first()) }
     var completedActionIds by remember(category) { mutableStateOf(setOf<String>()) }
     var selectedTagIds by remember(category) { mutableStateOf(setOf<String>()) }
@@ -1384,7 +1431,7 @@ fun XAgePanelDestinationScreen(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(if (adaptive.compactWidth) 7.dp else 9.dp)) {
-                    category.stats.forEach { stat ->
+                    snapshot.statsFor(category).forEach { stat ->
                         XAgePanelStatCard(
                             stat = stat,
                             modifier = Modifier.weight(1f),
@@ -1424,6 +1471,7 @@ fun XAgePanelDestinationScreen(
                     selectedTagIds = selectedTagIds,
                     primaryActionCount = primaryActionCount,
                     healthSyncStatus = healthSyncStatus,
+                    snapshot = snapshot,
                     onToggleAction = { key ->
                         completedActionIds = if (key in completedActionIds) completedActionIds - key else completedActionIds + key
                     },
@@ -1697,6 +1745,7 @@ private fun XAgePanelInteractiveDetail(
     selectedTagIds: Set<String>,
     primaryActionCount: Int,
     healthSyncStatus: XAgeAndroidHealthStatus,
+    snapshot: XAgeServerSyncSnapshot,
     onToggleAction: (String) -> Unit,
     onToggleTag: (String) -> Unit,
     onHealthSync: () -> Unit,
@@ -1732,10 +1781,10 @@ private fun XAgePanelInteractiveDetail(
         }
 
         when (category) {
-            XAgePanelCategory.Reports -> XAgePanelReportsDetail(category, row, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
-            XAgePanelCategory.Daily -> XAgePanelDailyDetail(category, row, completedActionIds, selectedTagIds, healthSyncStatus, onToggleAction, onToggleTag, onHealthSync)
-            XAgePanelCategory.Medical -> XAgePanelMedicalDetail(category, row, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
-            XAgePanelCategory.Profile -> XAgePanelProfileDetail(category, row, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
+            XAgePanelCategory.Reports -> XAgePanelReportsDetail(category, row, snapshot, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
+            XAgePanelCategory.Daily -> XAgePanelDailyDetail(category, row, snapshot, completedActionIds, selectedTagIds, healthSyncStatus, onToggleAction, onToggleTag, onHealthSync)
+            XAgePanelCategory.Medical -> XAgePanelMedicalDetail(category, row, snapshot, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
+            XAgePanelCategory.Profile -> XAgePanelProfileDetail(category, row, snapshot, completedActionIds, selectedTagIds, onToggleAction, onToggleTag)
         }
     }
 }
@@ -1752,6 +1801,7 @@ private val XAgePanelCategory.detailSubtitle: String
 private fun XAgePanelReportsDetail(
     category: XAgePanelCategory,
     row: XAgePanelRow,
+    snapshot: XAgeServerSyncSnapshot,
     completedActionIds: Set<String>,
     selectedTagIds: Set<String>,
     onToggleAction: (String) -> Unit,
@@ -1761,19 +1811,19 @@ private fun XAgePanelReportsDetail(
         "拍照上传" -> {
             XAgePanelChipRow(category, row, listOf("拍照", "选 PDF", "相册"), selectedTagIds, onToggleTag)
             XAgePanelToggleRow(category, "姓名与报告一致", "未匹配时会进入人工确认", actionState(category, row, "name", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "报告日期已读取", "用于排列时间线和趋势", actionState(category, row, "date", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "18 项指标待入库", "确认后写入用户端数据", actionState(category, row, "indicators", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "最近报告 ${snapshot.latestDocumentLabel}", "用于排列时间线和趋势", actionState(category, row, "date", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "${snapshot.indicatorCount} 项指标已入库", "新增报告确认后会继续写入用户端数据", actionState(category, row, "indicators", completedActionIds), onToggleAction)
         }
         "AI 识别队列" -> {
-            XAgePanelProgressLine(category, "血常规", 0.92f, "18 项")
-            XAgePanelProgressLine(category, "肝肾功能", 0.68f, "待核对")
-            XAgePanelProgressLine(category, "影像摘要", 0.42f, "OCR 中")
+            XAgePanelProgressLine(category, "病历资料", progress(snapshot.recordCount, cap = 20), "${snapshot.recordCount} 份")
+            XAgePanelProgressLine(category, "体检化验", progress(snapshot.examCount, cap = 300), "${snapshot.examCount} 份")
+            XAgePanelProgressLine(category, "指标趋势", progress(snapshot.indicatorCount, cap = 300), "${snapshot.indicatorCount} 项")
             XAgePanelChipRow(category, row, listOf("仅异常", "全部字段"), selectedTagIds, onToggleTag)
         }
         else -> {
-            XAgePanelToggleRow(category, "空腹血糖 5.8 mmol/L", "偏高，建议进入趋势观察", actionState(category, row, "glucose", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "ALT 42 U/L", "轻度偏高，等待复核", actionState(category, row, "alt", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "报告日期 6月28日", "确认后会用于排序", actionState(category, row, "report-date", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, snapshot.primaryWatchedLabel, "${snapshot.trendPointCount} 个历史趋势点可用于复核", actionState(category, row, "watched", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "健康摘要", if (snapshot.hasSummary) "已生成，可作为问答上下文" else "暂无摘要，建议生成后再问答", actionState(category, row, "summary", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "报告日期 ${snapshot.latestDocumentLabel}", "确认后会用于排序", actionState(category, row, "report-date", completedActionIds), onToggleAction)
         }
     }
 }
@@ -1782,6 +1832,7 @@ private fun XAgePanelReportsDetail(
 private fun XAgePanelDailyDetail(
     category: XAgePanelCategory,
     row: XAgePanelRow,
+    snapshot: XAgeServerSyncSnapshot,
     completedActionIds: Set<String>,
     selectedTagIds: Set<String>,
     healthSyncStatus: XAgeAndroidHealthStatus,
@@ -1826,15 +1877,15 @@ private fun XAgePanelDailyDetail(
             }
         }
         "恢复信号" -> {
-            XAgePanelProgressLine(category, "HRV", 0.64f, "43 ms")
-            XAgePanelProgressLine(category, "静息心率", 0.72f, "58 bpm")
-            XAgePanelProgressLine(category, "呼吸频率", 0.58f, "15 次/分")
+            XAgePanelProgressLine(category, "关注指标", progress(snapshot.watchedIndicatorCount, cap = 8), "${snapshot.watchedIndicatorCount} 项")
+            XAgePanelProgressLine(category, "历史趋势", progress(snapshot.trendPointCount, cap = 60), "${snapshot.trendPointCount} 点")
+            XAgePanelProgressLine(category, "今日目标", progress(snapshot.todayGoalCount, cap = 5), "${snapshot.todayGoalCount} 条")
             XAgePanelChipRow(category, row, listOf("用于恢复", "加入压力解释"), selectedTagIds, onToggleTag)
         }
         else -> {
-            XAgePanelToggleRow(category, "睡眠债推高压力", "昨夜少 42 分钟，压力 +6", actionState(category, row, "sleep", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "步数支撑恢复", "8.2k 步，恢复 +4", actionState(category, row, "steps", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "HRV 低于 7 日均值", "建议今天低强度活动", actionState(category, row, "hrv", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "关注 ${snapshot.primaryWatchedLabel}", "已同步服务端关注指标", actionState(category, row, "watched", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "趋势点 ${snapshot.trendPointCount}", "用于解释日常变化与评分", actionState(category, row, "trend-points", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "健康摘要", if (snapshot.hasSummary) "已接入问答上下文" else "等待生成摘要", actionState(category, row, "daily-summary", completedActionIds), onToggleAction)
         }
     }
 }
@@ -1843,6 +1894,7 @@ private fun XAgePanelDailyDetail(
 private fun XAgePanelMedicalDetail(
     category: XAgePanelCategory,
     row: XAgePanelRow,
+    snapshot: XAgeServerSyncSnapshot,
     completedActionIds: Set<String>,
     selectedTagIds: Set<String>,
     onToggleAction: (String) -> Unit,
@@ -1850,19 +1902,19 @@ private fun XAgePanelMedicalDetail(
 ) {
     when (row.title) {
         "诊断摘要" -> {
-            XAgePanelTimelineRow(category, "2026.06", "内分泌复查", "空腹血糖偏高，建议三个月复查")
-            XAgePanelTimelineRow(category, "2026.04", "体检中心", "血脂轻度异常，生活方式干预")
-            XAgePanelToggleRow(category, "生成问诊前摘要", "把关键诊断整理为一页卡片", actionState(category, row, "visit-summary", completedActionIds), onToggleAction)
+            XAgePanelTimelineRow(category, snapshot.latestDocumentLabel, "最近报告", "已同步 ${snapshot.recordCount + snapshot.examCount} 份文档")
+            XAgePanelTimelineRow(category, "问答记录", "历史咨询", "已同步 ${snapshot.conversationCount} 次对话")
+            XAgePanelToggleRow(category, "生成问诊前摘要", if (snapshot.hasSummary) "可直接引用健康摘要" else "建议先生成健康摘要", actionState(category, row, "visit-summary", completedActionIds), onToggleAction)
         }
         "处方核对" -> {
-            XAgePanelToggleRow(category, "二甲双胍 0.5g", "每日 2 次，餐后服用", actionState(category, row, "metformin", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "维生素 D", "每日 1 次，避免重复补充", actionState(category, row, "vitamin-d", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "提醒医生复核剂量", "结合肾功能和胃肠反应", actionState(category, row, "dose-check", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "健康计划 ${snapshot.planCount} 个", "可用于核对执行和提醒", actionState(category, row, "plans", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "已入库指标 ${snapshot.indicatorCount} 项", "处方核对时结合关键检验值", actionState(category, row, "medicine-indicators", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "提醒医生复核", "结合最新报告和健康摘要", actionState(category, row, "dose-check", completedActionIds), onToggleAction)
         }
         else -> {
             XAgePanelChipRow(category, row, listOf("下周", "一月内", "报告回传"), selectedTagIds, onToggleTag)
-            XAgePanelToggleRow(category, "血脂复查", "建议 2026.07.15 前完成", actionState(category, row, "lipid", completedActionIds), onToggleAction)
-            XAgePanelToggleRow(category, "把新报告带到问诊", "上传后自动更新摘要", actionState(category, row, "upload-next", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "最近报告 ${snapshot.latestDocumentLabel}", "问诊前优先回看", actionState(category, row, "latest-report", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "把新报告带到问诊", "上传后自动更新摘要和指标", actionState(category, row, "upload-next", completedActionIds), onToggleAction)
         }
     }
 }
@@ -1871,6 +1923,7 @@ private fun XAgePanelMedicalDetail(
 private fun XAgePanelProfileDetail(
     category: XAgePanelCategory,
     row: XAgePanelRow,
+    snapshot: XAgeServerSyncSnapshot,
     completedActionIds: Set<String>,
     selectedTagIds: Set<String>,
     onToggleAction: (String) -> Unit,
@@ -1878,16 +1931,16 @@ private fun XAgePanelProfileDetail(
 ) {
     when (row.title) {
         "基础资料" -> {
-            XAgePanelProgressLine(category, "资料完整度", 0.92f, "92%")
+            XAgePanelProgressLine(category, "资料完整度", snapshot.profileCompletion / 100f, "${snapshot.profileCompletion}%")
             XAgePanelChipRow(category, row, listOf("减脂", "控糖", "提升睡眠"), selectedTagIds, onToggleTag)
             XAgePanelToggleRow(category, "同步体重到画像", "来自 Android 健康或手动记录", actionState(category, row, "weight", completedActionIds), onToggleAction)
         }
         "长期标签" -> {
-            XAgePanelChipRow(category, row, listOf("高血糖", "血脂异常", "家族史"), selectedTagIds, onToggleTag)
-            XAgePanelChipRow(category, row, listOf("久坐", "压力高"), selectedTagIds, onToggleTag)
+            XAgePanelChipRow(category, row, listOf("${snapshot.indicatorCount}项指标", "${snapshot.watchedIndicatorCount}项关注", "${snapshot.planCount}个计划"), selectedTagIds, onToggleTag)
+            XAgePanelChipRow(category, row, listOf("历史报告", "问答上下文"), selectedTagIds, onToggleTag)
         }
         else -> {
-            XAgePanelToggleRow(category, "青霉素过敏", "问诊和计划生成时优先提醒", actionState(category, row, "penicillin", completedActionIds), onToggleAction)
+            XAgePanelToggleRow(category, "健康摘要", if (snapshot.hasSummary) "已同步，可辅助风险提示" else "暂无摘要", actionState(category, row, "summary", completedActionIds), onToggleAction)
             XAgePanelToggleRow(category, "长期用药提示", "处方核对时避免冲突", actionState(category, row, "medicine", completedActionIds), onToggleAction)
             XAgePanelToggleRow(category, "家庭共享需单独授权", "默认不共享敏感健康资料", actionState(category, row, "family", completedActionIds), onToggleAction)
         }
@@ -2062,6 +2115,9 @@ private fun actionState(
 
 private fun tagKey(category: XAgePanelCategory, row: XAgePanelRow, value: String): String =
     "${category.tagId}-${row.key}-tag-$value"
+
+private fun progress(value: Int, cap: Int): Float =
+    if (cap <= 0) 0f else (value.toFloat() / cap.toFloat()).coerceIn(0f, 1f)
 
 @Composable
 private fun XAgeChatPage(
@@ -3095,6 +3151,19 @@ private fun List<XAgeMetric>.mergeById(samples: List<XAgeMetric>): List<XAgeMetr
     }
     return updated
 }
+
+private fun List<XAgeServerMetric>.toXAgeMetrics(): List<XAgeMetric> =
+    map { metric ->
+        XAgeMetric(
+            id = metric.id,
+            title = metric.title,
+            value = metric.value,
+            unit = metric.unit,
+            time = metric.time,
+            subtitle = metric.subtitle,
+            accent = Color(metric.accentArgb),
+        )
+    }
 
 private fun xAgeReportAnalysisPrompt(fileName: String): String =
     "我刚上传了一份体检/化验报告（$fileName）。请结合我的健康档案和这份报告的识别结果，帮我总结关键指标、异常项、趋势变化和下一步建议。若后台识别仍在进行，请先说明正在识别，并告诉我完成后应该重点关注哪些项目。"
