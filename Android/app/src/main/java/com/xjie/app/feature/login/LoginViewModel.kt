@@ -22,7 +22,7 @@ data class LoginUiState(
     val phone: String = "",
     val username: String = "",
     val password: String = "",
-    val isSignup: Boolean = true,
+    val isSignup: Boolean = false,
     // 注册阶段个人资料（默认值：女 / 30岁 / 165cm / 55kg）
     val sex: String = "female",
     val age: Int = 30,
@@ -32,15 +32,21 @@ data class LoginUiState(
     val onboardingContents: Set<String> = setOf("fitness", "diet_control"),
     val onboardingGeneratePlan: Boolean = true,
     val medicationNeeded: Boolean = false,
+    val hasAcceptedUserAgreement: Boolean = false,
+    val hasAcceptedPrivacyPolicy: Boolean = false,
     val loading: Boolean = false,
     val errorMessage: String? = null,
     val toast: String? = null,
-)
+) {
+    val hasAcceptedRequiredLegalAgreements: Boolean
+        get() = hasAcceptedUserAgreement && hasAcceptedPrivacyPolicy
+}
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val repo: LoginRepository,
 ) : ViewModel() {
+    private val submissionGate = LoginSubmissionGate()
 
     private val _state = MutableStateFlow(LoginUiState())
     val state: StateFlow<LoginUiState> = _state.asStateFlow()
@@ -69,6 +75,13 @@ class LoginViewModel @Inject constructor(
     }
     fun setOnboardingGeneratePlan(v: Boolean) = _state.update { it.copy(onboardingGeneratePlan = v) }
     fun setMedicationNeeded(v: Boolean) = _state.update { it.copy(medicationNeeded = v) }
+    fun setUserAgreementAccepted(v: Boolean) =
+        _state.update { it.copy(hasAcceptedUserAgreement = v) }
+    fun setPrivacyPolicyAccepted(v: Boolean) =
+        _state.update { it.copy(hasAcceptedPrivacyPolicy = v) }
+    fun acceptRequiredLegalAgreements() = _state.update {
+        it.copy(hasAcceptedUserAgreement = true, hasAcceptedPrivacyPolicy = true)
+    }
     fun clearToast() = _state.update { it.copy(toast = null) }
 
     fun loadSubjects() {
@@ -93,18 +106,26 @@ class LoginViewModel @Inject constructor(
 
     fun loginPhone() {
         val s = _state.value
+        val normalizedPhone = s.phone.filterNot(Char::isWhitespace)
+        val normalizedUsername = s.username.trim()
+        val normalizedPassword = s.password.trim()
         when {
-            s.phone.isBlank() || s.password.isBlank() ->
+            normalizedPhone.isBlank() || normalizedPassword.isBlank() ->
                 _state.update { it.copy(toast = "请填写手机号和密码") }
-            s.password.length < 8 ->
+            normalizedPassword.length < 8 ->
                 _state.update { it.copy(toast = "密码至少 8 位") }
-            s.isSignup && s.username.isBlank() ->
+            s.isSignup && normalizedUsername.isBlank() ->
                 _state.update { it.copy(toast = "请填写用户名") }
+            !LoginLegalConsentPolicy.canSubmit(
+                isSignup = s.isSignup,
+                acceptedUserAgreement = s.hasAcceptedUserAgreement,
+                acceptedPrivacyPolicy = s.hasAcceptedPrivacyPolicy,
+            ) -> _state.update { it.copy(toast = LoginLegalConsentPolicy.REQUIRED_MESSAGE) }
             else -> launchWithLoading {
                 repo.loginOrSignupPhone(
-                    phone = s.phone,
-                    username = s.username,
-                    password = s.password,
+                    phone = normalizedPhone,
+                    username = normalizedUsername,
+                    password = normalizedPassword,
                     signup = s.isSignup,
                     sex = if (s.isSignup) s.sex else null,
                     age = if (s.isSignup) s.age else null,
@@ -120,8 +141,9 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun launchWithLoading(block: suspend () -> Unit) {
+        if (!submissionGate.tryAcquire()) return
+        _state.update { it.copy(loading = true) }
         viewModelScope.launch {
-            _state.update { it.copy(loading = true) }
             try {
                 block()
             } catch (e: Throwable) {
@@ -129,8 +151,26 @@ class LoginViewModel @Inject constructor(
                 val msg = (e as? ApiException)?.message ?: e.localizedMessage ?: "登录失败"
                 _state.update { it.copy(toast = msg) }
             } finally {
+                submissionGate.release()
                 _state.update { it.copy(loading = false) }
             }
         }
+    }
+}
+
+/** Synchronous acquisition closes the gap between repeated taps and coroutine dispatch. */
+internal class LoginSubmissionGate {
+    private var active = false
+
+    @Synchronized
+    fun tryAcquire(): Boolean {
+        if (active) return false
+        active = true
+        return true
+    }
+
+    @Synchronized
+    fun release() {
+        active = false
     }
 }

@@ -38,7 +38,7 @@
     <string name="consent_required">Please enable AI chat in Settings first.</string>
 
     <string name="health_data_title">Health Data</string>
-    <string name="health_data_records">Medical Records</string>
+    <string name="health_data_records">Medical Assistant</string>
     <string name="health_data_exams">Exam Reports</string>
     <string name="health_data_upload">Photo / File Upload</string>
     <string name="health_data_ai_summary">AI Health Summary</string>

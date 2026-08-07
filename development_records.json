@@ -3550,5 +3550,1960 @@
       "Reviewed the cover PNG for white background, blue-green gradient particles, circular digital nebula composition, center-emergent flow, and no embedded text",
       "No iOS or Android app code was changed; no platform build was run for this asset-only candidate pass"
     ]
+  },
+  {
+    "id": "2026-06-30-xage-dual-end-implementation",
+    "time": "2026-06-30T02:37:47+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "iOS + Android / XAGE",
+    "feature": "feat(xage): 实现新版三段式 XAGE 双端壳层",
+    "description": "基于已确认的 Figma/UI 方向，在 iOS 和 Android 从原版本 fork 出 XAGE 分支并接入新版 数据 / 问答 / X年龄 三段式壳层。数据页落地三评分圆环、状态总结、排序、详情和上传入口；问答页接入真实聊天 ViewModel/后端链路、发送、快捷问题、查看分析和证据展示；X年龄页接入蓝绿色粒子环、衰老进度和因子解释。完成 iOS Simulator 与 Android Emulator 真实按钮测试，并把问题、修正、评分写入 implementation audit 和 UI design memory。",
+    "repos": [
+      "Workspace",
+      "iOS",
+      "Android"
+    ],
+    "modules": [
+      "UI",
+      "iOS",
+      "Android",
+      "Navigation",
+      "Chat",
+      "Health Data",
+      "XAge",
+      "Memory",
+      "QA"
+    ],
+    "files_by_repo": {
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "MEMORY.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/known_risks.md"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/xage_dual_end_audit.md"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "iOS": [
+        {
+          "status": "M",
+          "path": "Xjie/Xjie.xcodeproj/project.pbxproj"
+        },
+        {
+          "status": "M",
+          "path": "Xjie/Xjie/Views/Home/MainTabView.swift"
+        },
+        {
+          "status": "A",
+          "path": "Xjie/Xjie/Views/Home/XAgeMainView.swift"
+        },
+        {
+          "status": "A",
+          "path": "Xjie/Xjie/Assets.xcassets/x_age_particle_ring_blue_green.imageset/Contents.json"
+        },
+        {
+          "status": "A",
+          "path": "Xjie/Xjie/Assets.xcassets/x_age_particle_ring_blue_green.imageset/x_age_particle_ring_blue_green.png"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/Routes.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/core/util/NetworkMonitor.kt"
+        },
+        {
+          "status": "A",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "A",
+          "path": "Android/app/src/main/res/drawable/x_age_particle_ring_blue_green.png"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ]
+    },
+    "verification": [
+      "iOS xcodebuild Debug build passed for iPhone 17 Pro simulator",
+      "iOS Simulator real-click validation passed for data sort/reorder, score detail, upload entry, chat send, quick Chinese question, analysis sheet, evidence sheet, and X年龄 screen",
+      "Android Gradle :app:assembleDebug passed with Android Studio JBR",
+      "Android :app:testDebugUnitTest passed but reported NO-SOURCE for debug unit tests",
+      "Android Emulator real-login validation passed for data sort/reorder, score detail, upload entry, chat send, analysis dialog, evidence dialog, X年龄 screen, and explanation scroll",
+      "Fixed iOS detail/analysis/evidence sheets to add explicit close buttons after UI test found ambiguous dismissal",
+      "Fixed Android NetworkMonitor so any single network onLost callback no longer forces a false offline banner when an active validated network remains",
+      "Recorded screenshots and scores in X_new/implementation_audit/xage_dual_end_audit.md"
+    ],
+    "notes": "iOS xcodebuild test still fails because the existing test target cannot compile Admin/Omics-related types; this is recorded as a known risk and is separate from the XAGE Debug build. Android validation used Emulator only, not a physical device."
+  },
+  {
+    "id": "2026-06-30-data-single-card-scroll-linked-animation",
+    "time": "2026-06-30T11:15:52+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "iOS + Android / XAGE Data UI",
+    "feature": "feat(data): 实现单卡片翻页式滚动联动",
+    "description": "根据用户补充的数据页交互规则，调整 XAGE 数据首页滚动结构：顶部标题/三评分区域拆成 sticky header，三评分圆环和标签始终可见；非排序模式下只对当前最上方一张指标卡应用上移、淡出和轻微翻页退场，下面卡片保持完整展示；排序模式禁用翻页退场效果。iOS 通过 PreferenceKey 追踪卡片偏移，Android 通过 LazyListState 驱动当前第一张卡片。",
+    "repos": [
+      "Workspace",
+      "iOS",
+      "Android"
+    ],
+    "modules": [
+      "UI",
+      "iOS",
+      "Android",
+      "Data",
+      "Animation",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/known_risks.md"
+        },
+        {
+          "status": "M",
+          "path": "X_new/implementation_audit/xage_dual_end_audit.md"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_data_scroll_current_visible.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_data_scroll_partial_peel.png"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "iOS": [
+        {
+          "status": "M",
+          "path": "Xjie/Xjie/Views/Home/XAgeMainView.swift"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ]
+    },
+    "verification": [
+      "iOS Debug build passed with xcodebuild on iPhone 17 Pro simulator destination",
+      "Android :app:assembleDebug passed with Android Studio JBR",
+      "Android :app:testDebugUnitTest passed and remains NO-SOURCE for debug unit tests",
+      "Android Emulator screenshot android_data_scroll_current_visible.png confirmed score rings, labels, summary, and metric cards are visible without clipping",
+      "Android Emulator short-swipe screenshot android_data_scroll_partial_peel.png confirmed only the current top metric card peels away while lower cards remain complete",
+      "Android UIAutomator dump confirmed score labels and metric card text nodes remain in visible bounds",
+      "iOS Simulator screenshot validation was blocked because debug-token launch returned to login; recorded as known risk rather than claiming visual pass"
+    ],
+    "notes": "This revision deliberately keeps score rings stable and only lets title/subtitle collapse; an earlier local attempt scaled the score row and caused Android score labels to be clipped, which was fixed before this record."
+  },
+  {
+    "id": "2026-06-30-chat-v6-figma-alignment",
+    "time": "2026-06-30T12:35:38+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "iOS + Android / XAGE Chat UI",
+    "feature": "fix(chat): 对齐问答首页 Figma V6",
+    "description": "根据用户截图反馈，修正 XAGE 问答首页与 Figma V6 不一致的问题：双端移除旧的助手小捷大外框和三条入口，改为 V6 的助手 orb、欢迎语、两张液态玻璃问题卡和底部输入栏；问答态右侧工具改为历史按钮；收紧欢迎区垂直节奏；iOS 修复被动加载历史会话时未登录弹窗遮挡欢迎态的问题，并增加仅 Debug 生效的 XAGE_INITIAL_SECTION 审计入口用于稳定截图。",
+    "repos": [
+      "Workspace",
+      "iOS",
+      "Android"
+    ],
+    "modules": [
+      "UI",
+      "Chat",
+      "Figma",
+      "iOS",
+      "Android",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "X_new/implementation_audit/xage_dual_end_audit.md"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/ios_chat_v6_figma_aligned_final.png"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "iOS": [
+        {
+          "status": "M",
+          "path": "Xjie/Xjie/Views/Home/XAgeMainView.swift"
+        },
+        {
+          "status": "M",
+          "path": "Xjie/Xjie/ViewModels/ChatViewModel.swift"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "xcodebuild -project Xjie/Xjie.xcodeproj -scheme Xjie -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath /tmp/xjie-ios-chat-figma-derived build",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed",
+        "repos": [
+          "iOS",
+          "Android"
+        ]
+      },
+      {
+        "artifact": "X_new/implementation_audit/ios_chat_v6_figma_aligned_final.png",
+        "result": "self-reviewed: no login alert, no old assistant card, no visible overlap"
+      }
+    ],
+    "notes": [
+      "iOS 的 XAGE_INITIAL_SECTION 入口只在 DEBUG 编译中生效，用于 UI 截图审计；正常启动默认仍为数据页。",
+      "Android 仍有既有 Icons.Filled.Send deprecated warning，不影响 assembleDebug。",
+      "Android 仓库中 backend/analysis/ 与 backend/analysis_outputs/ 是既有未跟踪目录，本次未修改。"
+    ]
+  },
+  {
+    "id": "2026-06-30-xage-bottom-data-panel-interaction-fix",
+    "time": "2026-06-30T17:38:04+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "iOS / Android / XAGE Data Panel",
+    "feature": "fix(xage): 修复数据页底部资料面板点击与液态玻璃风格",
+    "description": "根据用户截图修复 XAGE 数据页底部资料面板：四个分类从静态文字/窄命中区改为可点击玻璃胶囊，分类切换会同步更新主入口内容；上传/运动睡眠/就医资料/健康信息入口改为整行可点击，不再只依赖右侧按钮；视觉统一回浅蓝液态玻璃和蓝绿渐变体系。",
+    "repos": [
+      "Workspace",
+      "iOS",
+      "Android"
+    ],
+    "modules": [
+      "UI",
+      "XAGE",
+      "Data",
+      "Interaction",
+      "iOS",
+      "Android",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/bottom_panel_fix_20260630/android_latest_panel_before_category_tap.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/bottom_panel_fix_20260630/android_latest_panel_activity_category_v4.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/bottom_panel_fix_20260630/android_latest_panel_activity_row_tap_v2.png"
+        }
+      ],
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        }
+      ],
+      "iOS": [
+        {
+          "status": "M",
+          "path": "Xjie/Xjie/Views/Home/XAgeMainView.swift"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "xcodebuild -project Xjie/Xjie.xcodeproj -scheme Xjie -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/bottom_panel_fix_20260630/android_latest_panel_activity_category_v4.png",
+        "result": "self-reviewed: category switches to 运动睡眠 and content changes to 同步运动睡眠 / 查看"
+      },
+      {
+        "artifact": "X_new/implementation_audit/bottom_panel_fix_20260630/android_latest_panel_activity_row_tap_v2.png",
+        "result": "self-reviewed: tapping left text area enters 健康计划, proving whole-row click works"
+      },
+      {
+        "artifact": "X_new/implementation_audit/bottom_panel_fix_20260630/android_bottom_panel_text_tap_result_v2.png",
+        "result": "self-reviewed: 健康数据入口 opens upload-focused HealthData screen"
+      }
+    ],
+    "notes": [
+      "Android 仓库中 backend/analysis/ 与 backend/analysis_outputs/ 仍为既有未跟踪目录，本次未修改也未提交。",
+      "Android 构建仍有既有 Icons.Filled.Send deprecated warning，不影响本次修复。",
+      "adb 输入坐标需按真实 wm size 1080x2400 判断，不能直接照预览缩放截图坐标。"
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-session-rules",
+    "time": "2026-07-01T01:04:16+08:00",
+    "author": "Codex",
+    "type": "docs",
+    "type_label": "文档",
+    "scope": "Android / XAGE / Figma QA",
+    "feature": "docs(android-xage): 记录三栏切换 Android 单独开发规则",
+    "description": "根据用户明确要求，当前“三栏切换”线程中的 XAGE App 只在 Android 端单独开发；memory 只记录 Android 端开发进度，开发记录只同步 Android 部分。后续 Android UI 必须严格按 Figma 源文件实现，Figma 只显示局部效果时按交互逻辑补齐完整状态，但胶囊、框体、底部面板、输入栏、按钮和详情弹层必须继承同一套液态玻璃风格。每次开发完成后必须逐步/逐个验证交互，并用 Android Emulator 或真机截图自审视觉无遮挡、无越界、无风格偏差。",
+    "repos": [
+      "Workspace",
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "UI",
+      "Figma",
+      "QA",
+      "Memory",
+      "Docs"
+    ],
+    "files_by_repo": {
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "MEMORY.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/decisions.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Android": [
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ]
+    },
+    "verification": [
+      "Android development_records.json parsed successfully as JSON.",
+      "Android development_history.html regenerated from the existing dashboard renderer without touching iOS files.",
+      "tools/xjie_memory.py summary shows the current 三栏切换 Android XAGE thread as Android-only.",
+      "No Android business code was changed in this documentation-only update."
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android 仓库中 backend/analysis/ 与 backend/analysis_outputs/ 仍为既有未跟踪目录，本次未修改也未提交。"
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-ui-bugfix-qa",
+    "time": "2026-07-01T01:44:30+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Figma UI QA",
+    "feature": "fix(android-xage): 重新检查并修复三栏切换 UI 遮挡与弹层风格问题",
+    "description": "当前三栏切换线程按用户要求只处理 Android XAGE。本轮在 Debug 审计态绕开登录、Splash、更新和通知权限 overlay，避免干扰 UI 验证；数据页移除非 Figma 旧标题/说明，三评分区恢复玻璃卡承载，固定底部资料面板改为不透底，排序态隐藏面板并重置滚动位置；压力/恢复/炎症详情、问答详细分析、证据展示和历史对话统一替换为 XAGE 液态玻璃弹层；问答状态文字和分析/证据按钮增强可读与命中，历史入口接通；X年龄页补充底部安全区。Release 登录、Splash、更新和权限逻辑不变。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "UI",
+      "Figma",
+      "Chat",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/MainActivity.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/AppNavGraph.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/08_data_default_final.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/09_data_sort_no_panel.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/11_data_pressure_detail_solid.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/12_data_panel_activity.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/13_data_panel_row_tap_result.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/15_chat_empty.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/16_chat_history_dialog.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/17_chat_history_loaded.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/18_chat_analysis_dialog.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/19_chat_evidence_dialog.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/21_chat_text_entered.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/22_chat_after_send.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/23_chat_send_result.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/25_xage_top_retry.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/26_xage_bottom.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/27_swipe_xage_to_chat.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bugfix_20260701/28_swipe_chat_to_data.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/08_data_default_final.png",
+        "result": "self-reviewed: data page title/score card/bottom panel match XAGE glass style with no old explanatory text or bleed-through"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/09_data_sort_no_panel.png",
+        "result": "self-reviewed: sort mode hides bottom panel, cards and sort controls are not covered"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/11_data_pressure_detail_solid.png",
+        "result": "self-reviewed: pressure detail uses solid custom glass dialog, no Material AlertDialog fallback"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/16_chat_history_dialog.png",
+        "result": "self-reviewed: chat history opens from right-side action and uses glass dialog with visible close control"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/18_chat_analysis_dialog.png",
+        "result": "self-reviewed: analysis dialog is readable and not covered by input bar"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/19_chat_evidence_dialog.png",
+        "result": "self-reviewed: evidence dialog uses the same glass style and renders citation card without clipping"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/23_chat_send_result.png",
+        "result": "self-reviewed: chat send returns an assistant message; status text and buttons remain visible"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/26_xage_bottom.png",
+        "result": "self-reviewed: X年龄 bottom explanation card can rest above the gesture navigation area without clipping"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/27_swipe_xage_to_chat.png",
+        "result": "self-reviewed: horizontal swipe from X年龄 to 问答 updates selected capsule correctly"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bugfix_20260701/28_swipe_chat_to_data.png",
+        "result": "self-reviewed: horizontal swipe from 问答 to 数据 updates selected capsule correctly"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The system Google Calendar screenshot 24_xage_top.png was caused by an emulator system focus jump and is retained only as non-XAGE interference evidence; X年龄 judgment uses 25_xage_top_retry.png and 26_xage_bottom.png.",
+      "A system IME handwriting toolbar appeared during input testing; it was treated as emulator/system overlay, while the XAGE input bar and send result were still verified.",
+      "Debug-only overlay bypass is for repeatable Android XAGE UI auditing; Release behavior is unchanged."
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-ring-inset-fix",
+    "time": "2026-07-01T13:06:56+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Data UI",
+    "feature": "fix(android-xage): 修复数据页圆环上沿自裁切",
+    "description": "按用户截图定位数据页三评分圆环上沿反复贴边/裁切的问题。根因是 Compose Canvas.drawArc 使用完整画布 bounds 绘制粗 Stroke，描边外半部分会被 Canvas 自身裁掉；前几轮调整外层卡片无法根治。已将小圆环和详情大圆环都改为按 stroke.width / 2 + 1dp inset 后绘制 arc，并把评分玻璃卡顶部 padding 调整为 18dp，确保圆环和圆头端点完整落在画布内且与卡片上沿保持呼吸空间。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/01_data_ring_inset_full.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/02_data_ring_inset_crop.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ring_fix_20260701/03_pressure_detail_large_ring.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ring_fix_20260701/02_data_ring_inset_crop.png",
+        "result": "self-reviewed: three score rings have visible top breathing room and no stroke/cap clipping"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ring_fix_20260701/03_pressure_detail_large_ring.png",
+        "result": "self-reviewed: pressure detail large ring renders fully inside the custom glass dialog"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The fix targets the arc drawing geometry itself; changing only the outer card cannot prevent Canvas stroke self-clipping."
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-bottom-panel-compact",
+    "time": "2026-07-01T13:54:07+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Data UI",
+    "feature": "fix(android-xage): 收紧数据页底部资料面板空白",
+    "description": "按用户截图修复数据页底部资料面板分类胶囊上方空白过多的问题。移除此前用于遮挡底层列表的 50dp 内部 top padding，改为紧凑玻璃面板内边距；同时通过非排序态 LazyColumn 底部 viewport reserve 避让固定面板，避免再用面板内部空白遮挡后方指标卡。排序态继续隐藏底部面板。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/12_bottom_panel_compact_final_190_full.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/13_bottom_panel_compact_final_190_crop.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/04_sort_after_panel_padding.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/13_bottom_panel_compact_final_190_crop.png",
+        "result": "self-reviewed: bottom panel category row is no longer pushed down by excessive top whitespace"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/12_bottom_panel_compact_final_190_full.png",
+        "result": "self-reviewed: sleep metric card remains complete and next metric text does not bleed behind the fixed panel"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_bottom_panel_compact_20260701/04_sort_after_panel_padding.png",
+        "result": "self-reviewed: sort mode still hides the bottom panel and keeps sort controls visible"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "Fixed bottom panel spacing should be handled by scroll viewport reserve, not large internal top padding inside the panel."
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-legacy-back-navigation",
+    "time": "2026-07-01T14:16:10+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Navigation",
+    "feature": "fix(android-xage): 补齐上传报告及旧页面返回按钮",
+    "description": "按用户反馈排查上传报告页缺少返回按钮的问题，并确认同类问题普遍存在于 XAGE 外跳旧主页面。为健康数据/上传聚焦、健康计划和旧首页页面补可选返回顶栏，并在 XAGE 导航层对旧首页、健康数据、上传聚焦、健康计划、多组学和助手聊天统一传入返回动作；设置页沿用已有返回参数。旧页面未传入 onBack 时仍保持原外观。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Navigation",
+      "HealthData",
+      "HealthPlan",
+      "Home",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/healthdata/HealthDataScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/healthplan/HealthPlanScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/home/HomeScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/02_upload_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/04_health_plan_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/06_settings_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/09_legacy_home_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/10_omics_back_button.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_back_nav_20260701/11_omics_system_back_returned_xage.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/02_upload_back_button.png",
+        "result": "self-reviewed: upload-focused health data page now shows a visible back button with no title/content overlap"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/04_health_plan_back_button.png",
+        "result": "self-reviewed: health plan page shows a visible back button and first content card starts below the app bar"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/09_legacy_home_back_button.png",
+        "result": "self-reviewed: legacy home page gets a return app bar without covering the hero card"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/10_omics_back_button.png",
+        "result": "self-reviewed: omics page receives the existing optional back button from XAGE navigation"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_back_nav_20260701/11_omics_system_back_returned_xage.png",
+        "result": "self-reviewed: system back from an XAGE-launched legacy page returns to the XAGE data screen"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS files and iOS verification because the current thread is Android-only.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The issue was navigation-scope reuse of old main pages, not only the upload report button."
+    ]
+  },
+  {
+    "id": "2026-07-01-android-xage-ios-panel-match",
+    "time": "2026-07-01T15:27:53+08:00",
+    "author": "Codex",
+    "type": "style",
+    "type_label": "样式",
+    "scope": "Android / XAGE / Data Bottom Panel",
+    "feature": "style(android-xage): 对齐 iOS 底部四分类按钮",
+    "description": "按用户要求参照 Xcode Simulator 中 iOS 当前数据页底部面板，将 Android 原健康数据、运动睡眠、就医资料、健康信息四个按钮改为 iOS 同款报告、日常、就医、画像；补齐 18dp 小圆形分类资产、48dp 主入口圆形资产、36dp 选中胶囊、四组蓝绿渐变和 iOS 同款主入口文案。行为也同步 iOS：报告进入上传聚焦页，日常进入健康计划，就医进入病史整理，画像进入设置。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "UI",
+      "Navigation",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/00_ios_xage_panel_reference_reports.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/02_android_reports_default_no_shadow.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/03_android_daily_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/04_android_medical_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/05_android_profile_selected.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/08_medical_opens_patient_history.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/02_android_reports_default_no_shadow.png",
+        "result": "self-reviewed: default Android panel matches iOS labels, small glyphs, main asset, button text and no default black shadow"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/03_android_daily_selected.png",
+        "result": "self-reviewed: daily capsule and main entry match iOS 日常同步 state without text overflow"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/04_android_medical_selected.png",
+        "result": "self-reviewed: medical capsule and 就医整理 state match iOS and use the blue medical gradient"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/05_android_profile_selected.png",
+        "result": "self-reviewed: profile capsule and 健康画像 state match iOS and stay above the gesture bar"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_ios_panel_match_20260701/08_medical_opens_patient_history.png",
+        "result": "self-reviewed: 就医 action now opens PatientHistory instead of upload"
+      }
+    ],
+    "notes": [
+      "This record intentionally excludes iOS file changes because iOS was used only as visual and behavioral reference.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "The active Xcode Simulator was not modified; confirmed iOS panel reference screenshots were copied from the existing iOS audit directory into this audit folder."
+    ]
+  },
+  {
+    "id": "2026-07-02-android-xage-panel-liquid-destinations",
+    "time": "2026-07-02T20:00:02+08:00",
+    "author": "Codex",
+    "type": "style",
+    "type_label": "样式",
+    "scope": "Android / XAGE / Data Panel Destinations",
+    "feature": "style(android-xage): 底部四分类目标页液态玻璃化",
+    "description": "按用户要求参照 iOS 版本，将 Android XAGE 数据页底部 报告 / 日常 / 就医 / 画像 四分类进入后的页面从旧 HealthData、HealthPlan、PatientHistory、Settings 落点改为统一的新 XAgePanelDestinationScreen。新增 xage_panel/{category} 路由，目标页包含胶囊返回、居中分类胶囊、右侧渐变图标、主玻璃卡、三项统计卡、三行玻璃操作入口和底部蓝绿渐变 CTA；文案、统计项和操作行全部按 iOS XAgePanelDestinationView 对齐。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "Navigation",
+      "UI",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/Routes.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/00_data_default.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/01_reports_destination.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/02_daily_destination.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/03_medical_destination.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/04_profile_destination.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_panel_destinations_20260702/04a_profile_screen_back_to_data.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_panel_destinations_20260702/01_reports_destination.png",
+        "result": "self-reviewed: 报告进入新 XAGE 液态玻璃目标页，包含报告入库、待识别/已结构化/完整度和三行操作，无旧上传页"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_panel_destinations_20260702/02_daily_destination.png",
+        "result": "self-reviewed: 日常进入新液态玻璃目标页，睡眠/步数/HRV 和 Apple Health/恢复信号/趋势解释文案与 iOS 一致"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_panel_destinations_20260702/03_medical_destination.png",
+        "result": "self-reviewed: 就医进入新液态玻璃目标页，诊断/处方/随访统计和整理 CTA 无文字越界"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_panel_destinations_20260702/04_profile_destination.png",
+        "result": "self-reviewed: 画像进入新液态玻璃目标页，基础/慢病/过敏统计和完善 CTA 不被手势条遮挡"
+      },
+      {
+        "artifact": "X_new/implementation_audit/android_xage_panel_destinations_20260702/04a_profile_screen_back_to_data.png",
+        "result": "self-reviewed: 屏幕返回按钮和系统返回均能回到 XAGE 数据页"
+      }
+    ],
+    "notes": [
+      "This Android record uses iOS only as the visual and wording reference; no iOS files were modified.",
+      "Android repository backend/analysis/ and backend/analysis_outputs/ remain existing untracked directories and were not modified or submitted.",
+      "Bottom panel category entry now routes to XAGE-native liquid-glass destination pages instead of directly opening old HealthData, HealthPlan, PatientHistory or Settings screens."
+    ]
+  },
+  {
+    "id": "2026-07-04-android-xage-ios-progress-sync",
+    "time": "2026-07-04T02:01:22+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "Android / XAGE / iOS Progress Sync",
+    "feature": "feat(android-xage): 对齐 iOS 最新数据、面板与问答交互进度",
+    "description": "按照 iOS XAGE 最新更新和已修过的问题，全面补齐 Android XAGE：数据页移除旧 3D peel/头部折叠，改为只在上滑时隐藏 今日状态；左上菜单只保留 XAGE 内部 数据 / 问答 / X年龄；新增 Android 健康同步卡、添加指标卡和候选指标弹层；四分类目标页补齐行选中、互动详情和 CTA 已更新反馈；问答输入栏 mic/camera/plus 接入真实系统语音、相机、文件/相册选择和新对话。验证中发现 Android 15 相机入口未请求 CAMERA 运行时权限会崩溃，已改为先请求权限再启动 TakePicture，并加中文失败提示兜底。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Data",
+      "Chat",
+      "Navigation",
+      "UI",
+      "Permissions",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/chat/ChatViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/MainScaffold.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/01_launch.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/02_data_scrolled.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/03_metric_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/04_metric_added.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/06_health_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/07_sort_mode.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/08_xage_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/09_panel_reports.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/12_panel_daily.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/14_panel_medical.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/15_panel_profile.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/17_chat_attachment_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/18_document_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/19_voice_entry.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/21_camera_permission.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/22_camera_open.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 + adb/UIAutomator screenshots",
+        "result": "passed: verified data default/scroll hide today status/add metric/health sync/sort mode/menu/panel destinations/chat attachment menu/document picker/voice recognition/camera permission/camera activity"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_ios_progress_sync_20260704/",
+    "notes": [
+      "iOS repo was used only as reference and was not modified.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
+      "Camera crash was reproduced on emulator before fix and resolved by runtime CAMERA permission flow."
+    ]
+  },
+  {
+    "id": "2026-07-04-android-xage-responsive-adaptation",
+    "time": "2026-07-04T11:35:00+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Responsive Layout",
+    "feature": "fix(android-xage): 多机型响应式适配与遮挡修复",
+    "description": "针对 Android 机型尺寸、密度和字体比例差异，给 XAGE 主界面新增响应式布局参数，按窄屏、短屏和大屏调整横边距、顶部三段式、三评分圆环、底部资料面板、问答输入栏、X年龄粒子环和通用玻璃弹层。短屏默认隐藏辅助 今日状态，保留三评分核心信息；Android 健康同步卡短屏压缩为状态行；修正数据页 LazyColumn 使用 modifier bottom padding 缩小 viewport 导致卡片被裁的问题，改为 contentPadding 避让；底部资料面板与导航栏安全区改为不透底浅玻璃底，避免后层指标文字透出；大屏弹层限制最大宽度，避免横向拉伸走样。",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Responsive UI",
+      "Data",
+      "Chat",
+      "XAge",
+      "Panel",
+      "Dialog",
+      "QA",
+      "Memory"
+    ],
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/10_small_360x640_data_opaque_final.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/13_small_360x640_sort_nav_fixed.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/14_small_360x640_font13_chat.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/17_small_360x640_font13_xage_bottom.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/20_tablet_800dp_panel_reports.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/23_tablet_800dp_menu_dialog_width_fixed.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_responsive_20260704/24_standard_reset_data_final.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 with adb wm size/density/font_scale",
+        "result": "passed: verified 360x640dp compact data/sort, font scale 1.3 chat and X年龄, 800dp tablet data/panel/menu dialog, and standard 1080x2400 reset state"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_responsive_20260704/",
+    "notes": [
+      "iOS repo was not modified.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
+      "Short screens intentionally hide the auxiliary 今日状态 card so the core score rings and bottom panel remain usable without clipping."
+    ]
+  },
+  {
+    "id": "2026-07-04-android-xage-account-history-sync",
+    "time": "2026-07-04T13:08:00+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "feature": "Android XAGE account history sync",
+    "scope": "Android / XAGE / Auth / Server Sync",
+    "repos": [
+      "Android"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Server Sync",
+      "Health Data",
+      "Panel",
+      "QA",
+      "Memory"
+    ],
+    "description": "使用用户授权的既有线上账号验证 Android XAGE 历史信息同步，修复 Debug 包绕过登录、登录页默认注册态、数据页和四分类详情仍显示固定样例数的问题。新增 XAgeServerSyncViewModel，在登录后并行拉取用户画像、dashboard、today、健康摘要、病历/体检文档、指标、关注指标、趋势、问答历史、健康计划和长者反馈，并把服务端快照合并到数据首页和 报告 / 日常 / 就医 / 画像 四分类详情。清空数据后的默认页现在直接是手机号登录，登录成功后显示服务端同步日期和真实 ALT/AST 指标卡。",
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/login/LoginViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/navigation/AppNavGraph.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "A",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeServerSyncViewModel.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/00_login_start.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/03_reports_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/04_daily_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/05_medical_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/06_profile_detail_synced.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/08_login_default_after_fix.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/10_second_login_synced_after_default_fix.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_login_sync_20260704/11_cold_start_after_default_fix.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "Direct production API login and authenticated sync endpoint probe",
+        "result": "passed: summary, records, exams, indicators, watched indicators, trends, chat history, health plans and dashboard/today endpoints returned account data"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:assembleDebug",
+        "result": "passed"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:testDebugUnitTest",
+        "result": "passed; NO-SOURCE for debug unit tests"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 clean install/login/detail/cold-start UIAutomator verification",
+        "result": "passed: default login screen, real login, synced data page, four XAGE category detail pages, token cold start and visual screenshot review"
+      },
+      {
+        "command": "adb logcat -d -t 2000 AndroidRuntime:E '*:S'",
+        "result": "passed: no AndroidRuntime crash output"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_login_sync_20260704/",
+    "notes": [
+      "No test account password or token was written to memory, records, commits or final notes.",
+      "iOS repo was not modified.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched.",
+      "Server snapshot displayed in Android UI: records 14, exams 271, indicators 257, watched 3, trends 46, conversations 2, plans 2, profile completion 80%, latest report 6月30日, header 6月28日 · 已同步."
+    ]
+  },
+  {
+    "id": "2026-07-05-android-xage-ios-latest-parity",
+    "time": "2026-07-05T00:31:39+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / iOS Latest Parity",
+    "feature": "fix(android-xage): 复刻 iOS 最新 XAGE 修复",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Chat",
+      "Panel",
+      "QA",
+      "Memory"
+    ],
+    "description": "参照 iOS 最新 XAGE 修复，将 Android 数据页底部资料入口残留彻底删除，左上菜单改为 资料 且只保留 报告 / 日常 / 就医 / 画像；顶层 数据 / 问答 / X年龄 从 HorizontalPager 改为状态切换，避免弹层关闭后的半屏残影；数据页右上角承载 排序 / 完成，问答和 X年龄分别保留历史与说明。报告详情页拍照、PDF、相册和主 CTA 全部接入真实 Android picker/camera，并增加图片大小和分辨率校验；底部 CTA 改为布局内固定区域，避免覆盖滚动内容。问答证据展示只显示与当前回答主题匹配的 citations；TokenAuthenticator 不再对 /api/auth/ 或无 Authorization 的请求做 token refresh，避免登录、注册、重置错误被吞。",
+    "files_by_repo": {
+      "Android": [
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/core/network/TokenAuthenticator.kt"
+        },
+        {
+          "status": "M",
+          "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        },
+        {
+          "status": "M",
+          "path": "development_records.json"
+        },
+        {
+          "status": "M",
+          "path": "development_history.html"
+        }
+      ],
+      "Workspace": [
+        {
+          "status": "M",
+          "path": "memory/current_state.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/UI_design_memory.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/resolved_issues.md"
+        },
+        {
+          "status": "M",
+          "path": "memory/memory.json"
+        }
+      ],
+      "Implementation Audit": [
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_tap_login.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_menu.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_reports_detail_no_overlap.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_pdf_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_album_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_camera_after_allow.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_cta_picker.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_chat_history_loaded.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_info_dialog.png"
+        },
+        {
+          "status": "A",
+          "path": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/xage_android_compact_report.png"
+        }
+      ]
+    },
+    "verification": [
+      {
+        "command": "Android Emulator Xjie_Test_API35 authorized-account login and sync verification",
+        "result": "passed: data page displayed synced server history, ALT/AST cards, four XAGE category detail pages, chat history and X年龄 states; no password or token recorded"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 step-by-step UI picker verification",
+        "result": "passed: reports page back button, PDF picker, photo picker, camera permission and camera Activity, main CTA document picker, chat history/analysis and X年龄 info/week switching all opened correctly"
+      },
+      {
+        "command": "Android Emulator Xjie_Test_API35 visual QA",
+        "result": "passed: standard 1080x2400 and compact 900x1800 screenshots showed no bottom panel residue, no CTA/content overlap, no capsule text overflow and no liquid-glass style regression"
+      },
+      {
+        "command": "rg \"XAgeBottomPanel|xage.data.panel|bottomPanelReserve|xage.data.upload|HorizontalPager|rememberPagerState\" Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt",
+        "result": "passed: no stale bottom-panel or pager identifiers remained"
+      },
+      {
+        "command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew :app:compileDebugKotlin :app:testDebugUnitTest :app:assembleDebug",
+        "result": "passed; :app:testDebugUnitTest was NO-SOURCE"
+      },
+      {
+        "command": "git diff --check",
+        "result": "passed"
+      },
+      {
+        "command": "adb logcat -d -t 2000 AndroidRuntime:E '*:S'",
+        "result": "passed: no AndroidRuntime crash output"
+      }
+    ],
+    "emulator_audit_dir": "X_new/implementation_audit/android_xage_ios_latest_parity_20260705/",
+    "notes": [
+      "iOS repo was only used as reference and was not modified.",
+      "No test account password, token or other secret was written to memory, records, commits or final notes.",
+      "Report picker and camera entry points were verified without submitting a real document, to avoid polluting the user's account data.",
+      "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched."
+    ]
+  },
+  {
+    "id": "2026-07-15-android-trusted-medication-loop",
+    "time": "2026-07-15T07:00:00+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / Medication Trust",
+    "feature": "fix(android): 用药页接入服务端可信执行闭环",
+    "description": "Android 用药页由 legacy CRUD 列表改为服务端权威 today/plans/prefill/reactions 四源状态，并完成 7 月 15 日用药管理目标文档。可能漏服永远保持待确认；服用、稍后、跳过与同日纠正绑定服务端计划/发生版本及稳定事件 ID。确认计划可进入完整详情、显式开启本机提醒并配置每日/隔日、提前、稍后、疗程结束、声音和锁屏隐私，配置按计划版本持久化并支持系统恢复；通知权限只在开启提醒时申请，拒绝后提供系统设置入口。记录页提供当天和七天可信记录，已确认率只计用户确认的已服/跳过；服务端尚无完整疗程聚合、续配依据、处方/历史浏览时明确显示暂不可用。OCR 只接收原始文字，识别结果必须复核后才创建计划；余量仅显示按已确认服药估算的预计剩余；不适只表达时间关联并对严重症状显示安全提示。所有页面统一键盘、返回链路和未保存退出保护。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "Medication",
+      "Trust",
+      "Notifications"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/core/model/MedicationTrustModels.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/network/api/MedicationApi.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationRepository.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationViewModel.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationTrustPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/TrustedMedicationReminderPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationReminderPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationReminderStore.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationScheduler.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/push/NotificationChannels.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/MainActivity.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/MedicationApiContractTest.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/MedicationTrustPolicyTest.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/TrustedMedicationReminderPolicyTest.kt"},
+        {"status": "A", "path": "Android/quality/medication_trust_regression_contract.md"},
+        {"status": "M", "path": "Android/quality/expected_jvm_tests.json"},
+        {"status": "M", "path": "Android/tools/tests/test_health_trust_consumers.py"}
+      ]
+    },
+    "verification": [
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest --tests 'com.xjie.app.feature.medication.*'", "result": "passed: 34/34 focused medication tests"},
+      {"command": "python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest", "result": "passed: exact 80/80, no missing, extra, duplicate, skipped or failed tests"},
+      {"command": "python3 -m unittest discover -s tools/tests -p 'test_*.py'", "result": "passed: 11/11; medication consumer also pins contextual permission, persisted reminders, record correction and unavailable capabilities"},
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug", "result": "passed in 59 seconds"},
+      {"command": "git diff --check", "result": "passed"}
+    ],
+    "notes": [
+      "The trusted page does not read or promote legacy CRUD records; legacy code remains compatibility-only.",
+      "adb is not installed on this machine, so real notification delivery, reboot/time-zone recovery, lock-screen privacy, OEM keyboard, small-screen/large-font, accessibility and real backend deployment remain release sign-offs.",
+      "No secret, account token or raw OCR content was written to this record."
+    ]
+  },
+  {
+    "id": "2026-08-07-android-ios-parity",
+    "time": "2026-08-07T19:43:35+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "Android / iOS parity replication",
+    "feature": "feat(android): complete iOS parity replication",
+    "description": "以当前 iOS 仓库为只读产品与后端权威源，完成 Android XAGE 的账号代际隔离、每日评分、三栏壳层、报告可信工作流、就医助手、饮食、用药、画像、Health Connect、对话、体重、更多/支持、登录及法律同意复刻；Apple Health 仅按平台语义替换为 Health Connect，Bluetooth/NFC 继续明确不支持。共享后端 tracked 文件逐字节同步，Debug-only 确定性传输、精确测试清单和 Release 失败关闭合同一并落地。",
+    "repos": ["XJie_And"],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Chat",
+      "Health Connect",
+      "Reports",
+      "Meals",
+      "Medication",
+      "Medical Assistant",
+      "Weight",
+      "Backend",
+      "CI",
+      "Quality"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "M", "path": ".github/workflows/ci.yml"},
+        {"status": "M", "path": ".gitignore"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/ui/theme/Color.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeDailyScoreAlgorithm.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMetricIdentityPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/healthconnect/HealthConnectManager.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/healthdata/HealthReportUploadCoordinator.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medicalassistant/MedicalAssistantScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/weight/WeightScreen.kt"},
+        {"status": "A", "path": "Android/app/src/debug/java/com/xjie/app/core/quality/DebugUiAutomationTransport.kt"},
+        {"status": "A", "path": "Android/app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"},
+        {"status": "A", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"},
+        {"status": "A", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/weight/WeightDashboardUiTest.kt"},
+        {"status": "A", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/medication/MedicationDashboardUiTest.kt"},
+        {"status": "A", "path": "Android/tools/tests/test_deterministic_ui_transport_contract.py"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/core/ui/theme/XjiePaletteParityTest.kt"},
+        {"status": "A", "path": "Android/quality/expected_jvm_tests.json"},
+        {"status": "A", "path": "Android/quality/expected_android_ui_tests.json"},
+        {"status": "A", "path": "Android/quality/ios_android_parity_contract_20260807.md"},
+        {"status": "A", "path": "Android/quality/evidence/ios_android_parity_20260807.md"},
+        {"status": "A", "path": "backend/app/db/migrations/versions/0026_medical_assistant_overview.py"},
+        {"status": "A", "path": "backend/requirements.lock"},
+        {"status": "M", "path": "development_records.json"},
+        {"status": "M", "path": "development_history.html"}
+      ]
+    },
+    "verification": [
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest", "result": "passed: exact JVM source and execution 232/232; 0 failed, skipped, missing, extra or duplicate; Debug APK and lint passed"},
+      {"command": "PATH=... JAVA_HOME=... API_BASE_URL_DEBUG=https://www.jianjieaitech.com/api /bin/bash tools/run_connected_ui_profiles.sh", "result": "passed final hardened candidate: API 35 standard, compact and font-scale 1.3 profiles each exact 14/14; total 42 executions, 0 failed or skipped; JUnit SHA-256 ab92d484..., abeb7328..., ed3017a1...; deterministic transport asserted zero escaped requests"},
+      {"command": "python3 tools/verify_python_test_inventory.py --run", "result": "passed after hosted-emulator, clean-checkout-origin and semantics-readiness repairs: exact Python source and execution 44/44; test_connected_tests_share_real_app_factory_profile_gate_and_runtime_ledger strips comments and locks merged text semantics, unique screen-scoped persistent non-lazy readiness owners, caller-provided root wait/use, unchanged lazy indices/root tags, exact target reveal, final visibility and no direct bypass"},
+      {"command": "/Users/linlin/Desktop/X/XJie_IOS/backend/.venv/bin/python tools/verify_backend_python_test_inventory.py --python /Users/linlin/Desktop/X/XJie_IOS/backend/.venv/bin/python --run --junit /Users/linlin/Desktop/X/XJie_And/Android/build/quality/backend-unit-results.xml", "result": "passed: backend exact 392/392, 0 failure/error/skip/duplicate"},
+      {"command": "compare git -C XJie_IOS ls-files backend against XJie_And/backend with /usr/bin/cmp", "result": "passed: tracked=261, missing=0, mismatches=0"},
+      {"command": "JAVA_HOME=... ./gradlew --no-daemon verifyReleaseConfiguration", "result": "expected fail-closed: exit 1 because API_BASE_URL_RELEASE is not an explicit non-placeholder HTTPS URL"},
+      {"command": "same-canvas visual comparison of iOS references and final Android emulator captures", "result": "passed visual review: login and XAGE have no clipping/overlap; Android Weight rich page is complete; iOS and Android XAGE payloads differ, so no pixel-equivalence claim was made"},
+      {"command": "GitHub exact-head CI for f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d", "result": "failed: https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594; backend 392/392 and JVM 232/232 succeeded, but the UI runner lacked /dev/kvm permission, silently used -accel off, became unresponsive and executed 0 tests"},
+      {"command": "old-workflow rejection plus local KVM repair gates", "result": "passed: old workflow rejected by named KVM regression; official udev/read-write admission, no software fallback, failure evidence and per-profile result isolation implemented; Python 43/43, JVM 232/232, build/lint and UI 42/42 passed"},
+      {"command": "GitHub exact-head CI for 43157811daf5db8c9ad4b59ae916234a04e21b76", "result": "failed: https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876; backend/build passed and KVM accelerated all 14 standard tests, but the clean checkout lacked local.properties/API_BASE_URL_DEBUG, selected http://10.0.2.2:8000 and the exact deterministic interceptor correctly returned 418 to 13 network-backed tests; failure evidence artifact 8994705825 was uploaded"},
+      {"command": "old-workflow origin rejection plus local deterministic-origin repair gates", "result": "passed: named regression first failed on the old workflow and then passed with one job-level API_BASE_URL_DEBUG=https://www.jianjieaitech.com/api; semantic YAML, exact Python 44/44, JVM 232/232, assemble/lint and API 35 UI 42/42 passed; no exact-origin, 418 or zero-escape guard was weakened"},
+      {"command": "GitHub exact-head CI for 5d12df5cfd90e89036cee3eeb683563860e82e98", "result": "failed: https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31181786778; backend 392/392, Python 44/44, JVM 232/232, assemble/lint, KVM and explicit origin passed; standard executed 14 with 13 pass and one Meals/Profile semantics-readiness race, compact/large stopped fail-closed; failure artifact 8995625515 was uploaded"},
+      {"command": "python3 -m unittest Android.tools.tests.test_deterministic_ui_transport_contract.DeterministicAndroidUiTransportTest.test_connected_tests_share_real_app_factory_profile_gate_and_runtime_ledger", "result": "red/green: rejected old direct text scroll, pushed 02560b0 unmerged final lookup, naive exact-target waiting, comment/direct bypass, zero-height lazy sentinel items, Medication readiness leaking into child editors, and a helper contract that did not prove supplied-root wait/use before passing the final implementation"},
+      {"command": "for attempt in 1 2 3; do ./gradlew --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.xjie.ui.profile=standard_api35 -Pandroid.testInstrumentationRunnerArguments.class=com.xjie.app.feature.xage.XAgeShellSwipeUiTest#mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage || exit 1; done", "result": "passed fail-fast: exact network-backed Meals/Profile method 3/3 with merged final semantics, scroll and visibility assertion"},
+      {"command": "./gradlew --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.xjie.ui.profile=standard_api35 -Pandroid.testInstrumentationRunnerArguments.class=com.xjie.app.feature.weight.WeightDashboardUiTest#bodyWeightDataCardOpensTheSameDedicatedWeightFlow,com.xjie.app.feature.medication.MedicationDashboardUiTest#secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard", "result": "red/green: naive exact-target wait failed on the off-screen lazy bodyWeight node; review then rejected evictable zero-height list sentinels, editor-leaking Medication readiness, and ignored-root contracts. Screen-scoped persistent non-lazy readiness plus supplied-root wait/use preserved list indices/root tags and Weight/Medication passed 2/2 on the final implementation"},
+      {"command": "GitHub exact-head CI for 02560b0e2b27799e0c28cb804ec73413075782b1", "result": "cancelled by design: https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31184274631; backend/build passed, but review superseded the candidate before UI qualification because merged-semantics strength and lazy siblings required hardening; no success is claimed"},
+      {"command": "GitHub exact-head CI and downloaded-artifact validation for 8263cefbaabfbc5cc7b3b1b0bfb38bf9934591fa", "result": "passed: https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31188223697 completed success on the exact head; backend 392/392, Python 44/44, JVM 232/232, assemble/lint, KVM, and API 35 standard/compact/large-text 14/14 each passed. Downloaded UI artifact 8998461179 (758320 bytes, sha256:433ba7dca434a238ec992bf701487d2068f903a7076fd285ebd746d74f78ced5) has exit_code=0, exact inventory, 0 failure/error/skip, and no localhost/418/unknown/empty-ledger/escaped-request marker. Backend artifact 8997691633 is exact 392/392"}
+    ],
+    "notes": [
+      "The iOS repository was read-only. No iOS file was modified or staged.",
+      "GitHub delivery uses only the Android remote named andro; origin points to the iOS repository and must never be pushed. Main-based feature SHA f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d and qualified behavior head 8263cefbaabfbc5cc7b3b1b0bfb38bf9934591fa are opened as https://github.com/doyoulikelin-wq/Xjie_andro/pull/1. The later evidence-only follow-up must pass its own exact-head CI before PR readiness or merge.",
+      "Exact-head runs https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594, https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876 and https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31181786778 remain historical failures. They respectively exposed missing hosted KVM admission, clean-checkout Debug-origin ownership, and one cold-run asynchronous Meals/Profile semantics race. Run https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31184274631 on 02560b0 remains cancelled/non-qualifying. Hardened head 8263cef passed exact-head run https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31188223697 with all three jobs green and inspected success artifacts. Evidence-head, merge SHA and final main CI remain pending and no release conclusion is claimed.",
+      "The generated Debug APK SHA-256 is 27df6b229f5b1fec4242f2e29976aedb9bf92c57a2af293a18fa89848136806f; it is test evidence, not a signed production release.",
+      "Formal Android release remains blocked by missing explicit production HTTPS URL, formal signing identity and a real candidate artifact. Production migrations/backend deployment and real-device Health Connect, notification, reboot/time-zone, TalkBack, OEM keyboard, system picker/camera and real AI/OCR/SSE remain unverified.",
+      "No .env secret, signing key, account token, raw medical material or production credential was committed. backend/analysis, backend/analysis_outputs and backend/build were excluded."
+    ]
   }
 ]

@@ -44,7 +44,7 @@
 
     <!-- 健康数据 -->
     <string name="health_data_title">健康数据</string>
-    <string name="health_data_records">历史病例</string>
+    <string name="health_data_records">就医助手</string>
     <string name="health_data_exams">历史体检</string>
     <string name="health_data_upload">拍照 / 文件上传</string>
     <string name="health_data_ai_summary">AI 健康总结</string>

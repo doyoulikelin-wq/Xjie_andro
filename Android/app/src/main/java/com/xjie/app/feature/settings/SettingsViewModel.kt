@@ -25,6 +25,8 @@ data class SettingsUiState(
     val settings: UserSettings? = null,
     val showLogoutAlert: Boolean = false,
     val showProfileEdit: Boolean = false,
+    val feedbackSubmitting: Boolean = false,
+    val deleteSubmitting: Boolean = false,
     val error: String? = null,
     val message: String? = null,
 )
@@ -43,35 +45,111 @@ class SettingsViewModel @Inject constructor(
     val omicsDemo: StateFlow<Boolean> = prefs.omicsDemoEnabled
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    fun load() = viewModelScope.launch {
-        _state.update { it.copy(loading = true) }
-        val u = repo.me()
-        val s = repo.settings()
-        _state.update { it.copy(loading = false, user = u, settings = s) }
-        // 启动 / 进入设置页时按当前设置重新调度关怀提醒，避免重启后失效
-        if (s != null) {
-            scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
+    fun load() {
+        val owner = captureOwnerOrReport() ?: return
+        _state.update { it.copy(loading = true, error = null) }
+        viewModelScope.launch {
+            runCatching {
+                repo.me(owner) to repo.settings(owner)
+            }.onSuccess { (user, settings) ->
+                if (!repo.isCurrent(owner)) return@onSuccess
+                _state.update { it.copy(loading = false, user = user, settings = settings) }
+                // 只有同一账号代次仍有效时才允许重排本机提醒。
+                if (settings != null && repo.isCurrent(owner)) {
+                    scheduler.scheduleElderlyReminders(
+                        settings.elderly_checkin_interval_min,
+                        settings.elderly_mode,
+                    )
+                }
+            }.onFailure { error -> commitAccountErrorIfCurrent(owner, error) }
         }
     }
 
-    fun updateLevel(level: String) = launchOp { _state.update { it.copy(settings = repo.updateLevel(level)) } }
-    fun updateGlucoseUnit(u: GlucoseUnit) = launchOp { _state.update { st -> st.copy(settings = repo.updateGlucoseUnit(u)) }; load() }
-    fun updateElderlyMode(enabled: Boolean) = launchOp {
-        val s = repo.updateElderlyMode(enabled)
-        _state.update { st -> st.copy(settings = s) }
-        scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
+    fun updateLevel(level: String) = launchAccountOp { owner ->
+        val settings = repo.updateLevel(owner, level)
+        commitIfCurrent(owner) { it.copy(settings = settings) }
     }
-    fun updateElderlyInterval(min: Int) = launchOp {
-        val s = repo.updateElderlyInterval(min)
-        _state.update { st -> st.copy(settings = s) }
-        scheduler.scheduleElderlyReminders(s.elderly_checkin_interval_min, s.elderly_mode)
+
+    fun updateGlucoseUnit(u: GlucoseUnit) = launchAccountOp { owner ->
+        val settings = repo.updateGlucoseUnit(owner, u)
+        commitIfCurrent(owner) { it.copy(settings = settings) }
     }
-    fun toggleAiChat() = launchOp { repo.toggleAiChat(state.value.user?.consent?.allow_ai_chat ?: false); load() }
-    fun toggleDataUpload() = launchOp { repo.toggleDataUpload(state.value.user?.consent?.allow_data_upload ?: false); load() }
+
+    fun updateElderlyMode(enabled: Boolean) = launchAccountOp { owner ->
+        val settings = repo.updateElderlyMode(owner, enabled)
+        if (!repo.isCurrent(owner)) return@launchAccountOp
+        _state.update { it.copy(settings = settings) }
+        scheduler.scheduleElderlyReminders(settings.elderly_checkin_interval_min, settings.elderly_mode)
+    }
+
+    fun updateElderlyInterval(min: Int) = launchAccountOp { owner ->
+        val settings = repo.updateElderlyInterval(owner, min)
+        if (!repo.isCurrent(owner)) return@launchAccountOp
+        _state.update { it.copy(settings = settings) }
+        scheduler.scheduleElderlyReminders(settings.elderly_checkin_interval_min, settings.elderly_mode)
+    }
+
+    fun toggleAiChat() = launchAccountOp { owner ->
+        repo.toggleAiChat(owner, state.value.user?.consent?.allow_ai_chat ?: false)
+        if (repo.isCurrent(owner)) load()
+    }
+
+    fun toggleDataUpload() = launchAccountOp { owner ->
+        repo.toggleDataUpload(owner, state.value.user?.consent?.allow_data_upload ?: false)
+        if (repo.isCurrent(owner)) load()
+    }
     fun toggleOmicsDemo(v: Boolean) = viewModelScope.launch { repo.setOmicsDemo(v) }
-    fun submitFeedback(category: String, content: String, contact: String?) = launchOp {
-        repo.submitFeedback(category, content, contact)
-        _state.update { it.copy(message = "反馈已提交") }
+    fun submitFeedback(
+        category: String,
+        content: String,
+        contact: String?,
+        onSuccess: () -> Unit = {},
+    ) {
+        if (state.value.feedbackSubmitting) return
+        val owner = captureOwnerOrReport() ?: return
+        _state.update { it.copy(feedbackSubmitting = true, error = null) }
+        viewModelScope.launch {
+            runCatching { repo.submitFeedback(owner, category, content, contact) }
+                .onSuccess {
+                    if (!repo.isCurrent(owner)) return@onSuccess
+                    _state.update { it.copy(feedbackSubmitting = false, message = "反馈已提交") }
+                    onSuccess()
+                }
+                .onFailure { error ->
+                    if (!repo.isCurrent(owner)) return@onFailure
+                    _state.update {
+                        it.copy(
+                            feedbackSubmitting = false,
+                            error = (error as? ApiException)?.message
+                                ?: error.message
+                                ?: "提交失败",
+                        )
+                    }
+                }
+        }
+    }
+
+    fun deleteAccount(onSuccess: () -> Unit = {}) {
+        if (state.value.deleteSubmitting) return
+        val owner = captureOwnerOrReport() ?: return
+        _state.update { it.copy(deleteSubmitting = true, error = null) }
+        viewModelScope.launch {
+            runCatching { repo.deleteAccount(owner) }
+                .onSuccess { clearedCurrentSession ->
+                    if (clearedCurrentSession) onSuccess()
+                }
+                .onFailure { error ->
+                    if (!repo.isCurrent(owner)) return@onFailure
+                    _state.update {
+                        it.copy(
+                            deleteSubmitting = false,
+                            error = (error as? ApiException)?.message
+                                ?: error.message
+                                ?: "注销失败",
+                        )
+                    }
+                }
+        }
     }
     fun showLogoutAlert(v: Boolean) = _state.update { it.copy(showLogoutAlert = v) }
     fun showProfileEdit(v: Boolean) = _state.update { it.copy(showProfileEdit = v) }
@@ -81,31 +159,78 @@ class SettingsViewModel @Inject constructor(
         heightCm: Double?,
         weightKg: Double?,
         displayName: String? = null,
-    ) = viewModelScope.launch {
+    ) {
+        val owner = captureOwnerOrReport() ?: return
         Log.i("XJieProfile", "PATCH request sex=$sex age=$age h=$heightCm w=$weightKg name=$displayName")
-        runCatching {
-            repo.updateProfile(sex, age, heightCm, weightKg, displayName)
-        }.onSuccess { updated ->
-            Log.i("XJieProfile", "PATCH success -> $updated")
-            // 直接以 PATCH 返回的 profile 更新本地状态，避免 me() 二次拉取导致"跳回原始数据"
-            _state.update { st ->
-                val user = st.user?.copy(profile = updated)
-                st.copy(showProfileEdit = false, user = user, error = null)
-            }
-        }.onFailure { e ->
-            Log.e("XJieProfile", "PATCH failed", e)
-            _state.update {
-                it.copy(error = (e as? ApiException)?.message ?: e.message ?: "保存失败")
+        viewModelScope.launch {
+            runCatching {
+                repo.updateProfile(owner, sex, age, heightCm, weightKg, displayName)
+            }.onSuccess { updated ->
+                if (!repo.isCurrent(owner)) return@onSuccess
+                Log.i("XJieProfile", "PATCH success -> $updated")
+                // 直接以 PATCH 返回的 profile 更新本地状态，避免 me() 二次拉取导致"跳回原始数据"
+                _state.update { st ->
+                    val user = st.user?.copy(profile = updated)
+                    st.copy(showProfileEdit = false, user = user, error = null)
+                }
+            }.onFailure { error ->
+                if (!repo.isCurrent(owner)) return@onFailure
+                Log.e("XJieProfile", "PATCH failed", error)
+                _state.update {
+                    it.copy(error = (error as? ApiException)?.message ?: error.message ?: "保存失败")
+                }
             }
         }
     }
-    fun confirmLogout() = viewModelScope.launch { repo.logout() }
+
+    fun confirmLogout() = repo.logout()
     fun clearError() = _state.update { it.copy(error = null) }
     fun clearMessage() = _state.update { it.copy(message = null) }
 
-    private fun launchOp(block: suspend () -> Unit) = viewModelScope.launch {
-        runCatching { block() }.onFailure { e ->
-            _state.update { it.copy(error = (e as? ApiException)?.message ?: e.message) }
+    private fun launchAccountOp(
+        block: suspend (com.xjie.app.core.auth.AuthManager.AccountScopeSnapshot) -> Unit,
+    ) {
+        val owner = captureOwnerOrReport() ?: return
+        viewModelScope.launch {
+            runCatching { block(owner) }.onFailure { error ->
+                if (!repo.isCurrent(owner)) return@onFailure
+                _state.update {
+                    it.copy(error = (error as? ApiException)?.message ?: error.message)
+                }
+            }
+        }
+    }
+
+    private fun captureOwnerOrReport() = repo.captureOwner().also { owner ->
+        if (owner == null) {
+            _state.update {
+                it.copy(
+                    loading = false,
+                    feedbackSubmitting = false,
+                    deleteSubmitting = false,
+                    error = "登录已失效，请重新登录后再试。",
+                )
+            }
+        }
+    }
+
+    private fun commitIfCurrent(
+        owner: com.xjie.app.core.auth.AuthManager.AccountScopeSnapshot,
+        update: (SettingsUiState) -> SettingsUiState,
+    ) {
+        if (repo.isCurrent(owner)) _state.update(update)
+    }
+
+    private fun commitAccountErrorIfCurrent(
+        owner: com.xjie.app.core.auth.AuthManager.AccountScopeSnapshot,
+        error: Throwable,
+    ) {
+        if (!repo.isCurrent(owner)) return
+        _state.update {
+            it.copy(
+                loading = false,
+                error = (error as? ApiException)?.message ?: error.message ?: "读取设置失败",
+            )
         }
     }
 }

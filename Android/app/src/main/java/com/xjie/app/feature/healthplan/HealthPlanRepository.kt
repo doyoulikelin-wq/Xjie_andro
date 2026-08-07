@@ -1,5 +1,6 @@
 package com.xjie.app.feature.healthplan
 
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
@@ -26,6 +27,9 @@ class HealthPlanRepository @Inject constructor(
 ) {
     suspend fun plans(): HealthPlanListResponse =
         safeApiCall(json) { api.listPlans() }
+
+    suspend fun plans(owner: AuthManager.AccountScopeSnapshot): HealthPlanListResponse =
+        safeApiCall(json) { api.listPlansForOwner(owner) }
 
     suspend fun detail(id: String): HealthPlanDetail =
         safeApiCall(json) { api.planDetail(id) }

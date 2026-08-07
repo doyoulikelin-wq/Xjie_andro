@@ -1,6 +1,7 @@
 package com.xjie.app.core.model
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class HealthDataSummary(
@@ -33,12 +34,205 @@ data class HealthDocument(
     val doc_type: String? = null,
     val source_type: String? = null,
     val extraction_status: String? = null,
+    /** Structured history metadata; do not infer the hospital from a display title. */
+    val hospital: String? = null,
     val doc_date: String? = null,
+    /** Fallback ordering evidence when the medical date is not yet confirmed. */
+    val created_at: String? = null,
     val csv_data: CsvData? = null,
     val abnormal_flags: List<AbnormalFlag>? = null,
     val ai_brief: String? = null,
     val ai_summary: String? = null,
     val file_url: String? = null,
+    /**
+     * Optional trust-workflow fields are additive so older servers and cached documents remain
+     * decodable. A legacy `extraction_status=done` without a workflow is deliberately unverified.
+     */
+    val report_workflow_id: Int? = null,
+    val report_workflow_status: String? = null,
+    val report_subject_user_id: Long? = null,
+    val report_duplicate: Boolean = false,
+)
+
+@Serializable
+data class HealthReportCandidate(
+    val candidate_id: Int,
+    val candidate_key: String,
+    val version: Int,
+    val canonical_code: String? = null,
+    val canonical_name: String,
+    val raw_name: String,
+    val raw_value: String? = null,
+    val raw_unit: String? = null,
+    val normalized_value: Double? = null,
+    val normalized_text: String? = null,
+    val normalized_unit: String? = null,
+    val reference_low: Double? = null,
+    val reference_high: Double? = null,
+    val reference_text: String? = null,
+    val abnormal_state: String,
+    val confidence: Double? = null,
+    val low_confidence: Boolean = false,
+    val conflict_reasons: List<String> = emptyList(),
+    val effective_at: String? = null,
+    val source_locator: Map<String, JsonElement> = emptyMap(),
+    val review_status: String,
+    val requires_review: Boolean,
+)
+
+@Serializable
+data class HealthReportReview(
+    val workflow_id: Int,
+    val legacy_document_id: Int? = null,
+    val subject_user_id: Long,
+    val status: String,
+    val version: Int,
+    val report_type: String,
+    val document_fingerprint: String? = null,
+    val recognized_at: String? = null,
+    val confirmed_at: String? = null,
+    val completed_at: String? = null,
+    val confirmation_client_event_id: String? = null,
+    val failure_code: String? = null,
+    val failure_detail: String? = null,
+    val failure_recovery: HealthReportFailureRecovery? = null,
+    val pending_review_count: Int,
+    val auto_accepted_count: Int,
+    val admitted_observation_count: Int,
+    val requires_report_confirmation: Boolean,
+    val can_confirm: Boolean,
+    val document: HealthDocument? = null,
+    val candidates: List<HealthReportCandidate> = emptyList(),
+)
+
+@Serializable
+data class HealthReportConfirmationEvent(
+    val event_id: Int,
+    val candidate_id: Int,
+    val event_type: String,
+    val candidate_version: Int,
+    val before_data: Map<String, JsonElement> = emptyMap(),
+    val after_data: Map<String, JsonElement> = emptyMap(),
+    val created_at: String,
+)
+
+@Serializable
+data class HealthReportObservation(
+    val observation_id: Int,
+    val source_candidate_id: Int,
+    val confirmation_event_id: Int,
+    val canonical_code: String? = null,
+    val canonical_name: String,
+    val value_numeric: Double? = null,
+    val value_text: String? = null,
+    val unit: String? = null,
+    val reference_low: Double? = null,
+    val reference_high: Double? = null,
+    val reference_text: String? = null,
+    val abnormal_state: String,
+    val effective_at: String,
+    val confirmed_at: String,
+)
+
+@Serializable
+data class HealthReportProfileImpact(
+    val profile_candidate_id: Int,
+    val source_id: Int,
+    val source_observation_id: Int,
+    val fact_key: String,
+    val category: String,
+    val proposed_value: Map<String, JsonElement> = emptyMap(),
+    val review_status: String,
+    val confidence: Double? = null,
+)
+
+@Serializable
+data class HealthReportScoreSnapshot(
+    val snapshot_id: Int,
+    val score_kind: String,
+    val algorithm_id: String,
+    val algorithm_version: String,
+    val before_value: Double? = null,
+    val after_value: Double? = null,
+    val before_confidence: Double? = null,
+    val after_confidence: Double? = null,
+    val score_direction: String? = null,
+    val semantic_outcome: String? = null,
+    val calculation_status: String,
+    val evidence: Map<String, JsonElement> = emptyMap(),
+    val missing_inputs: Map<String, JsonElement> = emptyMap(),
+    val failure_code: String? = null,
+    val computed_at: String? = null,
+)
+
+@Serializable
+data class HealthReportFollowUp(
+    val available: Boolean,
+    val items: List<String> = emptyList(),
+    val unavailable_reason: String? = null,
+)
+
+@Serializable
+data class HealthReportInterpretation(
+    val workflow_id: Int,
+    val subject_user_id: Long,
+    val status: String,
+    val available: Boolean,
+    val unavailable_reason: String? = null,
+    val non_diagnostic_notice: String,
+    val document: HealthDocument? = null,
+    val candidates: List<HealthReportCandidate> = emptyList(),
+    val confirmation_events: List<HealthReportConfirmationEvent> = emptyList(),
+    val structured_additions: List<HealthReportObservation> = emptyList(),
+    val major_abnormalities: List<HealthReportObservation> = emptyList(),
+    val follow_up: HealthReportFollowUp,
+    val profile_impacts: List<HealthReportProfileImpact> = emptyList(),
+    val score_state: String,
+    val score_pending: Boolean,
+    val score_snapshots: List<HealthReportScoreSnapshot> = emptyList(),
+)
+
+@Serializable
+data class HealthReportFailureRecovery(
+    val failure_code: String,
+    val recovery_action: String,
+    val retryable: Boolean,
+    val allows_manual_candidate: Boolean,
+)
+
+@Serializable
+data class HealthReportManualCandidateBody(
+    val subject_user_id: Long,
+    val workflow_version: Int,
+    val client_event_id: String,
+    val canonical_code: String? = null,
+    val canonical_name: String,
+    val raw_name: String,
+    val value_numeric: Double? = null,
+    val value_text: String? = null,
+    val unit: String? = null,
+    val reference_low: Double? = null,
+    val reference_high: Double? = null,
+    val reference_text: String? = null,
+    val effective_at: String? = null,
+)
+
+@Serializable
+data class HealthReportDecisionBody(
+    val candidate_id: Int,
+    val candidate_version: Int,
+    val action: String,
+    val value_numeric: Double? = null,
+    val value_text: String? = null,
+    val unit: String? = null,
+)
+
+@Serializable
+data class HealthReportConfirmBody(
+    val subject_user_id: Long,
+    val client_event_id: String,
+    val workflow_version: Int,
+    val decisions: List<HealthReportDecisionBody> = emptyList(),
 )
 
 @Serializable
@@ -144,6 +338,15 @@ data class TrendPoint(
     val date: String,
     val value: Double,
     val abnormal: Boolean,
+    /** Optional provenance fields are additive so legacy trend responses still decode. */
+    val source: String? = null,
+    val measured_at: String? = null,
+    val source_metric: String? = null,
+    val source_id: String? = null,
+    val value_kind: String? = null,
+    val display_value: String? = null,
+    val source_local_date: String? = null,
+    val timezone_offset_minutes: Int? = null,
 )
 
 @Serializable

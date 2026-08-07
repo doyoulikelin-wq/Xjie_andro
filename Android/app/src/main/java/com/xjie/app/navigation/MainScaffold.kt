@@ -56,72 +56,45 @@ fun MainScaffold(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 4.dp, bottom = 6.dp),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
-                shadowElevation = 14.dp,
-                border = BorderStroke(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
-                ),
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp,
-                    windowInsets = WindowInsets(0.dp),
-                ) {
-                    val backStack by navController.currentBackStackEntryAsState()
-                    val currentDest = backStack?.destination
-                    tabs.forEach { tab ->
-                        val selected = isTabSelected(tab.route, currentDest)
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                val current = currentDest?.route
-                                if (current == tab.route.path) return@NavigationBarItem
-                                // 先把所有非 tab 的二级页面（如血糖/膳食/健康详情等）弹出，
-                                // 避免它们被作为 tab 的保存状态恢复。
-                                val startId = navController.graph.findStartDestination().id
-                                navController.popBackStack(startId, inclusive = false)
-                                if (tab.route != Route.Home) {
-                                    navController.navigate(tab.route.path) {
-                                        popUpTo(startId) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        )
-                    }
-                }
-            }
-        },
     ) { padding: PaddingValues ->
         androidx.compose.foundation.layout.Column(Modifier.padding(padding).fillMaxSize()) {
             OfflineBanner(isOnline = isOnline)
             NavHost(
                 navController = navController,
-                startDestination = Route.Home.path,
+                startDestination = Route.XAgeShell.path,
                 modifier = Modifier.fillMaxSize(),
             ) {
+                composable(Route.XAgeShell.path) {
+                    com.xjie.app.feature.xage.XAgeMainScreen(
+                        onOpenPanelDestination = { destination ->
+                            val path = when (destination) {
+                                "meals" -> Route.Meals.path
+                                "mood" -> Route.Mood.path
+                                "weight" -> Route.Weight.path
+                                "reports" -> Route.ExamReports.path
+                                "medications" -> Route.Medications.path
+                                "health_plan" -> Route.HealthPlan.path
+                                "medical" -> Route.MedicalAssistant.path
+                                "profile" -> Route.PatientHistory.path
+                                "device" -> Route.SettingsFocus("device").path
+                                "account" -> Route.SettingsFocus("account").path
+                                "family" -> Route.FamilyMode.path
+                                "support" -> Route.SettingsFocus("support").path
+                                "support_help" -> Route.SettingsFocus("support_help").path
+                                "support_version" -> Route.SettingsFocus("support_version").path
+                                "support_privacy" -> Route.SettingsFocus("support_privacy").path
+                                "support_permissions" -> Route.SettingsFocus("support_permissions").path
+                                "support_feedback" -> Route.SettingsFocus("support_feedback").path
+                                "daily" -> Route.Health.path
+                                else -> null
+                            }
+                            path?.let { navController.navigate(it) { launchSingleTop = true } }
+                        },
+                    )
+                }
                 composable(Route.Home.path) {
                     com.xjie.app.feature.home.HomeScreen(
+                        onBack = { navController.popBackStack() },
                         onOpenSettings = { navController.navigate(Route.Settings.path) },
                         onOpenGlucose = { navController.navigate(Route.Glucose.path) },
                         onOpenMeals = { navController.navigate(Route.Meals.path) },
@@ -168,13 +141,21 @@ fun MainScaffold(
                 }
                 composable(Route.HealthData.path) {
                     com.xjie.app.feature.healthdata.HealthDataScreen(
-                        onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
+                        onOpenRecords = { navController.navigate(Route.MedicalAssistant.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Route.Weight.path) {
+                    com.xjie.app.feature.weight.WeightScreen(
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.HealthPlan.path) {
-                    com.xjie.app.feature.healthplan.HealthPlanScreen()
+                    com.xjie.app.feature.healthplan.HealthPlanScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
                 composable(
                     Route.HealthDataFocus.PATTERN,
@@ -184,17 +165,21 @@ fun MainScaffold(
                 ) { entry ->
                     val focus = entry.arguments?.getString("focus")
                     com.xjie.app.feature.healthdata.HealthDataScreen(
-                        onOpenRecords = { navController.navigate(Route.MedicalRecords.path) },
+                        onOpenRecords = { navController.navigate(Route.MedicalAssistant.path) },
                         onOpenExams = { navController.navigate(Route.ExamReports.path) },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                         initialFocus = focus,
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.Omics.path) {
-                    com.xjie.app.feature.omics.OmicsScreen()
+                    com.xjie.app.feature.omics.OmicsScreen(
+                        onBack = { navController.popBackStack() },
+                    )
                 }
                 composable(Route.Chat.path) {
                     com.xjie.app.feature.chat.ChatScreen(
+                        onBack = { navController.popBackStack() },
                         onOpenPatientHistory = { navController.navigate(Route.PatientHistory.path) },
                     )
                 }
@@ -204,20 +189,30 @@ fun MainScaffold(
                         onOpenHealthDataFocus = { focus ->
                             navController.navigate(Route.HealthDataFocus(focus).path)
                         },
+                        onOpenMedications = { navController.navigate(Route.Medications.path) },
+                        onOpenHealthPlan = { navController.navigate(Route.HealthPlan.path) },
                     )
                 }
                 composable(Route.MedicalRecords.path) {
                     com.xjie.app.feature.healthdata.DocumentListScreen(
                         docType = "record",
-                        title = "历史病例",
+                        title = "就医助手",
                         onBack = { navController.popBackStack() },
                         onItemClick = { id -> navController.navigate("document/$id") },
+                    )
+                }
+                composable(Route.MedicalAssistant.path) {
+                    com.xjie.app.feature.medicalassistant.MedicalAssistantScreen(
+                        onClose = { navController.popBackStack() },
+                        onOpenDocument = { id ->
+                            navController.navigate(Route.DocumentDetail(id).path)
+                        },
                     )
                 }
                 composable(Route.ExamReports.path) {
                     com.xjie.app.feature.healthdata.DocumentListScreen(
                         docType = "exam",
-                        title = "历史体检",
+                        title = "健康报告",
                         onBack = { navController.popBackStack() },
                         onItemClick = { id -> navController.navigate("document/$id") },
                     )
@@ -229,6 +224,17 @@ fun MainScaffold(
                         onOpenElderlyHistory = { navController.navigate(Route.ElderlyHistory.path) },
                         onOpenFamily = { navController.navigate(Route.FamilyMode.path) },
                         onOpenMedications = { navController.navigate(Route.Medications.path) },
+                    )
+                }
+                composable(
+                    Route.SettingsFocus.PATTERN,
+                    arguments = listOf(androidx.navigation.navArgument("focus") {
+                        type = androidx.navigation.NavType.StringType
+                    }),
+                ) { entry ->
+                    com.xjie.app.feature.settings.SettingsScreen(
+                        initialSection = entry.arguments?.getString("focus"),
+                        onBack = { navController.popBackStack() },
                     )
                 }
                 composable(Route.FamilyMode.path) {

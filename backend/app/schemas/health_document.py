@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -30,6 +30,13 @@ class HealthDocumentOut(BaseModel):
     extraction_status: str
     created_at: datetime
     file_url: str | None = None
+    # OCR completion is deliberately separate from trusted report admission.
+    # These optional fields keep the legacy upload/document response compatible
+    # while giving new clients an explicit workflow to poll and review.
+    report_workflow_id: int | None = None
+    report_workflow_status: str | None = None
+    report_subject_user_id: int | None = None
+    report_duplicate: bool = False
 
 
 class HealthDocumentCreate(BaseModel):
@@ -65,6 +72,14 @@ class TrendPoint(BaseModel):
     date: str
     value: float
     abnormal: bool = False
+    source: str | None = None
+    measured_at: str | None = None
+    source_metric: str | None = None
+    source_id: str | None = None
+    value_kind: str = "numeric"
+    display_value: str | None = None
+    source_local_date: date | None = None
+    timezone_offset_minutes: int | None = None
 
 
 class IndicatorTrend(BaseModel):
@@ -165,3 +180,26 @@ class PatientHistoryProfileIn(BaseModel):
     doctor_summary: str = ""
     sections: dict[str, PatientHistoryField] = {}
     verified_at: datetime | None = None
+
+
+class MedicalAssistantRecentDocumentOut(BaseModel):
+    """就医助手首页显示的最近上传资料。"""
+
+    document_id: str
+    title: str
+    hospital: str | None = None
+    document_date: datetime | None = None
+    uploaded_at: datetime
+    status: str
+
+
+class MedicalAssistantOverviewOut(BaseModel):
+    """服务端权威病人概况及其新鲜度证据。"""
+
+    subject_user_id: int
+    summary: str = ""
+    generated_at: datetime | None = None
+    latest_report_uploaded_at: datetime | None = None
+    report_count_last_year: int = 0
+    recent_documents: list[MedicalAssistantRecentDocumentOut] = Field(default_factory=list)
+    generation_result: str = "loaded"

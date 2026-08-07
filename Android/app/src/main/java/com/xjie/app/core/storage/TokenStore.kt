@@ -38,13 +38,29 @@ class TokenStore @Inject constructor(
         get() = prefs.getString(K_SUBJECT, "").orEmpty()
         set(v) { prefs.edit().putString(K_SUBJECT, v).apply() }
 
-    fun clear() {
-        prefs.edit().clear().apply()
+    /**
+     * Monotonic account/subject generation. This key deliberately survives logout so a
+     * process-local A -> B -> A transition can never make an earlier A snapshot current.
+     */
+    var authGeneration: Long
+        get() = prefs.getLong(K_GENERATION, 0L).coerceAtLeast(0L)
+        set(v) {
+            require(v >= authGeneration) { "auth generation cannot move backwards" }
+            prefs.edit().putLong(K_GENERATION, v).apply()
+        }
+
+    fun clearAuth() {
+        prefs.edit()
+            .remove(K_ACCESS)
+            .remove(K_REFRESH)
+            .remove(K_SUBJECT)
+            .apply()
     }
 
     private companion object {
         const val K_ACCESS = "auth_token"
         const val K_REFRESH = "auth_refresh_token"
         const val K_SUBJECT = "auth_subject_id"
+        const val K_GENERATION = "auth_generation"
     }
 }

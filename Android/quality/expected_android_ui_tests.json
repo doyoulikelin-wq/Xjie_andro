@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "required_result_sets": [
+    "compact_api35",
+    "large_text_api35",
+    "standard_api35"
+  ],
+  "tests": [
+    "com.xjie.app.feature.healthdata.HealthReportDashboardUiTest.scorePendingDashboardHasOnePrimaryUploadAndNoInternalIdentifiers",
+    "com.xjie.app.feature.healthdata.HealthReportLocalOriginalStoreDeviceTest.productionStorePersistsExactBytesOnlyBelowNoBackupRootOnApi35",
+    "com.xjie.app.feature.login.LoginLegalConsentUiTest.registrationRequiresTwoExplicitAgreementsAndLegalDocumentsRemainReadable",
+    "com.xjie.app.feature.medication.MedicationDashboardUiTest.nextDoseIsDominantAndEveryPrimaryActionRemainsIndependentlyAccessible",
+    "com.xjie.app.feature.medication.MedicationDashboardUiTest.secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard",
+    "com.xjie.app.feature.weight.WeightDashboardUiTest.bodyWeightDataCardOpensTheSameDedicatedWeightFlow",
+    "com.xjie.app.feature.weight.WeightDashboardUiTest.quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.capsuleTapsAndHorizontalSwipesShareOnePageState",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.medicalAssistantUsesDeterministicOverviewAndReturnsToDataPage",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.moreMenuRoutesDeviceAndSupportWithoutDeadAffordances",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.quickActionsAreExactAndAccessibilityReorderable",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.swipingFocusedChatInputUsesStubbedAnswerAndClearsEditorPage",
+    "com.xjie.app.feature.xage.XAgeShellSwipeUiTest.zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning"
+  ]
+}

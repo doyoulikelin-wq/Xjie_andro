@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.alpha
 import androidx.compose.material.icons.Icons
@@ -42,10 +43,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,6 +74,22 @@ fun ChatScreen(
     val snackbar = remember { SnackbarHostState() }
     val listState = rememberLazyListState()
     val focus = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    fun dismissKeyboard() {
+        focus.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+    val dismissKeyboardOnScroll = remember(focus, keyboardController) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: androidx.compose.ui.input.nestedscroll.NestedScrollSource): Offset {
+                if (available.y != 0f) {
+                    focus.clearFocus(force = true)
+                    keyboardController?.hide()
+                }
+                return Offset.Zero
+            }
+        }
+    }
     val speechLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -90,10 +112,13 @@ fun ChatScreen(
             onInitialPromptConsumed()
         }
     }
-    LaunchedEffect(state.messages.size) {
-        if (state.messages.isNotEmpty()) {
-            listState.animateScrollToItem(state.messages.size - 1)
+    LaunchedEffect(state.messages.size, state.sending, state.thinkingHint) {
+        val bottomIndex = when {
+            state.messages.isEmpty() -> 1
+            state.sending -> state.messages.size + 1
+            else -> state.messages.size
         }
+        listState.scrollToItem(bottomIndex)
     }
     LaunchedEffect(state.error) {
         state.error?.let { snackbar.showSnackbar(it); vm.clearError() }
@@ -110,7 +135,10 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = {
+                            dismissKeyboard()
+                            onBack()
+                        }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                         }
                     } else if (state.isViewingHistory) {
@@ -126,7 +154,10 @@ fun ChatScreen(
                                     RoundedCornerShape(50),
                                 )
                                 .background(MaterialTheme.colorScheme.surface)
-                                .clickable { vm.newChat() }
+                                .clickable {
+                                    dismissKeyboard()
+                                    vm.newChat()
+                                }
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                         ) {
                             Text(
@@ -139,7 +170,10 @@ fun ChatScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = vm::toggleHistory) {
+                    IconButton(onClick = {
+                        dismissKeyboard()
+                        vm.toggleHistory()
+                    }) {
                         Icon(
                             Icons.Filled.History,
                             "历史",
@@ -154,9 +188,9 @@ fun ChatScreen(
                 value = state.input,
                 sending = state.sending,
                 onValueChange = vm::setInput,
-                onSend = { focus.clearFocus(); vm.send() },
+                onSend = { dismissKeyboard(); vm.send() },
                 onVoice = {
-                    focus.clearFocus()
+                    dismissKeyboard()
                     speechLauncher.launch(
                         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -173,8 +207,9 @@ fun ChatScreen(
             modifier = Modifier
                 .padding(inner)
                 .fillMaxSize()
+                .nestedScroll(dismissKeyboardOnScroll)
                 .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focus.clearFocus() })
+                    detectTapGestures(onTap = { dismissKeyboard() })
                 }
                 .padding(horizontal = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -196,6 +231,7 @@ fun ChatScreen(
             if (state.sending) {
                 item { ThinkingIndicator(hint = state.thinkingHint) }
             }
+            item(key = "chat-bottom-anchor") { Spacer(Modifier.height(1.dp)) }
         }
     }
 
@@ -206,6 +242,25 @@ fun ChatScreen(
             onDelete = vm::deleteConversation,
             onLoadMore = vm::loadMoreConversations,
             onDismiss = vm::toggleHistory,
+        )
+    }
+
+    if (state.showAiConsentPrompt) {
+        AlertDialog(
+            onDismissRequest = vm::declineAiConsent,
+            title = { Text("开启 AI 健康问答") },
+            text = {
+                Text("小捷需要读取你已授权的健康档案和当前会话来生成个性化回答。只有你明确同意后才会继续处理这条消息。")
+            },
+            dismissButton = {
+                TextButton(onClick = vm::declineAiConsent) { Text("暂不开启") }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    dismissKeyboard()
+                    vm.grantAiConsentAndRetry()
+                }) { Text("同意并继续") }
+            },
         )
     }
 }
@@ -322,7 +377,7 @@ private fun MessageBubble(
                 }
             } else {
                 MarkdownText(msg.content)
-                msg.analysis?.takeIf { it.isNotBlank() }?.let { a ->
+                msg.analysis?.takeIf { msg.hasDistinctAnalysis }?.let { a ->
                     var expanded by remember { mutableStateOf(false) }
                     TextButton(onClick = { expanded = !expanded },
                         contentPadding = PaddingValues(0.dp)) {
@@ -331,8 +386,9 @@ private fun MessageBubble(
                     }
                     if (expanded) MarkdownText(a)
                 }
-                if (msg.citations.isNotEmpty()) {
-                    CitationSection(msg.citations)
+                val citationReferences = msg.relevantCitationReferences
+                if (citationReferences.isNotEmpty()) {
+                    CitationSection(citationReferences)
                 }
                 msg.followups?.takeIf { it.isNotEmpty() }?.let { fups ->
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -392,7 +448,7 @@ private fun ThinkingIndicator(hint: String) {
             BouncingDots()
             Spacer(Modifier.width(10.dp))
             Text(
-                hint.ifEmpty { "正在为您精准智能分析…" },
+                hint.ifEmpty { "仍在等待回答完成…" },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -428,8 +484,8 @@ private fun BouncingDots() {
 }
 
 @Composable
-private fun CitationSection(citations: List<Citation>) {
-    var selected by remember { mutableStateOf<Citation?>(null) }
+private fun CitationSection(references: List<ChatCitationReference>) {
+    var selected by remember { mutableStateOf<ChatCitationReference?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             "参考文献",
@@ -437,17 +493,18 @@ private fun CitationSection(citations: List<Citation>) {
             fontWeight = FontWeight.SemiBold,
             color = MaterialTheme.colorScheme.primary,
         )
-        citations.forEachIndexed { idx, c ->
+        references.forEach { reference ->
+            val c = reference.citation
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(6.dp))
-                    .clickable { selected = c }
+                    .clickable { selected = reference }
                     .padding(vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "[${idx + 1}]",
+                    "[${reference.number}]",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.primary,
@@ -475,11 +532,21 @@ private fun CitationSection(citations: List<Citation>) {
             }
         }
     }
-    selected?.let { CitationDetailDialog(citation = it, onDismiss = { selected = null }) }
+    selected?.let {
+        CitationDetailDialog(
+            citation = it.citation,
+            referenceNumber = it.number,
+            onDismiss = { selected = null },
+        )
+    }
 }
 
 @Composable
-private fun CitationDetailDialog(citation: Citation, onDismiss: () -> Unit) {
+private fun CitationDetailDialog(
+    citation: Citation,
+    referenceNumber: Int,
+    onDismiss: () -> Unit,
+) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } },
@@ -499,19 +566,29 @@ private fun CitationDetailDialog(citation: Citation, onDismiss: () -> Unit) {
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    citation.short_ref,
+                    "[$referenceNumber] ${citation.short_ref}",
                     style = MaterialTheme.typography.titleSmall,
                 )
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 460.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 Text(citation.claim_text, style = MaterialTheme.typography.bodyMedium)
                 HorizontalDivider()
                 CitationMetaRow("证据等级", evidenceLabel(citation.evidence_level))
                 CitationMetaRow("期刊", citation.journal ?: "—")
                 CitationMetaRow("年份", citation.year?.toString() ?: "—")
                 CitationMetaRow("样本量", citation.sample_size?.let { "n = $it" } ?: "—")
+                CitationMetaRow("研究人群", citation.population ?: "—")
+                CitationMetaRow(
+                    "研究设计",
+                    ChatPresentationPolicy.studyDesignDisplayText(citation.study_design) ?: "—",
+                )
                 CitationMetaRow("可信度", citation.confidence)
                 Text(
                     "仅作健康管理参考，不构成诊断或治疗建议。",
@@ -575,12 +652,14 @@ private fun InputBar(
             OutlinedTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
                 placeholder = { Text("输入消息...") },
                 maxLines = 4,
                 enabled = !sending,
                 shape = RoundedCornerShape(20.dp),
                 singleLine = false,
+                modifier = Modifier
+                    .weight(1f)
+                    .testTag("chat.input"),
             )
             Spacer(Modifier.width(8.dp))
             IconButton(
@@ -598,6 +677,7 @@ private fun InputBar(
             TextButton(
                 onClick = onSend,
                 enabled = canSend,
+                modifier = Modifier.testTag("chat.send"),
             ) {
                 Text(
                     "发送",

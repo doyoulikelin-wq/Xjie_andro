@@ -2,15 +2,10 @@ package com.xjie.app.feature.login
 
 import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.AuthResponse
-import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
 import com.xjie.app.core.model.LoginPhoneBody
 import com.xjie.app.core.model.LoginSubjectBody
-import com.xjie.app.core.model.OnboardingNeedsRequest
 import com.xjie.app.core.model.SubjectItem
-import com.xjie.app.core.model.UpdateConsentBody
 import com.xjie.app.core.network.api.AuthApi
-import com.xjie.app.core.network.api.HealthPlanApi
-import com.xjie.app.core.network.api.UserApi
 import com.xjie.app.core.network.safeApiCall
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -19,9 +14,8 @@ import javax.inject.Singleton
 @Singleton
 class LoginRepository @Inject constructor(
     private val authApi: AuthApi,
-    private val userApi: UserApi,
-    private val healthPlanApi: HealthPlanApi,
     private val authManager: AuthManager,
+    private val signupPostSessionCoordinator: SignupPostSessionCoordinator,
     private val json: Json,
 ) {
     suspend fun loadSubjects(): List<SubjectItem> =
@@ -31,8 +25,11 @@ class LoginRepository @Inject constructor(
         val res: AuthResponse = safeApiCall(json) {
             authApi.loginSubject(LoginSubjectBody(subjectId))
         }
-        authManager.setAuth(res.access_token, res.refresh_token.orEmpty())
-        authManager.setSubject(subjectId)
+        authManager.establishSession(
+            accessToken = res.access_token,
+            refreshToken = res.refresh_token.orEmpty(),
+            subjectId = subjectId,
+        )
     }
 
     suspend fun loginOrSignupPhone(
@@ -61,45 +58,24 @@ class LoginRepository @Inject constructor(
         val res: AuthResponse = safeApiCall(json) {
             if (signup) authApi.signup(body) else authApi.login(body)
         }
-        authManager.setAuth(res.access_token, res.refresh_token.orEmpty())
-        // 自动开启 AI 聊天授权（与 iOS 行为一致，失败忽略）
-        runCatching {
-            safeApiCall(json) {
-                userApi.updateConsent(UpdateConsentBody(allow_ai_chat = true))
-            }
-        }
+        // Phone login replaces the complete account session. It must not inherit a health
+        // subject or AI consent from whichever subject/account was active before login.
+        authManager.establishSession(
+            accessToken = res.access_token,
+            refreshToken = res.refresh_token.orEmpty(),
+            subjectId = "",
+        )
         if (signup) {
-            val contents = onboardingContents.distinct().sorted()
-            runCatching {
-                safeApiCall(json) {
-                    userApi.updateOnboarding(
-                        OnboardingNeedsRequest(
-                            target = onboardingTarget,
-                            contents = contents,
-                            generate_plan = onboardingGeneratePlan,
-                            completed = true,
-                        )
-                    )
-                }
-            }
-            if (onboardingGeneratePlan) {
-                val planContents = contents.filterNot { it == "glucose" || it == "weight" || it == "blood_pressure" }
-                runCatching {
-                    safeApiCall(json) {
-                        healthPlanApi.createFromQuestionnaire(
-                            HealthPlanQuestionnaireRequest(
-                                target = onboardingTarget ?: "控糖稳定",
-                                duration_days = 7,
-                                frequency = "daily",
-                                contents = planContents,
-                                medication_needed = contents.contains("medication") && medicationNeeded,
-                                notes = "注册末步生成的首个健康计划",
-                                title = "${onboardingTarget ?: "控糖稳定"}健康计划",
-                            )
-                        )
-                    }
-                }
-            }
+            val owner = authManager.captureAccountScope() ?: return
+            signupPostSessionCoordinator.enqueue(
+                owner,
+                SignupPostSessionRequest(
+                    target = onboardingTarget,
+                    contents = onboardingContents,
+                    generatePlan = onboardingGeneratePlan,
+                    medicationNeeded = medicationNeeded,
+                ),
+            )
         }
     }
 }

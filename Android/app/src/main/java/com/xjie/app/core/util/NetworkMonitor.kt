@@ -6,9 +6,7 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
@@ -28,15 +26,18 @@ class NetworkMonitor @Inject constructor(
             .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
             .build()
 
-        // Initialize current state
-        val active = cm.activeNetwork
-        val caps = active?.let { cm.getNetworkCapabilities(it) }
-        _isOnline.value = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        fun updateOnlineState() {
+            val active = cm.activeNetwork
+            val caps = active?.let { cm.getNetworkCapabilities(it) }
+            _isOnline.value = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        }
+
+        updateOnlineState()
 
         cm.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { _isOnline.value = true }
-            override fun onLost(network: Network) { _isOnline.value = false }
-            override fun onUnavailable() { _isOnline.value = false }
+            override fun onAvailable(network: Network) { updateOnlineState() }
+            override fun onLost(network: Network) { updateOnlineState() }
+            override fun onUnavailable() { updateOnlineState() }
         })
     }
 }

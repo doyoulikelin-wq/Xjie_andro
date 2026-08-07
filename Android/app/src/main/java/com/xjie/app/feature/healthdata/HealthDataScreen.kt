@@ -9,9 +9,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -45,18 +43,27 @@ fun HealthDataScreen(
     onOpenExams: () -> Unit,
     onOpenPatientHistory: () -> Unit,
     initialFocus: String? = null,
+    onBack: (() -> Unit)? = null,
     vm: HealthDataViewModel = hiltViewModel(),
 ) {
     val state by vm.state.collectAsState()
     val snackbar = remember { SnackbarHostState() }
-    var showUploadSheet by remember { mutableStateOf(false) }
+    var pendingRecoveryAssetIndex by remember { mutableStateOf<Int?>(null) }
 
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
     ) { uri ->
         if (uri != null) {
             val name = uri.lastPathSegment ?: "file"
-            vm.uploadFile(uri, name)
+            val recoveryIndex = pendingRecoveryAssetIndex
+            pendingRecoveryAssetIndex = null
+            if (recoveryIndex != null) {
+                vm.recoverReportFile(uri, name, recoveryIndex)
+            } else {
+                vm.uploadFile(uri, name)
+            }
+        } else {
+            pendingRecoveryAssetIndex = null
         }
     }
 
@@ -70,7 +77,18 @@ fun HealthDataScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { TopAppBar(title = { BrandTitle("健康数据") }) },
+        topBar = {
+            TopAppBar(
+                title = { BrandTitle("健康数据") },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
+                    }
+                },
+            )
+        },
     ) { inner ->
         Column(
             Modifier
@@ -84,6 +102,21 @@ fun HealthDataScreen(
                 FocusHintCard(focus = focus)
             }
 
+            HealthReportDashboardContent(
+                state = state.reportDashboard,
+                onUpload = {
+                    vm.setUploadDocType("exam")
+                    filePicker.launch("*/*")
+                },
+                onOpenReport = { onOpenExams() },
+                onRefresh = vm::refreshReports,
+                onRecoverAsset = { assetIndex ->
+                    pendingRecoveryAssetIndex = assetIndex
+                    filePicker.launch("*/*")
+                },
+                onAbandonRecovery = vm::abandonReportRecovery,
+            )
+
             AiSummaryCard(state, vm::generateSummary)
 
             PatientHistoryEntryCard(onClick = onOpenPatientHistory)
@@ -94,7 +127,7 @@ fun HealthDataScreen(
 
             SectionRow(
                 Icons.Filled.LocalHospital,
-                "历史病例", state.recordCount, onOpenRecords,
+                "就医助手", state.recordCount, onOpenRecords,
                 highlighted = initialFocus == "records",
             )
             SectionRow(
@@ -103,124 +136,7 @@ fun HealthDataScreen(
                 highlighted = initialFocus == "exams",
             )
 
-            OutlinedButton(
-                onClick = { showUploadSheet = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (initialFocus == "upload") {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                    } else {
-                        Color.Transparent
-                    },
-                ),
-                border = BorderStroke(
-                    1.dp,
-                    if (initialFocus == "upload") {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                    } else {
-                        MaterialTheme.colorScheme.outline
-                    },
-                ),
-            ) {
-                Icon(Icons.Filled.CloudUpload, null)
-                Spacer(Modifier.width(6.dp))
-                Text("拍照 / 文件上传")
-            }
-
-            if (state.uploading) {
-                Column(
-                    Modifier.cardStyle(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            state.uploadStage.ifBlank { "正在上传…" },
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                    Text(
-                        "上传完成后会转入后台识别，您可以随时离开此页。",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-
-            state.backgroundTaskHint?.let { hint ->
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    border = BorderStroke(
-                        1.dp,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                    ),
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Filled.AutoAwesome,
-                            null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            hint,
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        IconButton(
-                            onClick = { vm.dismissBackgroundHint() },
-                            modifier = Modifier.size(28.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "关闭提示",
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-            }
         }
-    }
-
-    if (showUploadSheet) {
-        AlertDialog(
-            onDismissRequest = { showUploadSheet = false },
-            title = { Text("选择上传类型") },
-            text = { Text("") },
-            confirmButton = {
-                Column {
-                    TextButton(onClick = {
-                        showUploadSheet = false
-                        vm.setUploadDocType("record")
-                        filePicker.launch("*/*")
-                    }) { Text("上传病例") }
-                    TextButton(onClick = {
-                        showUploadSheet = false
-                        vm.setUploadDocType("exam")
-                        filePicker.launch("*/*")
-                    }) { Text("上传体检报告") }
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showUploadSheet = false }) { Text("取消") }
-            },
-        )
     }
 }
 
@@ -470,7 +386,7 @@ private fun FocusWrapper(highlighted: Boolean, content: @Composable () -> Unit) 
 @Composable
 private fun FocusHintCard(focus: String) {
     val message = when (focus) {
-        "records" -> "已为你定位到历史病例区域，可继续补充或核对病史来源。"
+        "records" -> "已为你定位到就医助手，可继续添加或核对真实就医资料。"
         "exams" -> "已为你定位到历史体检区域，可继续核对异常指标与来源。"
         "upload" -> "已为你定位到上传入口，缺少资料时可以从这里补充。"
         "indicator" -> "已为你定位到关注指标趋势，可继续查看关键数值。"

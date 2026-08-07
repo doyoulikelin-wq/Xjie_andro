@@ -7,6 +7,7 @@ import android.os.Build
 
 object NotificationChannels {
     const val MEDICATION = "medication"
+    const val MEDICATION_SILENT = "medication_silent"
     const val ELDERLY = "elderly_care"
     const val GLUCOSE_ALERT = "glucose_alert"
 
@@ -16,6 +17,15 @@ object NotificationChannels {
         val channels = listOf(
             NotificationChannel(MEDICATION, "用药提醒", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "按疗程与服药时间提醒"
+            },
+            NotificationChannel(
+                MEDICATION_SILENT,
+                "用药提醒（静音）",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "用户选择不播放声音的用药提醒"
+                setSound(null, null)
+                enableVibration(false)
             },
             NotificationChannel(ELDERLY, "关怀复查", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "关怀模式按间隔定时提醒"

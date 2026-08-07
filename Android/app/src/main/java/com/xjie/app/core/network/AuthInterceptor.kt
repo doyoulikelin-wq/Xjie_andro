@@ -1,6 +1,7 @@
 package com.xjie.app.core.network
 
 import com.xjie.app.core.auth.AuthManager
+import java.io.IOException
 import okhttp3.Interceptor
 import okhttp3.Response
 import javax.inject.Inject
@@ -15,7 +16,13 @@ class AuthInterceptor @Inject constructor(
         val req = chain.request()
         val path = req.url.encodedPath
         val isAuthEndpoint = path.startsWith("/api/auth/")
-        val token = auth.accessToken
+        val owner = req.tag(AuthManager.AccountScopeSnapshot::class.java)
+        val token = if (owner == null) {
+            auth.accessToken
+        } else {
+            auth.accessTokenIfCurrent(owner)
+                ?: throw IOException("account or subject changed before request dispatch")
+        }
         val newReq = if (token.isNotEmpty() && !isAuthEndpoint) {
             req.newBuilder()
                 .header("Authorization", "Bearer $token")

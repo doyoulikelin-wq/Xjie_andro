@@ -12,6 +12,8 @@ data class Citation(
     val journal: String? = null,
     val year: Int? = null,
     val sample_size: Int? = null,
+    val population: String? = null,
+    val study_design: String? = null,
     val confidence: String,
     val score: Double? = null,
 )
@@ -43,6 +45,20 @@ data class ChatRequest(
 )
 
 @Serializable
+data class ChatInteractionRoute(
+    val version: String,
+    val route_id: String,
+    val strategy: String,
+    val primary_intent: String,
+    val depth: String,
+    val safety_level: String,
+    val subject_type: String,
+    val needs_literature: Boolean,
+    val max_followups: Int,
+    val progress_steps: List<String> = emptyList(),
+)
+
+@Serializable
 data class ChatResponse(
     val summary: String? = null,
     val analysis: String? = null,
@@ -50,8 +66,30 @@ data class ChatResponse(
     val confidence: Double? = null,
     val followups: List<String>? = null,
     val thread_id: String? = null,
+    val message_id: String? = null,
+    val response_state: String? = null,
+    val interaction_route: ChatInteractionRoute? = null,
+    val quality_flags: List<String>? = null,
     val citations: List<Citation>? = null,
 )
+
+@Serializable
+data class ChatStreamEnvelope(
+    val type: String,
+    val route: ChatInteractionRoute? = null,
+    val step: String? = null,
+    val delta: String? = null,
+    val result: ChatResponse? = null,
+    val message: String? = null,
+    val retryable: Boolean? = null,
+)
+
+sealed interface ChatStreamEvent {
+    data class Route(val route: ChatInteractionRoute) : ChatStreamEvent
+    data class Progress(val step: String) : ChatStreamEvent
+    data class Token(val delta: String) : ChatStreamEvent
+    data class Done(val result: ChatResponse) : ChatStreamEvent
+}
 
 @Serializable
 data class ConsentUpdate(val allow_ai_chat: Boolean)

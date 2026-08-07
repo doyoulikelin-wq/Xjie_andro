@@ -2,8 +2,11 @@ package com.xjie.app.feature.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.Citation
 import com.xjie.app.core.model.ChatConversation
+import com.xjie.app.core.model.ChatInteractionRoute
+import com.xjie.app.core.model.ChatStreamEvent
 import com.xjie.app.core.network.ApiException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -42,24 +45,32 @@ data class ChatUiState(
     val conversations: List<ChatConversation> = emptyList(),
     val hasMoreConversations: Boolean = true,
     val showHistory: Boolean = false,
+    val showAiConsentPrompt: Boolean = false,
     val isViewingHistory: Boolean = false,
     val error: String? = null,
     val thinkingHint: String = "",
+    val activeRoute: ChatInteractionRoute? = null,
     val planSavingMessageId: String? = null,
     val savedPlanMessageIds: Set<String> = emptySet(),
 )
 
-private val THINKING_HINTS = listOf(
-    "正在读取您的个人健康画像…",
-    "正在检索临床文献证据库…",
-    "正在结合多组学指标精准分析…",
-    "正在进行倒推与证据质量评级…",
-    "正在生成个性化健康建议…",
+private data class PendingAiConsentRetry(
+    val text: String,
+    val clientMessageId: String,
+    val owner: AuthManager.AccountScopeSnapshot,
+)
+
+private val DEFAULT_THINKING_HINTS = listOf(
+    "正在确认问题与健康主体…",
+    "正在核对本次可用的数据范围…",
+    "仍在等待回答完成…",
+    "这次分析需要更长时间，请稍候…",
 )
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repo: ChatRepository,
+    private val authManager: AuthManager,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChatUiState())
     val state: StateFlow<ChatUiState> = _state.asStateFlow()
@@ -68,26 +79,57 @@ class ChatViewModel @Inject constructor(
     private var savedThreadId: String? = null
     private val pageSize = 20
     private var thinkingJob: Job? = null
+    private var sendJob: Job? = null
+    private val requestGate = ChatRequestGenerationGate()
+    private var activeThinkingHints = DEFAULT_THINKING_HINTS
+    private var pendingAiConsentRetry: PendingAiConsentRetry? = null
+    private var observedAuthGeneration = authManager.generation
+    private var nextConversationLoadGeneration = 0L
+    private var activeConversationLoadGeneration: Long? = null
+
+    init {
+        viewModelScope.launch {
+            authManager.state.collect { authState ->
+                if (authState.generation == observedAuthGeneration) return@collect
+                observedAuthGeneration = authState.generation
+                invalidateConversationLoads()
+                requestGate.invalidate()
+                sendJob?.cancel()
+                sendJob = null
+                stopThinkingTicker()
+                savedMessages = emptyList()
+                savedThreadId = null
+                pendingAiConsentRetry = null
+                _state.value = ChatUiState()
+            }
+        }
+    }
 
     fun setInput(v: String) = _state.update { it.copy(input = v) }
     fun toggleHistory() = _state.update { it.copy(showHistory = !it.showHistory) }
     fun clearError() = _state.update { it.copy(error = null) }
 
     fun loadConversations() = viewModelScope.launch {
-        runCatching { repo.listConversations(pageSize, 0) }
+        val owner = captureOwner() ?: return@launch
+        runCatching { repo.listConversations(pageSize, 0, owner) }
             .onSuccess { list ->
+                if (!authManager.isCurrent(owner)) return@onSuccess
                 _state.update {
                     it.copy(conversations = list, hasMoreConversations = list.size >= pageSize)
                 }
             }
-            .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            .onFailure { e ->
+                if (authManager.isCurrent(owner)) _state.update { it.copy(error = e.message) }
+            }
     }
 
     fun loadMoreConversations() = viewModelScope.launch {
         val cur = _state.value
         if (!cur.hasMoreConversations) return@launch
-        val more = runCatching { repo.listConversations(pageSize, cur.conversations.size) }
+        val owner = captureOwner() ?: return@launch
+        val more = runCatching { repo.listConversations(pageSize, cur.conversations.size, owner) }
             .getOrDefault(emptyList())
+        if (!authManager.isCurrent(owner)) return@launch
         _state.update {
             it.copy(
                 conversations = it.conversations + more,
@@ -97,17 +139,25 @@ class ChatViewModel @Inject constructor(
     }
 
     fun deleteConversation(id: String) = viewModelScope.launch {
-        runCatching { repo.deleteConversation(id) }
+        val owner = captureOwner() ?: return@launch
+        runCatching { repo.deleteConversation(id, owner) }
             .onSuccess {
+                if (!authManager.isCurrent(owner)) return@onSuccess
                 val cur = _state.value
                 val newList = cur.conversations.filterNot { it.id == id }
                 val isCurrent = cur.threadId == id
+                invalidateConversationLoads()
+                if (isCurrent) invalidateActiveConversationOperation()
                 _state.update {
                     it.copy(
                         conversations = newList,
                         messages = if (isCurrent) emptyList() else it.messages,
                         threadId = if (isCurrent) null else it.threadId,
                         isViewingHistory = if (isCurrent) false else it.isViewingHistory,
+                        sending = if (isCurrent) false else it.sending,
+                        thinkingHint = if (isCurrent) "" else it.thinkingHint,
+                        activeRoute = if (isCurrent) null else it.activeRoute,
+                        showAiConsentPrompt = if (isCurrent) false else it.showAiConsentPrompt,
                     )
                 }
                 if (isCurrent) {
@@ -115,12 +165,26 @@ class ChatViewModel @Inject constructor(
                     savedThreadId = null
                 }
             }
-            .onFailure { e -> _state.update { it.copy(error = e.message ?: "删除失败") } }
+            .onFailure { e ->
+                if (authManager.isCurrent(owner)) {
+                    _state.update { it.copy(error = e.message ?: "删除失败") }
+                }
+            }
     }
 
     fun loadConversation(id: String) = viewModelScope.launch {
-        runCatching { repo.conversationMessages(id) }
+        if (_state.value.sending) {
+            _state.update { it.copy(error = "请等待当前回答完成后再切换历史对话。") }
+            return@launch
+        }
+        val owner = captureOwner() ?: return@launch
+        val loadGeneration = beginConversationLoad()
+        runCatching { repo.conversationMessages(id, owner) }
             .onSuccess { msgs ->
+                if (!authManager.isCurrent(owner)) return@onSuccess
+                if (!acceptsConversationLoad(loadGeneration) || _state.value.sending) {
+                    return@onSuccess
+                }
                 if (!_state.value.isViewingHistory) {
                     savedMessages = _state.value.messages
                     savedThreadId = _state.value.threadId
@@ -128,11 +192,14 @@ class ChatViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         messages = dedupeMessages(msgs.map { m ->
+                            val content = ChatPresentationPolicy.cleanContent(m.content)
+                            val analysis = ChatPresentationPolicy.cleanAnalysis(m.analysis.orEmpty())
+                                .takeIf { it.isNotBlank() && it.replace(Regex("\\s+"), "") != content.replace(Regex("\\s+"), "") }
                             ChatMessageItem(
                                 id = "server-${m.id}",
                                 role = m.role,
-                                content = m.content,
-                                analysis = m.analysis,
+                                content = content,
+                                analysis = analysis,
                                 citations = m.citations,
                             )
                         }),
@@ -141,11 +208,22 @@ class ChatViewModel @Inject constructor(
                         showHistory = false,
                     )
                 }
+                completeConversationLoad(loadGeneration)
             }
-            .onFailure { e -> _state.update { it.copy(error = e.message) } }
+            .onFailure { e ->
+                if (authManager.isCurrent(owner) && acceptsConversationLoad(loadGeneration)) {
+                    completeConversationLoad(loadGeneration)
+                    _state.update { it.copy(error = e.message) }
+                }
+            }
     }
 
     fun backToCurrentChat() {
+        if (_state.value.sending) {
+            _state.update { it.copy(error = "请等待当前回答完成后再切换对话。") }
+            return
+        }
+        invalidateConversationLoads()
         _state.update {
             it.copy(
                 messages = savedMessages,
@@ -158,6 +236,7 @@ class ChatViewModel @Inject constructor(
     }
 
     fun newChat() {
+        invalidateActiveConversationOperation()
         savedMessages = emptyList()
         savedThreadId = null
         stopThinkingTicker()
@@ -168,37 +247,50 @@ class ChatViewModel @Inject constructor(
                 isViewingHistory = false,
                 sending = false,
                 thinkingHint = "",
+                activeRoute = null,
+                showAiConsentPrompt = false,
             )
         }
+        pendingAiConsentRetry = null
     }
 
-    fun send() = viewModelScope.launch {
+    fun send() {
         val cur = _state.value
         val msg = cur.input.trim()
-        if (msg.isEmpty() || cur.sending) return@launch
-        sendMessage(msg, UUID.randomUUID().toString(), existingUserMessageId = null)
+        if (msg.isEmpty() || cur.sending) return
+        beginMessage(msg, UUID.randomUUID().toString(), existingUserMessageId = null)
     }
 
-    fun startPlanConversation(prompt: String) = viewModelScope.launch {
-        if (prompt.isBlank() || _state.value.sending) return@launch
+    fun startPlanConversation(prompt: String) {
+        if (prompt.isBlank() || _state.value.sending) return
         newChat()
-        sendMessage(prompt.trim(), UUID.randomUUID().toString(), existingUserMessageId = null)
+        beginMessage(prompt.trim(), UUID.randomUUID().toString(), existingUserMessageId = null)
     }
 
-    fun retry(id: String) = viewModelScope.launch {
+    fun sendText(prompt: String) {
+        val msg = prompt.trim()
+        if (msg.isEmpty() || _state.value.sending) return
+        beginMessage(msg, UUID.randomUUID().toString(), existingUserMessageId = null)
+    }
+
+    fun retry(id: String) {
         val cur = _state.value
         val item = cur.messages.firstOrNull { it.id == id && it.status == ChatDeliveryStatus.Failed }
-            ?: return@launch
-        if (cur.sending) return@launch
-        sendMessage(item.retryText ?: item.content, id, existingUserMessageId = id)
+            ?: return
+        if (cur.sending) return
+        beginMessage(item.retryText ?: item.content, id, existingUserMessageId = id)
     }
 
-    private suspend fun sendMessage(
+    private fun beginMessage(
         msg: String,
         clientMessageId: String,
         existingUserMessageId: String?,
+        reservedSendSlot: Boolean = false,
     ) {
+        val owner = captureOwner() ?: return
         val cur = _state.value
+        if ((cur.sending || cur.showAiConsentPrompt) && !reservedSendSlot) return
+        invalidateConversationLoads()
         if (cur.isViewingHistory) {
             savedMessages = emptyList()
             savedThreadId = null
@@ -211,6 +303,7 @@ class ChatViewModel @Inject constructor(
             status = ChatDeliveryStatus.Sending,
             retryText = msg,
         )
+        val request = requestGate.begin(owner, cur.threadId, clientMessageId)
         _state.update {
             val updatedMessages = if (existingUserMessageId != null) {
                 it.messages.map { item ->
@@ -226,61 +319,249 @@ class ChatViewModel @Inject constructor(
                 input = "",
                 sending = true,
                 isViewingHistory = false,
-                thinkingHint = THINKING_HINTS.first(),
+                error = null,
+                activeRoute = null,
+                thinkingHint = DEFAULT_THINKING_HINTS.first(),
             )
         }
+        activeThinkingHints = DEFAULT_THINKING_HINTS
         startThinkingTicker()
+        sendJob = viewModelScope.launch {
+            performMessage(msg, request)
+        }
+    }
 
+    private suspend fun performMessage(
+        msg: String,
+        request: ChatRequestIdentity,
+    ) {
+        var streamedRoute: ChatInteractionRoute? = null
         try {
-            val res = try {
-                repo.send(msg, _state.value.threadId, clientMessageId)
-            } catch (e: ApiException.HttpError) {
-                if (e.code == 403) {
-                    runCatching { repo.enableAiChat() }
-                    repo.send(msg, _state.value.threadId, clientMessageId)
-                } else throw e
+            val res = repo.sendStreaming(
+                message = msg,
+                threadId = request.threadId,
+                clientMessageId = request.clientMessageId,
+                expectedOwner = request.owner,
+            ) { event ->
+                if (!accepts(request)) return@sendStreaming
+                when (event) {
+                    is ChatStreamEvent.Route -> {
+                        streamedRoute = event.route
+                        activeThinkingHints = event.route.progress_steps
+                            .filter(String::isNotBlank)
+                            .ifEmpty { DEFAULT_THINKING_HINTS }
+                        _state.update {
+                            it.copy(
+                                activeRoute = event.route,
+                                thinkingHint = activeThinkingHints.first(),
+                            )
+                        }
+                    }
+                    is ChatStreamEvent.Progress -> _state.update {
+                        it.copy(thinkingHint = event.step)
+                    }
+                    is ChatStreamEvent.Token -> Unit // Final structured body is authoritative.
+                    is ChatStreamEvent.Done -> Unit
+                }
+            }
+            if (!accepts(request)) {
+                return
             }
 
-            val rawContent = res.summary ?: res.answer_markdown ?: "..."
-            val content = cleanContent(rawContent)
+            val route = res.interaction_route ?: streamedRoute
+            if (res.response_state.equals("processing", ignoreCase = true)) {
+                stopThinkingTicker()
+                requestGate.complete(request)
+                sendJob = null
+                _state.update {
+                    it.copy(
+                        messages = markUserMessage(
+                            it.messages,
+                            request.clientMessageId,
+                            ChatDeliveryStatus.Sent,
+                        ),
+                        threadId = res.thread_id ?: it.threadId,
+                        sending = false,
+                        thinkingHint = "",
+                        activeRoute = route,
+                        error = res.summary ?: "这条消息仍在处理中，请稍后从历史对话查看。",
+                    )
+                }
+                return
+            }
+
+            val content = ChatPresentationPolicy.selectContent(res, route)
             val assistantItem = ChatMessageItem(
-                id = "assistant-${UUID.randomUUID()}",
+                id = res.message_id?.trim()?.takeIf(String::isNotEmpty)?.let { "server-$it" }
+                    ?: "assistant-${request.clientMessageId}",
                 role = "assistant",
                 content = content,
-                analysis = res.analysis,
+                analysis = ChatPresentationPolicy.distinctAnalysis(res, content),
                 confidence = res.confidence,
                 followups = res.followups,
                 citations = res.citations.orEmpty(),
             )
             stopThinkingTicker()
+            requestGate.complete(request)
+            sendJob = null
             _state.update {
                 it.copy(
                     messages = dedupeMessages(
-                        markUserMessage(it.messages, clientMessageId, ChatDeliveryStatus.Sent) + assistantItem
+                        markUserMessage(
+                            it.messages,
+                            request.clientMessageId,
+                            ChatDeliveryStatus.Sent,
+                        ) + assistantItem
                     ),
                     threadId = res.thread_id ?: it.threadId,
                     sending = false,
                     thinkingHint = "",
+                    activeRoute = route,
                 )
             }
         } catch (e: Exception) {
-            val errItem = ChatMessageItem(
-                id = "error-${UUID.randomUUID()}",
-                role = "assistant",
-                content = "请求失败: ${e.message ?: "未知错误"}",
-            )
+            if (!accepts(request)) {
+                return
+            }
+            if (e is ApiException.HttpError && e.code == 403) {
+                pendingAiConsentRetry = PendingAiConsentRetry(
+                    msg,
+                    request.clientMessageId,
+                    request.owner,
+                )
+                stopThinkingTicker()
+                requestGate.complete(request)
+                sendJob = null
+                _state.update {
+                    it.copy(
+                        messages = markUserMessage(
+                            it.messages,
+                            request.clientMessageId,
+                            ChatDeliveryStatus.Failed,
+                        ),
+                        sending = false,
+                        showAiConsentPrompt = true,
+                        error = null,
+                        thinkingHint = "",
+                    )
+                }
+                return
+            }
             stopThinkingTicker()
+            requestGate.complete(request)
+            sendJob = null
             _state.update {
                 it.copy(
-                    messages = dedupeMessages(
-                        markUserMessage(it.messages, clientMessageId, ChatDeliveryStatus.Failed) + errItem
+                    messages = markUserMessage(
+                        it.messages,
+                        request.clientMessageId,
+                        ChatDeliveryStatus.Failed,
                     ),
                     sending = false,
-                    error = e.message,
+                    error = e.message?.takeIf(String::isNotBlank)
+                        ?: "这次回答没有完成，请检查网络后重试。",
                     thinkingHint = "",
                 )
             }
         }
+    }
+
+    /** The only chat-local path that may grant consent; it is called by an explicit UI action. */
+    fun grantAiConsentAndRetry() {
+        val pending = pendingAiConsentRetry ?: return
+        if (_state.value.sending) return
+        if (!authManager.isCurrent(pending.owner)) {
+            pendingAiConsentRetry = null
+            _state.update { it.copy(showAiConsentPrompt = false) }
+            return
+        }
+        _state.update {
+            it.copy(
+                showAiConsentPrompt = false,
+                error = null,
+                sending = true,
+                thinkingHint = "正在保存 AI 健康问答授权…",
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val consent = repo.enableAiChat(pending.owner)
+                check(consent.allow_ai_chat) { "服务器未确认 AI 健康问答授权" }
+                if (
+                    !authManager.isCurrent(pending.owner) ||
+                    pendingAiConsentRetry != pending
+                ) {
+                    return@launch
+                }
+                pendingAiConsentRetry = null
+                beginMessage(
+                    msg = pending.text,
+                    clientMessageId = pending.clientMessageId,
+                    existingUserMessageId = pending.clientMessageId,
+                    reservedSendSlot = true,
+                )
+            } catch (_: Exception) {
+                if (
+                    authManager.isCurrent(pending.owner) &&
+                    pendingAiConsentRetry == pending
+                ) {
+                    pendingAiConsentRetry = null
+                    _state.update {
+                        it.copy(
+                            error = "AI 健康问答授权没有保存，请稍后重试或在设置中开启。",
+                            sending = false,
+                            thinkingHint = "",
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun declineAiConsent() {
+        pendingAiConsentRetry = null
+        _state.update {
+            it.copy(
+                showAiConsentPrompt = false,
+                sending = false,
+                thinkingHint = "",
+            )
+        }
+    }
+
+    private fun invalidateActiveConversationOperation() {
+        invalidateConversationLoads()
+        requestGate.invalidate()
+        sendJob?.cancel()
+        sendJob = null
+        stopThinkingTicker()
+        pendingAiConsentRetry = null
+    }
+
+    @Synchronized
+    private fun beginConversationLoad(): Long {
+        check(nextConversationLoadGeneration < Long.MAX_VALUE) {
+            "chat conversation load generation exhausted"
+        }
+        return (++nextConversationLoadGeneration).also {
+            activeConversationLoadGeneration = it
+        }
+    }
+
+    @Synchronized
+    private fun acceptsConversationLoad(generation: Long): Boolean =
+        activeConversationLoadGeneration == generation
+
+    @Synchronized
+    private fun completeConversationLoad(generation: Long) {
+        if (activeConversationLoadGeneration == generation) {
+            activeConversationLoadGeneration = null
+        }
+    }
+
+    @Synchronized
+    private fun invalidateConversationLoads() {
+        activeConversationLoadGeneration = null
     }
 
     private fun markUserMessage(
@@ -299,10 +580,11 @@ class ChatViewModel @Inject constructor(
             var idx = 0
             while (true) {
                 delay(3500)
-                idx = (idx + 1) % THINKING_HINTS.size
+                val hints = activeThinkingHints.ifEmpty { DEFAULT_THINKING_HINTS }
+                idx = (idx + 1) % hints.size
                 _state.update {
                     if (!it.sending) it
-                    else it.copy(thinkingHint = THINKING_HINTS[idx])
+                    else it.copy(thinkingHint = hints[idx])
                 }
             }
         }
@@ -311,6 +593,7 @@ class ChatViewModel @Inject constructor(
     private fun stopThinkingTicker() {
         thinkingJob?.cancel()
         thinkingJob = null
+        activeThinkingHints = DEFAULT_THINKING_HINTS
     }
 
     fun useFollowup(q: String) {
@@ -325,6 +608,7 @@ class ChatViewModel @Inject constructor(
 
     fun saveAsHealthPlan(msg: ChatMessageItem) = viewModelScope.launch {
         if (!shouldOfferSavePlan(msg) || _state.value.planSavingMessageId != null) return@launch
+        val owner = captureOwner() ?: return@launch
         _state.update { it.copy(planSavingMessageId = msg.id) }
         runCatching {
             repo.savePlanFromChat(
@@ -332,8 +616,10 @@ class ChatViewModel @Inject constructor(
                 analysis = msg.analysis,
                 conversationId = _state.value.threadId,
                 messageId = msg.id,
+                expectedOwner = owner,
             )
         }.onSuccess {
+            if (!authManager.isCurrent(owner)) return@onSuccess
             _state.update {
                 it.copy(
                     planSavingMessageId = null,
@@ -342,31 +628,25 @@ class ChatViewModel @Inject constructor(
                 )
             }
         }.onFailure { e ->
-            _state.update { it.copy(planSavingMessageId = null, error = e.message) }
-        }
-    }
-
-    private fun cleanContent(text: String): String {
-        var s = text.trim()
-        // Extract summary from raw JSON
-        if (s.startsWith("{") && s.contains("\"summary\"")) {
-            runCatching { extractSummary(s) }.getOrNull()?.let { return it }
-        }
-        if (s.startsWith("```")) {
-            s = s.replace("```json", "").replace("```", "").trim()
-            if (s.startsWith("{")) {
-                runCatching { extractSummary(s) }.getOrNull()?.let { return it }
+            if (authManager.isCurrent(owner)) {
+                _state.update { it.copy(planSavingMessageId = null, error = e.message) }
             }
         }
-        return s
     }
 
-    private fun extractSummary(jsonStr: String): String? {
-        val el = kotlinx.serialization.json.Json.parseToJsonElement(jsonStr)
-        val obj = (el as? kotlinx.serialization.json.JsonObject) ?: return null
-        val v = obj["summary"] as? kotlinx.serialization.json.JsonPrimitive ?: return null
-        return v.contentOrNull
-    }
+    private fun captureOwner(): AuthManager.AccountScopeSnapshot? =
+        authManager.captureAccountScope().also { snapshot ->
+            if (snapshot == null) {
+                _state.update { it.copy(error = "登录信息不完整，请重新登录后再试。") }
+            }
+        }
+
+    private fun accepts(request: ChatRequestIdentity): Boolean =
+        authManager.isCurrent(request.owner) && requestGate.accepts(
+            token = request,
+            currentOwner = authManager.captureAccountScope(),
+            currentThreadId = _state.value.threadId,
+        )
 
     private fun dedupeMessages(items: List<ChatMessageItem>): List<ChatMessageItem> {
         val seenIds = mutableSetOf<String>()
@@ -395,6 +675,3 @@ private fun looksLikeHealthPlan(text: String): Boolean {
     return planWords.any { text.contains(it, ignoreCase = true) } &&
         healthWords.any { text.contains(it, ignoreCase = true) }
 }
-
-private val kotlinx.serialization.json.JsonPrimitive.contentOrNull: String?
-    get() = runCatching { content }.getOrNull()
