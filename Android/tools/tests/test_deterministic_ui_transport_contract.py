@@ -160,6 +160,38 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
             runner.index('"$ANDROID_ROOT/gradlew" --no-daemon :app:connectedDebugAndroidTest'),
         )
 
+    def test_ci_pins_deterministic_origin_without_local_properties_dependency(self) -> None:
+        workflow = (ANDROID_ROOT.parent / ".github/workflows/ci.yml").read_text()
+        build = (ANDROID_ROOT / "app/build.gradle.kts").read_text()
+        debug = (
+            ANDROID_ROOT / "app/src/debug/java/com/xjie/app/core/quality/DebugUiAutomationTransport.kt"
+        ).read_text()
+        ui_job = workflow.split("  android-connected-ui:\n", 1)[1]
+
+        pinned_origin = "API_BASE_URL_DEBUG: https://www.jianjieaitech.com/api"
+        self.assertEqual(ui_job.count("API_BASE_URL_DEBUG"), 1)
+        self.assertEqual(ui_job.count(pinned_origin), 1)
+        self.assertIn(
+            "    env:\n      " + pinned_origin + "\n    defaults:\n",
+            ui_job,
+        )
+        self.assertLess(ui_job.index(pinned_origin), ui_job.index("    steps:\n"))
+        self.assertNotIn("local.properties", ui_job)
+        self.assertNotIn("10.0.2.2", ui_job)
+        self.assertNotIn("continue-on-error", ui_job)
+        self.assertNotIn("|| true", ui_job)
+
+        self.assertIn('buildInput("API_BASE_URL_DEBUG")', build)
+        self.assertIn('?: "http://10.0.2.2:8000"', build)
+        self.assertIn('request.url.scheme == "https"', debug)
+        self.assertIn('request.url.host == "www.jianjieaitech.com"', debug)
+        self.assertIn("request.url.port == 443", debug)
+        self.assertIn("if (fixture == null) 418 else 200", debug)
+        self.assertIn("DebugUiAutomationTransport.assertNoRequestEscapedStub()", (
+            ANDROID_ROOT
+            / "app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"
+        ).read_text())
+
 
 if __name__ == "__main__":
     unittest.main()

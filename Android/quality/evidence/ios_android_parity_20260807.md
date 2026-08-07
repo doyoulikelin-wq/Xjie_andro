@@ -104,7 +104,7 @@ Later focused red/green checks also locked these same-class repairs:
 - the data-manager back control stays outside the scroll body, and the real canonical `bodyWeight` server card opens the same Weight flow as the quick action;
 - exact settings loading and deterministic request matching reject support/device prefetch and unknown traffic.
 
-The final full rerun, rather than focused reruns alone, is the completion evidence: `232/232` JVM, `43/43` Python, `392/392` backend and all `42/42` connected executions passed.
+The final full rerun, rather than focused reruns alone, is the completion evidence: `232/232` JVM, `44/44` Python, `392/392` backend and all `42/42` connected executions passed.
 
 ### Hosted exact-head UI incident — minimum reproduction and repair contract
 
@@ -115,6 +115,16 @@ The final full rerun, rather than focused reruns alone, is the completion eviden
 - Affected sibling states: the shared standard, compact and large-text profiles all use this one runner and were all blocked; the `if: always()` evidence upload path also lacked diagnostic content on an early first-profile failure.
 - Constraint owners: `.github/workflows/ci.yml` owns KVM admission and emulator options; `Android/tools/run_connected_ui_profiles.sh` owns failure evidence and per-profile result isolation; `DeterministicAndroidUiTransportTest.test_ci_requires_kvm_before_emulator_and_keeps_evidence_upload_fail_closed` owns the regression contract.
 - Verification plan: prove the strengthened named Python regression fails against the old workflow/script and passes after the repair; rerun the exact Python inventory, JVM/build/lint, all three local API 35 profiles, and a new hosted exact-head run. Hosted completion requires all `42/42` UI executions plus an uploaded evidence artifact, and the successful log must not contain the old `-accel off` fallback.
+
+### Hosted exact-head deterministic-origin incident — minimum reproduction and repair contract
+
+- Minimum reproduction: run the repaired `API 35 deterministic UI profiles` job from exact-head run [31179377876](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876) on feature SHA `43157811daf5db8c9ad4b59ae916234a04e21b76`, using GitHub's clean checkout without an untracked `Android/local.properties`.
+- Observed failure: KVM admission passed, the runner explicitly kept Linux hardware acceleration enabled, the API 35 emulator booted, and all `14` standard-profile tests executed. The uploaded JUnit reports `tests="14" failures="13" errors="0" skipped="0"`; every network-using test ended at the shared runtime ledger, while the local-original device test passed. Preserved logcat shows requests such as `GET http://10.0.2.2:8000/api/users/me` receiving the deterministic transport's non-retryable `418`. The fail-closed script stopped before compact and large-text profiles and preserved `exit_code=1`, `profile=standard_api35` plus raw results and logs. GitHub artifact `android-ui-profile-results` is ID `8994705825`, size `195483`, digest `sha256:c16577c9468423001795440d76dcfb494663ceb9faeeb377e386d6636b833584`.
+- Confirmed root cause: `Android/app/build.gradle.kts` intentionally resolves the Debug base URL from `local.properties`, then the process environment, then the localhost emulator default. Local verification had an untracked `API_BASE_URL_DEBUG=https://www.jianjieaitech.com/api`, but the UI workflow supplied neither source. The clean hosted build therefore used `http://10.0.2.2:8000`; `DebugUiAutomationTransport.isProductionOrigin` correctly rejected that origin even though the method/path fixtures existed. This is a CI input-contract failure, not thirteen independent UI regressions and not a real-network dependency.
+- Permanent invariant: the hosted deterministic UI job must explicitly pin the non-secret production-shaped Debug origin `https://www.jianjieaitech.com/api` before any Gradle build, must never depend on a developer's untracked `local.properties`, and must keep the exact scheme/host/port predicate, `418` unknown response, shared-client installation and zero-escape runtime assertion fail closed. The production-shaped URL identifies the request contract only; the Debug interceptor must answer every request locally and no public network response may satisfy the UI gate.
+- Affected sibling entry points and states: anonymous `/api/auth/subjects` and every authenticated API route share the same exact-origin predicate; standard, compact and large-text profiles share one built Debug application and therefore the same base URL. The same clean-checkout dependency would affect every current and future deterministic UI test that exercises network-backed state.
+- Constraint owners: `.github/workflows/ci.yml` owns the explicit job input; `Android/app/build.gradle.kts` owns local-properties/environment/default precedence; `DebugUiAutomationTransport.isProductionOrigin` and `assertNoRequestEscapedStub` own exact matching and zero escape; `DeterministicAndroidUiTransportTest.test_ci_pins_deterministic_origin_without_local_properties_dependency` will own the clean-checkout regression.
+- Verification plan: first prove the new named regression rejects the old workflow, then add the explicit UI-job environment input and update the exact Python inventory. Run syntax/JSON checks, exact Python inventory, JVM tests plus exact executed inventory, assemble/lint, and the shared three-profile API 35 gate. Finally push a new exact feature SHA and require backend, JVM/build and all `14/14` standard + `14/14` compact + `14/14` large-text executions to pass with an uploaded evidence artifact, no `-accel off`, no `10.0.2.2` request and no `418`/unknown/escaped request.
 
 ## Visual parity review
 
@@ -155,12 +165,13 @@ Only facts already produced by GitHub are populated:
 | Feature commit SHA | `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d` |
 | Pull request URL/number | [PR #1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1) |
 | First hosted exact-head CI run URL/ID and conclusion | [run 31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594) — **failure before UI instrumentation; backend and JVM succeeded, UI executed 0 tests after the unaccelerated emulator became unresponsive** |
-| KVM repair commit / replacement exact-head run | pending commit and hosted result; local named regression, Python `43/43`, JVM `232/232`, build/lint and UI `42/42` passed |
+| KVM repair commit / replacement exact-head run | `43157811daf5db8c9ad4b59ae916234a04e21b76`; [run 31179377876](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876) — **KVM/boot/evidence repair succeeded, but clean-checkout Debug origin was not explicit; standard executed `14` with `13` fail-closed `418` results, compact/large did not run** |
+| Deterministic-origin repair / next exact-head run | pending commit and hosted result; old workflow rejected by `test_ci_pins_deterministic_origin_without_local_properties_dependency`; explicit job-level origin passes YAML semantics and local Python `44/44`, JVM `232/232`, build/lint and UI `42/42` |
 | Merge commit SHA | pending |
 | Final `andro/main` SHA | pending |
 | Post-merge main CI run URL/ID and conclusion | pending |
 
-Local green results cannot convert failed run `31175685594` to success. Until the repair is committed, pushed, passes a new exact-head run and the PR is merged, this evidence must say “first hosted run failed; repaired locally; replacement exact-head/merge/main delivery pending.”
+Local green results cannot convert failed runs `31175685594` or `31179377876` to success. Until the deterministic-origin repair is committed, pushed, passes a new exact-head run and the PR is merged, this evidence must say “two hosted failures exposed and permanently constrained KVM and clean-checkout origin assumptions; replacement exact-head/merge/main delivery pending.”
 
 ## Remaining risks and non-claims
 

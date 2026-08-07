@@ -120,6 +120,8 @@ jobs:
     needs: android-build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      API_BASE_URL_DEBUG: https://www.jianjieaitech.com/api
     defaults:
       run:
         working-directory: Android
