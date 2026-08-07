@@ -110,8 +110,13 @@ fun SettingsScreen(
                     )
                 },
                 navigationIcon = {
-                    if (onBack != null) IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                    if (onBack != null) {
+                        IconButton(
+                            onClick = onBack,
+                            modifier = Modifier.size(48.dp).testTag("xage.settings.back"),
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        }
                     }
                 },
             )
@@ -411,7 +416,10 @@ private fun SupportDetailScreen(
             TopAppBar(
                 title = { Text(destination.title) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(48.dp).testTag("xage.support.${destination.id}.back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
                 },

@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -274,7 +275,10 @@ private fun DietaryHeader(onBack: (() -> Unit)?, onRefresh: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(48.dp).testTag("xage.meals.back"),
+            ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
             }
         }

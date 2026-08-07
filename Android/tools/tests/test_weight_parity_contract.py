@@ -145,7 +145,7 @@ class WeightParityContractTests(unittest.TestCase):
             "数据范围异常，请填写正确数字。",
             'closeAppOwnedModal("weight.height.close")',
             'closeAppOwnedModal("weight.guidance.close")',
-            "pressBack()",
+            'navigateBackThroughAppOwner("weight.back", hasTestTag("xage.data.manage"))',
         ):
             self.assertIn(required, ui_test)
         for required in (

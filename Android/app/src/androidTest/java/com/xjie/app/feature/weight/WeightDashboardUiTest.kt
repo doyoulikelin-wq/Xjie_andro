@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.xjie.app.quality.DeterministicXjieUiTest
 import org.junit.Test
@@ -106,8 +105,7 @@ class WeightDashboardUiTest : DeterministicXjieUiTest() {
         compose.waitForIdle()
         compose.onNodeWithTag("weight.guidance.sheet").assertDoesNotExist()
 
-        pressBack()
-        waitFor(hasTestTag("xage.data.manage"))
+        navigateBackThroughAppOwner("weight.back", hasTestTag("xage.data.manage"))
         compose.onNodeWithTag("xage.data.manage").assertIsDisplayed()
     }
 

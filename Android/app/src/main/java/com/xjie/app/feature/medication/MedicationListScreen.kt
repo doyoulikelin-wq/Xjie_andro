@@ -415,7 +415,11 @@ fun MedicationListScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = ::requestBack, enabled = !state.operationInProgress) {
+                    IconButton(
+                        onClick = ::requestBack,
+                        enabled = !state.operationInProgress,
+                        modifier = Modifier.size(48.dp).testTag("xage.medication.back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                     }
                 },
