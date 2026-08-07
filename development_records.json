@@ -5505,5 +5505,52 @@
       "Formal Android release remains blocked by missing explicit production HTTPS URL, formal signing identity and a real candidate artifact. Production migrations/backend deployment and real-device Health Connect, notification, reboot/time-zone, TalkBack, OEM keyboard, system picker/camera and real AI/OCR/SSE remain unverified.",
       "No .env secret, signing key, account token, raw medical material or production credential was committed. backend/analysis, backend/analysis_outputs and backend/build were excluded."
     ]
+  },
+  {
+    "id": "2026-08-08-android-postmerge-loaded-empty-readiness",
+    "time": "2026-08-08T00:01:19+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / XAGE / Post-merge readiness",
+    "feature": "fix(android): bind zero-evidence score assertions to loaded state",
+    "description": "受保护 main 的首次合并后 CI 在标准 API 35 档复现唯一异步观察竞态：每日评分节点为保证真实加载与无障碍语义会立即以“待更新”存在，zero-evidence 测试却把该常驻节点误当作数据已加载信号。产品状态机保持不变；共享测试基类新增 waitForLoadedXAgeData，必须先等待 xage.data.metrics.loaded 再读取 50/0% loaded-empty 语义。新增静态同类回归会扫描所有压力、恢复、炎症评分访问，要求首次访问前恰好一次共享等待并禁止直接等待 score tag；同类扫描确认当前仅该 zero-evidence 方法受影响。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "UI Tests",
+      "CI",
+      "Quality"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"},
+        {"status": "M", "path": "Android/tools/tests/test_deterministic_ui_transport_contract.py"},
+        {"status": "M", "path": "Android/quality/expected_python_tests.json"},
+        {"status": "M", "path": "Android/quality/evidence/ios_android_parity_20260807.md"},
+        {"status": "M", "path": "development_records.json"},
+        {"status": "M", "path": "development_history.html"}
+      ]
+    },
+    "verification": [
+      {"command": "inspect GitHub main run 31193076541 and downloaded artifact 9000198527", "result": "confirmed exact main 1c09cc31; backend 392/392, Python 44/44, JVM 232/232, assemble/lint and KVM passed; standard UI executed 14 with one failure after seeing 压力评分待更新; compact/large stopped fail-closed; artifact preserved as exit_code=1, profile=standard_api35"},
+      {"command": "python3 -m unittest Android.tools.tests.test_deterministic_ui_transport_contract.DeterministicAndroidUiTransportTest.test_zero_evidence_score_waits_for_loaded_empty_state_before_assertion", "result": "red/green passed: old direct score-tag wait rejected; final helper and all same-class score access ordering accepted"},
+      {"command": "for attempt in 1 2 3; do ./gradlew --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.xjie.ui.profile=standard_api35 -Pandroid.testInstrumentationRunnerArguments.class=com.xjie.app.feature.xage.XAgeShellSwipeUiTest#zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning || exit 1; done", "result": "passed fail-fast: exact loaded-empty score method 3/3"},
+      {"command": "python3 tools/verify_python_test_inventory.py --run", "result": "passed: exact Python source and execution 45/45; no missing, extra, duplicate, failure, skip or expected failure"},
+      {"command": "./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest", "result": "passed: build/lint and exact JVM 232/232; no missing, extra, duplicate, failure or skip"},
+      {"command": "bash tools/run_connected_ui_profiles.sh", "result": "passed: API 35 standard, compact and large-text each exact 14/14; total 42/42, zero failure/error/skip; JUnit SHA-256 ea8bef7e..., 5136f9b7..., 271a822b..."},
+      {"command": "git diff --check", "result": "passed before repair delivery"}
+    ],
+    "notes": [
+      "The loading product state remains honest: score nodes still expose 待更新 before the loaded snapshot and loaded-empty remains 50/0%; only test readiness changed.",
+      "Capsule, Weight, Medication, Meals and Profile already use exact state or their own persistent loaded owners; placeholder score/detail/header/manage/scroll/metric nodes are not readiness signals.",
+      "Repair exact-head PR checks, protected merge identity and replacement post-merge main CI are required before source/GitHub completion; historical red run 31193076541 must remain preserved.",
+      "Only the Android repository is modified. The iOS repository and workspace/iOS development histories remain untouched; only remote andro may receive this branch.",
+      "No secret, account token, raw medical material or production credential is recorded. backend/analysis and backend/analysis_outputs remain excluded and untouched."
+    ]
   }
 ]

@@ -97,6 +97,11 @@ abstract class DeterministicXjieUiTest {
         }
     }
 
+    /** Distinguishes the composed loading shell from the authoritative loaded-empty state. */
+    protected fun waitForLoadedXAgeData() {
+        waitFor(hasTestTag("xage.data.metrics.loaded"))
+    }
+
     /** Waits for asynchronously produced semantics before asking its scroll owner to reveal it. */
     protected fun waitForAndScrollToText(text: String) {
         waitFor(hasText(text))
