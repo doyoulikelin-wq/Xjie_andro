@@ -3,11 +3,11 @@
 ## Evidence status
 
 - Scope: Android-only replication of the current iOS XAGE product behavior and its compatible backend snapshot.
-- Status: final local software verification and the hosted-emulator repair passed locally; the first hosted exact-head run failed before executing any UI test and its replacement run is pending; production Release is blocked by required external inputs.
+- Status: final local software verification passed; hosted runs `31175685594`, `31179377876`, and `31181786778` remain historical failures that exposed and constrained KVM admission, clean-checkout origin ownership, and asynchronous semantics readiness. The shared wait-then-scroll repair is locally green and awaits its new exact-head run; production Release is blocked by required external inputs.
 - Android repository: `/Users/linlin/Desktop/X/XJie_And`.
-- Current main-based feature branch: `codex/android-ios-parity-20260807`; first pushed feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`.
+- Current main-based feature branch: `codex/android-ios-parity-20260807`; first pushed feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`; most recent pushed repair head `5d12df5cfd90e89036cee3eeb683563860e82e98`; the locally verified semantics-readiness repair is the next candidate.
 - Target remote and branch: `andro` (`doyoulikelin-wq/Xjie_andro`) → `main`. The `origin` remote points to the iOS repository and is forbidden for Android delivery.
-- GitHub PR: [#1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1). First exact-head run: [31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594), conclusion **failure**. Merge and post-merge main identities do not yet exist and remain pending.
+- GitHub PR: [#1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1). Historical exact-head runs [31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594), [31179377876](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876), and [31181786778](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31181786778) concluded **failure** at the three fail-closed boundaries documented below. The replacement exact-head run, merge, and post-merge main identities do not yet exist.
 
 ## Reference authority and exclusions
 
@@ -65,11 +65,11 @@ The exact `14`-test connected inventory includes XAGE shell/state tests for page
 
 ## Final exact verification
 
-All counts below describe the final local source that was committed as feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`. This later delivery-binding documentation update is local and is not retroactively claimed as part of that exact-head run.
+All counts below describe the locally verified semantics-readiness candidate layered on pushed repair head `5d12df5cfd90e89036cee3eeb683563860e82e98`. They are local evidence and do not imply a replacement hosted run's conclusion.
 
 | Gate | Exact command | Result |
 |---|---|---|
-| Android quality tools | `cd Android && python3 tools/verify_python_test_inventory.py --run` | `43/43`, no failure/error/skip/expected failure |
+| Android quality tools | `cd Android && python3 tools/verify_python_test_inventory.py --run` | `44/44`, no failure/error/skip/expected failure |
 | JVM build/test/lint | `cd Android && ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug` | passed |
 | JVM inventory | `cd Android && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest` | exact `232/232`, no missing/extra/duplicate/failure/skip |
 | UI profiles | `cd Android && bash tools/run_connected_ui_profiles.sh` | exact `14/14` in each required profile, `42/42` total |
@@ -81,9 +81,9 @@ The exact UI result files report:
 
 | Profile | Configuration | Tests | Failures | Errors | Skipped | Time |
 |---|---|---:|---:|---:|---:|---:|
-| `standard_api35` | API 35 emulator default profile | 14 | 0 | 0 | 0 | 50.512 s |
-| `compact_api35` | API 35, `700x1280`, density `320` | 14 | 0 | 0 | 0 | 42.920 s |
-| `large_text_api35` | API 35, font scale `1.3` | 14 | 0 | 0 | 0 | 51.164 s |
+| `standard_api35` | API 35 emulator default profile | 14 | 0 | 0 | 0 | 50.806 s |
+| `compact_api35` | API 35, `700x1280`, density `320` | 14 | 0 | 0 | 0 | 43.436 s |
+| `large_text_api35` | API 35, font scale `1.3` | 14 | 0 | 0 | 0 | 52.200 s |
 
 Result roots are local ignored build evidence under `Android/build/quality/android-ui/{standard_api35,compact_api35,large_text_api35}`. The inventory validator requires exact equality in all three sets.
 
@@ -123,8 +123,18 @@ The final full rerun, rather than focused reruns alone, is the completion eviden
 - Confirmed root cause: `Android/app/build.gradle.kts` intentionally resolves the Debug base URL from `local.properties`, then the process environment, then the localhost emulator default. Local verification had an untracked `API_BASE_URL_DEBUG=https://www.jianjieaitech.com/api`, but the UI workflow supplied neither source. The clean hosted build therefore used `http://10.0.2.2:8000`; `DebugUiAutomationTransport.isProductionOrigin` correctly rejected that origin even though the method/path fixtures existed. This is a CI input-contract failure, not thirteen independent UI regressions and not a real-network dependency.
 - Permanent invariant: the hosted deterministic UI job must explicitly pin the non-secret production-shaped Debug origin `https://www.jianjieaitech.com/api` before any Gradle build, must never depend on a developer's untracked `local.properties`, and must keep the exact scheme/host/port predicate, `418` unknown response, shared-client installation and zero-escape runtime assertion fail closed. The production-shaped URL identifies the request contract only; the Debug interceptor must answer every request locally and no public network response may satisfy the UI gate.
 - Affected sibling entry points and states: anonymous `/api/auth/subjects` and every authenticated API route share the same exact-origin predicate; standard, compact and large-text profiles share one built Debug application and therefore the same base URL. The same clean-checkout dependency would affect every current and future deterministic UI test that exercises network-backed state.
-- Constraint owners: `.github/workflows/ci.yml` owns the explicit job input; `Android/app/build.gradle.kts` owns local-properties/environment/default precedence; `DebugUiAutomationTransport.isProductionOrigin` and `assertNoRequestEscapedStub` own exact matching and zero escape; `DeterministicAndroidUiTransportTest.test_ci_pins_deterministic_origin_without_local_properties_dependency` will own the clean-checkout regression.
+- Constraint owners: `.github/workflows/ci.yml` owns the explicit job input; `Android/app/build.gradle.kts` owns local-properties/environment/default precedence; `DebugUiAutomationTransport.isProductionOrigin` and `assertNoRequestEscapedStub` own exact matching and zero escape; `DeterministicAndroidUiTransportTest.test_ci_pins_deterministic_origin_without_local_properties_dependency` owns the clean-checkout regression.
 - Verification plan: first prove the new named regression rejects the old workflow, then add the explicit UI-job environment input and update the exact Python inventory. Run syntax/JSON checks, exact Python inventory, JVM tests plus exact executed inventory, assemble/lint, and the shared three-profile API 35 gate. Finally push a new exact feature SHA and require backend, JVM/build and all `14/14` standard + `14/14` compact + `14/14` large-text executions to pass with an uploaded evidence artifact, no `-accel off`, no `10.0.2.2` request and no `418`/unknown/escaped request.
+
+### Hosted exact-head network-backed semantics incident — minimum reproduction and repair contract
+
+- Minimum reproduction: run `XAgeShellSwipeUiTest.mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage` in the standard profile from exact-head run [31181786778](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31181786778), attempt 1, job `92878688639`, on repair head `5d12df5cfd90e89036cee3eeb683563860e82e98`.
+- Observed failure: backend `392/392`, Python `44/44`, JVM `232/232`, assemble/lint, KVM admission, accelerated emulator boot and the explicit `API_BASE_URL_DEBUG=https://www.jianjieaitech.com/api` input all passed. All `14` standard tests executed; `13` passed and the meals/profile test alone failed because `performScrollTo()` searched for `本日暂无已确认餐食；识别草稿不会自动进入这里` before that network-backed semantics node existed. Logcat proves the production-shaped dietary dashboard, recent and daily-summary requests were intercepted locally and returned `200`; it contains no app parse error, `10.0.2.2`, `418`, unknown or escaped request. The fail-closed script stopped compact/large and preserved artifact `8995625515`, size `312459`, digest `sha256:f531250ffc9608a1665bd013df890cf955e18760cc9098867aa969cca92b4138`; `run-status.txt` is `exit_code=1`, `profile=standard_api35` and the JUnit is `tests=14`, `failures=1`, `errors=0`, `skipped=0`.
+- Confirmed root cause: the test treated the static `饮食记录` header as proof that the asynchronous dashboard state had committed, then immediately queried a deep loaded-state string. Compose idling does not make the app's background repository coroutine a readiness contract, so a cold hosted runner can render the shell before the loaded/empty semantics node. Local runs were faster and therefore hid the race. This is a test-observation synchronization bug, not a dietary product response or deterministic-origin failure.
+- Permanent invariant: a UI assertion that targets network-backed or asynchronously produced semantics must wait for that exact semantics node (or an explicit loaded-state tag) before scrolling, clicking or asserting visibility. A static shell title is not a loaded-state signal. The shared deterministic test factory must own one wait-then-scroll helper so Meals, Profile and future long-content states cannot reintroduce the same race with ad hoc timing or sleeps.
+- Affected sibling entry points and states: the Meals empty-state and the Profile long-term-medication empty-state in the same test both used direct `performScrollTo()` on asynchronously produced content. The same-class scan found other scroll actions were already preceded by their exact test tag or operated on synchronous form controls; they do not need the new helper. Standard, compact and large-text profiles share this assertion path, so compact/large were correctly blocked after the standard failure.
+- Constraint owners: `DeterministicXjieUiTest.waitForAndScrollToText` owns reusable semantics readiness; `XAgeShellSwipeUiTest.mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage` uses it for both network-backed long-content assertions; `DeterministicAndroidUiTransportTest.test_connected_tests_share_real_app_factory_profile_gate_and_runtime_ledger` statically rejects removal or bypass of the helper.
+- Local red/green and adjacent verification: the strengthened named Python contract rejected the old source because the shared helper was absent, then passed after the helper and both call sites were added. The focused Meals/Profile method passed three consecutive API 35 executions. Exact Python `44/44`, JVM `232/232`, `:app:testDebugUnitTest`, `:app:assembleDebug`, `:app:lintDebug`, and full standard/compact/large-text UI `42/42` all passed. Hosted completion still requires a new exact-head run with all three jobs green, three exact `14/14` profile sets, an uploaded success artifact, and no origin/KVM/transport-escape regression.
 
 ## Visual parity review
 
@@ -162,16 +172,17 @@ Only facts already produced by GitHub are populated:
 | Field | Status |
 |---|---|
 | Main-based feature branch | `codex/android-ios-parity-20260807` (pushed to `andro`) |
-| Feature commit SHA | `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d` |
+| Initial feature / most recent pushed repair head | `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d` / `5d12df5cfd90e89036cee3eeb683563860e82e98` |
 | Pull request URL/number | [PR #1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1) |
 | First hosted exact-head CI run URL/ID and conclusion | [run 31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594) — **failure before UI instrumentation; backend and JVM succeeded, UI executed 0 tests after the unaccelerated emulator became unresponsive** |
 | KVM repair commit / replacement exact-head run | `43157811daf5db8c9ad4b59ae916234a04e21b76`; [run 31179377876](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31179377876) — **KVM/boot/evidence repair succeeded, but clean-checkout Debug origin was not explicit; standard executed `14` with `13` fail-closed `418` results, compact/large did not run** |
-| Deterministic-origin repair / next exact-head run | pending commit and hosted result; old workflow rejected by `test_ci_pins_deterministic_origin_without_local_properties_dependency`; explicit job-level origin passes YAML semantics and local Python `44/44`, JVM `232/232`, build/lint and UI `42/42` |
+| Deterministic-origin repair / third exact-head run | `5d12df5cfd90e89036cee3eeb683563860e82e98`; [run 31181786778](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31181786778), attempt 1 — **backend/build passed; KVM and exact origin passed; standard executed `14` with one asynchronous semantics race, compact/large correctly did not run; failure artifact `8995625515`** |
+| Semantics-readiness repair / replacement exact-head run | locally verified candidate; old source rejected by `test_connected_tests_share_real_app_factory_profile_gate_and_runtime_ledger`; focused method `3/3`, Python `44/44`, JVM `232/232`, build/lint, and UI `42/42` passed; commit SHA and hosted run pending |
 | Merge commit SHA | pending |
 | Final `andro/main` SHA | pending |
 | Post-merge main CI run URL/ID and conclusion | pending |
 
-Local green results cannot convert failed runs `31175685594` or `31179377876` to success. Until the deterministic-origin repair is committed, pushed, passes a new exact-head run and the PR is merged, this evidence must say “two hosted failures exposed and permanently constrained KVM and clean-checkout origin assumptions; replacement exact-head/merge/main delivery pending.”
+Local green results cannot convert failed runs `31175685594`, `31179377876`, or `31181786778` to success. Until the semantics-readiness repair receives a new exact-head green run and the PR is merged with a separate green main run, this evidence must say “three hosted failures exposed and permanently constrained KVM admission, clean-checkout origin ownership, and asynchronous semantics readiness; replacement exact-head/merge/main delivery pending.”
 
 ## Remaining risks and non-claims
 

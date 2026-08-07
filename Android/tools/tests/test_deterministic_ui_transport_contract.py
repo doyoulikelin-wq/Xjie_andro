@@ -80,6 +80,10 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
             ANDROID_ROOT
             / "app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"
         ).read_text()
+        xage_ui = (
+            ANDROID_ROOT
+            / "app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"
+        ).read_text()
         runtime = (
             ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/quality/UiAutomationRuntime.kt"
         ).read_text()
@@ -103,6 +107,14 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
         self.assertIn('"standard_api35"', factory)
         self.assertIn('"compact_api35"', factory)
         self.assertIn('"large_text_api35"', factory)
+        self.assertIn("protected fun waitForAndScrollToText(text: String)", factory)
+        helper = factory.split("protected fun waitForAndScrollToText(text: String)", 1)[1]
+        self.assertLess(helper.index("waitFor(hasText(text))"), helper.index("performScrollTo()"))
+        for loaded_text in (
+            "本日暂无已确认餐食；识别草稿不会自动进入这里",
+            "暂无服务端已确认的长期用药摘要。",
+        ):
+            self.assertIn(f'waitForAndScrollToText("{loaded_text}")', xage_ui)
 
     def test_ci_runs_backend_and_all_ui_profiles_with_exact_fail_closed_gates(self) -> None:
         workflow = (ANDROID_ROOT.parent / ".github/workflows/ci.yml").read_text()

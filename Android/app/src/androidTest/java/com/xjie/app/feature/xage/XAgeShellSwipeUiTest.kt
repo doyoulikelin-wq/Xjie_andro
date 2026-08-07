@@ -159,9 +159,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
     fun mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage() {
         openXAgeQuickAction("meals")
         waitFor(hasText("饮食记录"))
-        compose.onNodeWithText("本日暂无已确认餐食；识别草稿不会自动进入这里")
-            .performScrollTo()
-            .assertIsDisplayed()
+        waitForAndScrollToText("本日暂无已确认餐食；识别草稿不会自动进入这里")
         pressBack()
 
         waitFor(hasTestTag("xage.more"))
@@ -170,9 +168,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithTag("xage.more.profile", useUnmergedTree = true).performClick()
         waitFor(hasTestTag("healthProfile.root"))
         compose.onNodeWithTag("healthProfile.overview", useUnmergedTree = true).assertIsDisplayed()
-        compose.onNodeWithText("暂无服务端已确认的长期用药摘要。")
-            .performScrollTo()
-            .assertIsDisplayed()
+        waitForAndScrollToText("暂无服务端已确认的长期用药摘要。")
         pressBack()
         waitFor(hasTestTag("xage.data.manage"))
     }

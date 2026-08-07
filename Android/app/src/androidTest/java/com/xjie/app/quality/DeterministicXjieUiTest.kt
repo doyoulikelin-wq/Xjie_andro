@@ -8,8 +8,11 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
@@ -91,6 +94,14 @@ abstract class DeterministicXjieUiTest {
                 .fetchSemanticsNodes(atLeastOneRootRequired = false)
                 .isEmpty()
         }
+    }
+
+    /** Waits for asynchronously produced semantics before asking its scroll owner to reveal it. */
+    protected fun waitForAndScrollToText(text: String) {
+        waitFor(hasText(text))
+        compose.onNodeWithText(text, useUnmergedTree = true)
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     /**
