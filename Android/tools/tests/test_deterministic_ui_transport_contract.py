@@ -38,6 +38,52 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
         self.assertIn('"type":"done"', debug)
         self.assertFalse((ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/quality/DebugUiAutomationTransport.kt").exists())
 
+    def test_zero_evidence_score_waits_for_loaded_empty_state_before_assertion(self) -> None:
+        factory = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"
+            ).read_text()
+        )
+
+        helper = factory.split("protected fun waitForLoadedXAgeData()", 1)[1].split(
+            "/**", 1
+        )[0]
+        self.assertIn('waitFor(hasTestTag("xage.data.metrics.loaded"))', helper)
+
+        readiness = "waitForLoadedXAgeData()"
+        score_tag = re.compile(
+            r'"xage\.data\.score\.(?:pressure|recovery|inflammation)(?:\.[^"]+)?"'
+        )
+        guarded_methods: list[str] = []
+        test_root = ANDROID_ROOT / "app/src/androidTest/java"
+        for path in sorted(test_root.rglob("*.kt")):
+            source = without_kotlin_comments(path.read_text())
+            for segment in source.split("\n    @Test"):
+                first_score_access = score_tag.search(segment)
+                if first_score_access is None:
+                    continue
+                method_name = re.search(r"fun\s+([A-Za-z0-9_]+)\s*\(", segment)
+                self.assertIsNotNone(method_name, str(path))
+                guarded_methods.append(f"{path.name}::{method_name.group(1)}")
+                self.assertEqual(segment.count(readiness), 1, guarded_methods[-1])
+                self.assertLess(
+                    segment.index(readiness),
+                    first_score_access.start(),
+                    guarded_methods[-1],
+                )
+                self.assertIsNone(
+                    re.search(
+                        r'waitFor\s*\(\s*hasTestTag\s*\(\s*"xage\.data\.score\.',
+                        segment,
+                    ),
+                    guarded_methods[-1],
+                )
+        self.assertEqual(
+            guarded_methods,
+            ["XAgeShellSwipeUiTest.kt::zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning"],
+        )
+
     def test_every_app_owned_okhttp_builder_installs_the_shared_transport(self) -> None:
         network = (ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/network/NetworkModule.kt").read_text()
         health_connect = (

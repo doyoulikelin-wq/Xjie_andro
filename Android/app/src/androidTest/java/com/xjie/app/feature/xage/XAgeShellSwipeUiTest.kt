@@ -106,7 +106,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
 
     @Test
     fun zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning() {
-        waitFor(hasTestTag("xage.data.score.pressure"))
+        waitForLoadedXAgeData()
         compose.onNodeWithTag("xage.data.score.pressure", useUnmergedTree = true)
             .assertContentDescriptionEquals("压力评分 50 分，数据完整度 0%，置信度较低")
             .assertWidthIsAtLeast(48.dp)
