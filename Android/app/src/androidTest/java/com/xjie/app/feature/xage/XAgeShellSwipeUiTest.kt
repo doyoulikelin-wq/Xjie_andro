@@ -6,6 +6,7 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasSetTextAction
@@ -22,14 +23,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.unit.dp
-import androidx.test.espresso.Espresso.pressBack
-import androidx.test.espresso.Espresso.onView
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.xjie.app.quality.DeterministicXjieUiTest
-import org.hamcrest.Matchers.containsString
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -160,17 +155,14 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         openXAgeQuickAction("meals")
         waitFor(hasText("饮食记录"))
         waitForAndScrollToText("本日暂无已确认餐食；识别草稿不会自动进入这里")
-        pressBack()
-
-        waitFor(hasTestTag("xage.more"))
+        navigateBackThroughAppOwner("xage.meals.back", hasTestTag("xage.more"))
         compose.onNodeWithTag("xage.more").performClick()
         waitFor(hasTestTag("xage.more.profile"))
         compose.onNodeWithTag("xage.more.profile", useUnmergedTree = true).performClick()
         waitFor(hasTestTag("healthProfile.root"))
         compose.onNodeWithTag("healthProfile.overview", useUnmergedTree = true).assertIsDisplayed()
         waitForAndScrollToText("暂无服务端已确认的长期用药摘要。")
-        pressBack()
-        waitFor(hasTestTag("xage.data.manage"))
+        navigateBackThroughAppOwner("healthProfile.back", hasTestTag("xage.data.manage"))
     }
 
     @Test
@@ -188,8 +180,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithText("设备绑定暂未开放").assertIsDisplayed()
         compose.onNodeWithText("添加设备").assertDoesNotExist()
 
-        pressBack()
-        waitFor(hasTestTag("xage.more"))
+        navigateBackThroughAppOwner("xage.settings.back", hasTestTag("xage.more"))
         compose.onNodeWithTag("xage.more").performClick()
         waitFor(hasTestTag("xage.support.permissions"))
         compose.onNodeWithTag("xage.support.permissions", useUnmergedTree = true)
@@ -201,8 +192,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithTag("xage.permission.exact-alarm", useUnmergedTree = true)
             .assertIsDisplayed()
 
-        pressBack()
-        waitFor(hasTestTag("xage.data.manage"))
+        navigateBackThroughAppOwner("xage.support.permissions.back", hasTestTag("xage.data.manage"))
         compose.onNodeWithTag("xage.more").performClick()
         waitFor(hasTestTag("xage.support.feedback"))
         compose.onNodeWithTag("xage.support.feedback", useUnmergedTree = true)
@@ -228,10 +218,13 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithTag("xage.chat.attachment.new").assertIsDisplayed()
         closeAppOwnedModal("xage.dialog.close")
 
-        compose.onNodeWithTag("xage.chat.input").performTextInput("今天的数据怎么样？")
+        compose.onNodeWithTag("xage.chat.input")
+            .performClick()
+            .assertIsFocused()
+            .performTextInput("今天的数据怎么样？")
         compose.onNodeWithTag("xage.chat.send").performClick()
         waitFor(hasText("证据展示"))
-        waitForNativeMarkdownText("这是确定性 UI 回答。[2]")
+        waitForDisplayedNativeText("这是确定性 UI 回答。[2]")
         compose.onNodeWithText("证据展示").performClick()
         waitFor(hasText("正文显式引用的确定性测试证据。"))
         compose.onNodeWithText("正文显式引用的确定性测试证据。").assertIsDisplayed()
@@ -241,13 +234,5 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithTag("xage.shell.pager").performTouchInput { swipeLeft() }
         waitFor(hasTestTag("xage.particle.ring"))
         compose.onNode(hasSetTextAction()).assertDoesNotExist()
-    }
-
-    private fun waitForNativeMarkdownText(text: String, timeoutMillis: Long = 15_000L) {
-        compose.waitUntil(timeoutMillis) {
-            runCatching {
-                onView(withText(containsString(text))).check(matches(isDisplayed()))
-            }.isSuccess
-        }
     }
 }

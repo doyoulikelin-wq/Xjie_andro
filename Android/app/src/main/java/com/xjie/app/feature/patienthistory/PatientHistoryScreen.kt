@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -159,7 +160,11 @@ fun PatientHistoryScreen(
             TopAppBar(
                 title = { Text(state.historyTarget?.title ?: "健康画像") },
                 navigationIcon = {
-                    IconButton(onClick = ::requestBack, enabled = !state.operationInProgress) {
+                    IconButton(
+                        onClick = ::requestBack,
+                        enabled = !state.operationInProgress,
+                        modifier = Modifier.size(48.dp).testTag("healthProfile.back"),
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
                     }
                 },

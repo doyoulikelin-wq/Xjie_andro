@@ -51,7 +51,7 @@ class MedicationDashboardUiTest : DeterministicXjieUiTest() {
         waitFor(hasTestTag("xage.medication.detail.plans"))
         compose.onNodeWithTag("xage.medication.detail.plans").assertIsDisplayed()
 
-        androidx.test.espresso.Espresso.pressBack()
+        navigateBackThroughAppOwner("xage.medication.back", hasTestTag("xage.medication.loaded"))
         waitForAndScrollToTag(
             rootTag = "xage.medication.root",
             readinessTag = "xage.medication.loaded",

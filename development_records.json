@@ -5604,5 +5604,65 @@
       "No signed production Release, Play upload, backend deployment/migration, real-device Health Connect/notification/TalkBack/system-picker behavior or literal pixel identity is claimed.",
       "No secret, account token, raw medical material or production credential is recorded. backend/analysis and backend/analysis_outputs remain excluded and untouched."
     ]
+  },
+  {
+    "id": "2026-08-08-android-compose-navigation-owner",
+    "time": "2026-08-08T02:28:39+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / Connected UI / Application navigation ownership",
+    "feature": "fix(android): remove Espresso root dependencies from connected UI",
+    "description": "PR #4 exact-head 31201936720 全绿并受保护合并为 51e0cf2 后，独立 main 门禁 31203374443 在 standard 档执行 14 项并出现 5 项同类失败：Medication、Weight、Meals/Profile、More/support 的 Espresso.pressBack() 在页面返回时选择失焦 Activity root；Chat 的确定性 POST 已返回 200 且证据入口已出现，但 Espresso.onView() 读取原生 Markdown TextView 时反复命中 root-not-ready。根因是连接测试仍把全局 Espresso root picker 当成应用导航/观察 owner。永久约束是全部连接测试禁止 Espresso import、pressBack 与 onView：六个页面返回统一通过 navigateBackThroughAppOwner 精确等待应用 tag、仅在离屏时滚动、验证显示与 48dp 双向最小点击区、点击并等待目标状态；原生 AndroidView 文本由 ActivityScenario 在实际 decorView 中递归验证可见 TextView。Medication、Meals、Weight、Profile、Settings、support detail 均有稳定生产 tag，原 40dp 的四个返回控件提升为显式 48dp。新命名回归固定全源扫描、精确六个调用点、生产 owner、原生 view-tree 和 Chat 输入焦点；本地 exact Python 47/47、JVM 232/232、API 35 三档 14/14×3 全绿。本记录不宣称签名 Release、Play 分发、生产后端部署、真实设备系统行为或跨平台逐像素一致。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Medication",
+      "Weight",
+      "Meals",
+      "Profile",
+      "Settings",
+      "Connected UI",
+      "Accessibility",
+      "CI",
+      "Quality"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/medication/MedicationDashboardUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/weight/WeightDashboardUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/meals/MealsScreen.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/patienthistory/PatientHistoryScreen.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/settings/SettingsScreen.kt"},
+        {"status": "M", "path": "Android/tools/tests/test_deterministic_ui_transport_contract.py"},
+        {"status": "M", "path": "Android/tools/tests/test_weight_parity_contract.py"},
+        {"status": "M", "path": "Android/quality/expected_python_tests.json"},
+        {"status": "M", "path": "Android/quality/evidence/ios_android_parity_20260807.md"},
+        {"status": "M", "path": "development_records.json"},
+        {"status": "M", "path": "development_history.html"}
+      ]
+    },
+    "verification": [
+      "GitHub PR #4 exact-head run 31201936720 and downloaded artifacts — head 3b858025 passed all required gates and merged as 51e0cf2; independent main run 31203374443 remains red with backend 392/392 and build green, standard UI 14 executed/5 failed on the same Espresso root mechanism, compact/large stopped fail-closed; UI artifact 9004133522 and backend artifact 9003756187 independently inspected",
+      "DeterministicAndroidUiTransportTest.test_connected_compose_ui_has_no_espresso_root_focus_dependencies — red/green passed; recursively rejects Espresso imports, pressBack and onView and locks the conditional-scroll 48dp app-owner helper, exact six navigation calls, production tags, visible native view-tree traversal and Chat focus",
+      "Affected five methods in standard, compact and large-text profiles — 5/5 in each profile after explicit 48dp owners; the later full compact run exposed state-ordered offscreen owners, and the focused Weight plus Meals/Profile siblings passed 2/2 after display-first conditional scrolling",
+      "python3 tools/verify_python_test_inventory.py --run — exact Python source/execution 47/47; no missing, extra, duplicate, failure, skip or expected failure",
+      "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest — Kotlin/androidTest compile, build/lint and exact JVM 232/232 passed; Debug APK SHA-256 5a5d0a2bac1a10070a7a918a3f91e9b01c7d89561e66f63060689743e5ebef85",
+      "bash tools/run_connected_ui_profiles.sh — API 35 standard 14/14 in 47.875s (SHA-256 3a43655f5d5b83133f33beaae2ce34fff5c5e735a38d3b04c0ff8c5c7f1a865e), compact 14/14 in 38.761s (eba7354a9076b2390ab2d7812682b95c30baf4731f58fc01f592b949a7dc8231), large-text 14/14 in 48.412s (7ec954aee82779b5bdb2f3f444a3d8f293124290911efd98cbde3202b44e2f1d), total 42/42; each profile 171 requests/171 responses all 200 and zero unknown/escaped/empty-ledger marker",
+      "git diff --check — passed before repair delivery"
+    ],
+    "notes": [
+      "Runs 31199236127 and 31203374443 are immutable historical failures and must not be rerun or relabelled; the current branch still requires a new exact-head PR, protected merge and independent replacement main success.",
+      "The no-Espresso application-owner invariant supersedes only the prior temporary raw page-back allowlist; it does not rewrite the historical modal repair, its passing PR #4 exact-head run, or either preserved main failure.",
+      "Only the Android repository is modified. The iOS repository plus workspace/iOS development histories remain untouched; delivery may push only the andro remote, never origin.",
+      "Backend product files are unchanged. backend/analysis and backend/analysis_outputs remain excluded and untouched.",
+      "No secret, account token, raw medical material, signing key or production credential is recorded."
+    ]
   }
 ]

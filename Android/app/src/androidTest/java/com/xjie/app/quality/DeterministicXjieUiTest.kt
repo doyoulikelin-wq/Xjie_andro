@@ -2,7 +2,11 @@ package com.xjie.app.quality
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Build
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -31,6 +35,7 @@ import com.xjie.app.core.quality.UiAutomationRuntime
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Shared black-box factory for every connected UI test.
@@ -116,6 +121,33 @@ abstract class DeterministicXjieUiTest {
         waitForAbsent(hasTestTag(closeTag))
     }
 
+    /** Uses the visible app-owned back control, then requires its exact destination readiness. */
+    protected fun navigateBackThroughAppOwner(backTag: String, destination: SemanticsMatcher) {
+        waitFor(hasTestTag(backTag))
+        val owner = compose.onNodeWithTag(backTag, useUnmergedTree = true)
+        if (runCatching { owner.assertIsDisplayed() }.isFailure) {
+            owner.performScrollTo()
+        }
+        owner
+            .assertIsDisplayed()
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        waitFor(destination)
+    }
+
+    /** Observes the rendered AndroidView text through the launched Activity's actual view tree. */
+    protected fun waitForDisplayedNativeText(text: String, timeoutMillis: Long = 15_000L) {
+        val activeScenario = checkNotNull(scenario) { "deterministic ActivityScenario is not active" }
+        compose.waitUntil(timeoutMillis) {
+            val found = AtomicBoolean(false)
+            activeScenario.onActivity { activity ->
+                found.set(activity.window.decorView.containsDisplayedNativeText(text))
+            }
+            found.get()
+        }
+    }
+
     /** Waits for asynchronously produced semantics before asking its scroll owner to reveal it. */
     protected fun waitForAndScrollToText(text: String) {
         waitFor(hasText(text))
@@ -194,6 +226,17 @@ abstract class DeterministicXjieUiTest {
         check(matches) {
             "device profile $profile does not match API=${Build.VERSION.SDK_INT}, " +
                 "${width}x${height}dp, fontScale=$fontScale"
+        }
+    }
+
+    private fun View.containsDisplayedNativeText(expectedText: String): Boolean {
+        if (this is TextView && text.toString().contains(expectedText)) {
+            val visibleBounds = Rect()
+            if (isShown && getGlobalVisibleRect(visibleBounds) && !visibleBounds.isEmpty) return true
+        }
+        if (this !is ViewGroup) return false
+        return (0 until childCount).any { index ->
+            getChildAt(index).containsDisplayedNativeText(expectedText)
         }
     }
 

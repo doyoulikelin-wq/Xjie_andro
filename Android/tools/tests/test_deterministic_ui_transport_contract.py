@@ -158,9 +158,11 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
         guidance_close = 'closeAppOwnedModal("weight.guidance.close")'
         self.assertEqual(weight_method.count(height_close), 1)
         self.assertEqual(weight_method.count(guidance_close), 1)
-        self.assertEqual(weight_method.count("pressBack()"), 1)
+        navigation = 'navigateBackThroughAppOwner("weight.back", hasTestTag("xage.data.manage"))'
+        self.assertEqual(weight_method.count(navigation), 1)
+        self.assertNotIn("pressBack()", weight_method)
         self.assertLess(weight_method.index(height_close), weight_method.index(guidance_close))
-        self.assertLess(weight_method.index(guidance_close), weight_method.index("pressBack()"))
+        self.assertLess(weight_method.index(guidance_close), weight_method.index(navigation))
 
         self.assertRegex(
             xage_screen,
@@ -172,29 +174,103 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
                 weight_screen,
             )
 
-        allowed_raw_backs: dict[str, int] = {}
+    def test_connected_compose_ui_has_no_espresso_root_focus_dependencies(self) -> None:
         test_root = ANDROID_ROOT / "app/src/androidTest/java"
-        for path in sorted(test_root.rglob("*.kt")):
-            source = without_kotlin_comments(path.read_text())
-            for segment in source.split("\n    @Test"):
-                count = segment.count("pressBack()")
-                if count == 0:
+        connected_sources = {
+            path.relative_to(test_root).as_posix(): without_kotlin_comments(path.read_text())
+            for path in sorted(test_root.rglob("*.kt"))
+        }
+        for relative_path, source in connected_sources.items():
+            self.assertNotIn("androidx.test.espresso", source, relative_path)
+            self.assertIsNone(re.search(r"\bpressBack\s*\(", source), relative_path)
+            self.assertIsNone(re.search(r"\bonView\s*\(", source), relative_path)
+
+        factory = connected_sources["com/xjie/app/quality/DeterministicXjieUiTest.kt"]
+        navigation_helper = factory.split(
+            "protected fun navigateBackThroughAppOwner(backTag: String, destination: SemanticsMatcher)", 1
+        )[1].split("/**", 1)[0]
+        self.assertIn("waitFor(hasTestTag(backTag))", navigation_helper)
+        self.assertIn(
+            "val owner = compose.onNodeWithTag(backTag, useUnmergedTree = true)",
+            navigation_helper,
+        )
+        self.assertIn("if (runCatching { owner.assertIsDisplayed() }.isFailure)", navigation_helper)
+        self.assertIn("owner.performScrollTo()", navigation_helper)
+        self.assertIn(".assertIsDisplayed()", navigation_helper)
+        self.assertIn(".assertWidthIsAtLeast(48.dp)", navigation_helper)
+        self.assertIn(".assertHeightIsAtLeast(48.dp)", navigation_helper)
+        self.assertIn(".performClick()", navigation_helper)
+        self.assertIn("waitFor(destination)", navigation_helper)
+
+        native_text_helper = factory.split(
+            "protected fun waitForDisplayedNativeText(text: String", 1
+        )[1].split("/**", 1)[0]
+        self.assertIn("activeScenario.onActivity", native_text_helper)
+        self.assertIn(
+            "activity.window.decorView.containsDisplayedNativeText(text)",
+            native_text_helper,
+        )
+        self.assertIn("this is TextView && text.toString().contains(expectedText)", factory)
+        self.assertIn("isShown && getGlobalVisibleRect(visibleBounds)", factory)
+
+        expected_navigation_calls = {
+            "com/xjie/app/feature/medication/MedicationDashboardUiTest.kt::secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard": [
+                'navigateBackThroughAppOwner("xage.medication.back", hasTestTag("xage.medication.loaded"))',
+            ],
+            "com/xjie/app/feature/weight/WeightDashboardUiTest.kt::quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely": [
+                'navigateBackThroughAppOwner("weight.back", hasTestTag("xage.data.manage"))',
+            ],
+            "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage": [
+                'navigateBackThroughAppOwner("xage.meals.back", hasTestTag("xage.more"))',
+                'navigateBackThroughAppOwner("healthProfile.back", hasTestTag("xage.data.manage"))',
+            ],
+            "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::moreMenuRoutesDeviceAndSupportWithoutDeadAffordances": [
+                'navigateBackThroughAppOwner("xage.settings.back", hasTestTag("xage.more"))',
+                'navigateBackThroughAppOwner("xage.support.permissions.back", hasTestTag("xage.data.manage"))',
+            ],
+        }
+        actual_navigation_calls: dict[str, list[str]] = {}
+        for relative_path, source in connected_sources.items():
+            for segment in source.split("\n    @Test")[1:]:
+                calls = re.findall(r"navigateBackThroughAppOwner\([^\n]+\)", segment)
+                if not calls:
                     continue
                 method_name = re.search(r"fun\s+([A-Za-z0-9_]+)\s*\(", segment)
-                self.assertIsNotNone(method_name, str(path))
-                relative_path = path.relative_to(test_root).as_posix()
+                self.assertIsNotNone(method_name, relative_path)
                 key = f"{relative_path}::{method_name.group(1)}"
-                self.assertNotIn(key, allowed_raw_backs, key)
-                allowed_raw_backs[key] = count
-        self.assertEqual(
-            allowed_raw_backs,
-            {
-                "com/xjie/app/feature/medication/MedicationDashboardUiTest.kt::secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard": 1,
-                "com/xjie/app/feature/weight/WeightDashboardUiTest.kt::quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely": 1,
-                "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage": 2,
-                "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::moreMenuRoutesDeviceAndSupportWithoutDeadAffordances": 2,
-            },
+                self.assertNotIn(key, actual_navigation_calls, key)
+                actual_navigation_calls[key] = calls
+        self.assertEqual(actual_navigation_calls, expected_navigation_calls)
+
+        production_back_owners = {
+            "app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt": "xage.medication.back",
+            "app/src/main/java/com/xjie/app/feature/weight/WeightScreen.kt": "weight.back",
+            "app/src/main/java/com/xjie/app/feature/meals/MealsScreen.kt": "xage.meals.back",
+            "app/src/main/java/com/xjie/app/feature/patienthistory/PatientHistoryScreen.kt": "healthProfile.back",
+            "app/src/main/java/com/xjie/app/feature/settings/SettingsScreen.kt": "xage.settings.back",
+        }
+        for relative_path, tag in production_back_owners.items():
+            source = without_kotlin_comments((ANDROID_ROOT / relative_path).read_text())
+            self.assertEqual(source.count(f'.testTag("{tag}")'), 1, relative_path)
+            self.assertIn(f'Modifier.size(48.dp).testTag("{tag}")', source, relative_path)
+        settings = without_kotlin_comments(
+            (ANDROID_ROOT / "app/src/main/java/com/xjie/app/feature/settings/SettingsScreen.kt").read_text()
         )
+        self.assertEqual(
+            settings.count('Modifier.size(48.dp).testTag("xage.support.${destination.id}.back")'),
+            1,
+        )
+
+        xage = connected_sources["com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"]
+        self.assertEqual(
+            xage.count('waitForDisplayedNativeText("这是确定性 UI 回答。[2]")'),
+            1,
+        )
+        self.assertEqual(
+            sum(source.count("waitForDisplayedNativeText(") for source in connected_sources.values()),
+            2,
+        )
+        self.assertIn(".assertIsFocused()", xage)
 
     def test_every_app_owned_okhttp_builder_installs_the_shared_transport(self) -> None:
         network = (ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/network/NetworkModule.kt").read_text()
