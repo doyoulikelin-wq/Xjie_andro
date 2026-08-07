@@ -3,7 +3,9 @@ set -euo pipefail
 
 ANDROID_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 RESULT_ROOT="$ANDROID_ROOT/app/build/outputs/androidTest-results/connected/debug"
+REPORT_ROOT="$ANDROID_ROOT/app/build/reports/androidTests/connected/debug"
 EVIDENCE_ROOT="$ANDROID_ROOT/build/quality/android-ui"
+CURRENT_PROFILE="not_started"
 
 restore_device() {
   set +e
@@ -11,7 +13,30 @@ restore_device() {
   adb shell wm density reset
   adb shell settings put system font_scale 1.0
 }
-trap restore_device EXIT
+
+finalize_run() {
+  local exit_code=$?
+  set +e
+  local diagnostics="$EVIDENCE_ROOT/_diagnostics"
+  mkdir -p "$diagnostics"
+  printf 'exit_code=%s\nprofile=%s\n' "$exit_code" "$CURRENT_PROFILE" \
+    > "$EVIDENCE_ROOT/run-status.txt"
+  adb devices -l > "$diagnostics/adb-devices.txt" 2>&1
+  if [[ -d "$RESULT_ROOT" ]]; then
+    rm -rf "$diagnostics/raw-results"
+    mkdir -p "$diagnostics/raw-results"
+    cp -R "$RESULT_ROOT"/. "$diagnostics/raw-results"/
+  fi
+  if [[ -d "$REPORT_ROOT" ]]; then
+    rm -rf "$diagnostics/report"
+    mkdir -p "$diagnostics/report"
+    cp -R "$REPORT_ROOT"/. "$diagnostics/report"/
+  fi
+  restore_device
+  trap - EXIT
+  exit "$exit_code"
+}
+trap finalize_run EXIT
 
 configure_profile() {
   local profile="$1"
@@ -39,6 +64,8 @@ configure_profile() {
 run_profile() {
   local profile="$1"
   local destination="$EVIDENCE_ROOT/$profile"
+  CURRENT_PROFILE="$profile"
+  rm -rf "$RESULT_ROOT" "$REPORT_ROOT"
   configure_profile "$profile"
   "$ANDROID_ROOT/gradlew" --no-daemon :app:connectedDebugAndroidTest \
     "-Pandroid.testInstrumentationRunnerArguments.xjie.ui.profile=$profile"
@@ -52,6 +79,7 @@ run_profile() {
 
 rm -rf "$EVIDENCE_ROOT"
 mkdir -p "$EVIDENCE_ROOT"
+printf 'exit_code=pending\nprofile=not_started\n' > "$EVIDENCE_ROOT/run-status.txt"
 run_profile standard_api35
 run_profile compact_api35
 run_profile large_text_api35

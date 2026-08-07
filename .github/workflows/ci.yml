@@ -142,6 +142,23 @@ jobs:
       - name: Verify declared connected-test inventory
         run: python3 tools/verify_android_ui_test_inventory.py
 
+      - name: Initialize connected-test evidence
+        run: |
+          mkdir -p build/quality/android-ui
+          printf 'phase=pre-emulator\n' > build/quality/android-ui/run-status.txt
+
+      - name: Require KVM acceleration
+        run: |
+          set -euo pipefail
+          test -c /dev/kvm
+          printf '%s\n' 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules >/dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle
+          test -r /dev/kvm
+          test -w /dev/kvm
+
       - name: Run standard, compact, and large-text deterministic UI tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -150,6 +167,8 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-animations: true
+          disable-linux-hw-accel: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-metrics
           script: cd Android && bash tools/run_connected_ui_profiles.sh
 
       - name: Upload connected-test evidence

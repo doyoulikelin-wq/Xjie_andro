@@ -3,11 +3,11 @@
 ## Evidence status
 
 - Scope: Android-only replication of the current iOS XAGE product behavior and its compatible backend snapshot.
-- Status: final local software verification passed; GitHub delivery identity is pending; production Release is blocked by required external inputs.
+- Status: final local software verification and the hosted-emulator repair passed locally; the first hosted exact-head run failed before executing any UI test and its replacement run is pending; production Release is blocked by required external inputs.
 - Android repository: `/Users/linlin/Desktop/X/XJie_And`.
-- Current main-based feature branch: `codex/android-ios-parity-20260807`, based on local HEAD `261ad12bf4c31b10a26d0b13fdbb2844cbba4232` before the final commit.
+- Current main-based feature branch: `codex/android-ios-parity-20260807`; first pushed feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`.
 - Target remote and branch: `andro` (`doyoulikelin-wq/Xjie_andro`) → `main`. The `origin` remote points to the iOS repository and is forbidden for Android delivery.
-- This file records the pre-commit worktree. It does not invent a candidate commit, PR, hosted run or merge identity.
+- GitHub PR: [#1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1). First exact-head run: [31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594), conclusion **failure**. Merge and post-merge main identities do not yet exist and remain pending.
 
 ## Reference authority and exclusions
 
@@ -65,11 +65,11 @@ The exact `14`-test connected inventory includes XAGE shell/state tests for page
 
 ## Final exact verification
 
-All counts below describe the final local worktree before its GitHub commit.
+All counts below describe the final local source that was committed as feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`. This later delivery-binding documentation update is local and is not retroactively claimed as part of that exact-head run.
 
 | Gate | Exact command | Result |
 |---|---|---|
-| Android quality tools | `cd Android && python3 tools/verify_python_test_inventory.py --run` | `42/42`, no failure/error/skip/expected failure |
+| Android quality tools | `cd Android && python3 tools/verify_python_test_inventory.py --run` | `43/43`, no failure/error/skip/expected failure |
 | JVM build/test/lint | `cd Android && ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug` | passed |
 | JVM inventory | `cd Android && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest` | exact `232/232`, no missing/extra/duplicate/failure/skip |
 | UI profiles | `cd Android && bash tools/run_connected_ui_profiles.sh` | exact `14/14` in each required profile, `42/42` total |
@@ -81,9 +81,9 @@ The exact UI result files report:
 
 | Profile | Configuration | Tests | Failures | Errors | Skipped | Time |
 |---|---|---:|---:|---:|---:|---:|
-| `standard_api35` | API 35 emulator default profile | 14 | 0 | 0 | 0 | 49.359 s |
-| `compact_api35` | API 35, `700x1280`, density `320` | 14 | 0 | 0 | 0 | 41.167 s |
-| `large_text_api35` | API 35, font scale `1.3` | 14 | 0 | 0 | 0 | 51.276 s |
+| `standard_api35` | API 35 emulator default profile | 14 | 0 | 0 | 0 | 50.512 s |
+| `compact_api35` | API 35, `700x1280`, density `320` | 14 | 0 | 0 | 0 | 42.920 s |
+| `large_text_api35` | API 35, font scale `1.3` | 14 | 0 | 0 | 0 | 51.164 s |
 
 Result roots are local ignored build evidence under `Android/build/quality/android-ui/{standard_api35,compact_api35,large_text_api35}`. The inventory validator requires exact equality in all three sets.
 
@@ -104,7 +104,17 @@ Later focused red/green checks also locked these same-class repairs:
 - the data-manager back control stays outside the scroll body, and the real canonical `bodyWeight` server card opens the same Weight flow as the quick action;
 - exact settings loading and deterministic request matching reject support/device prefetch and unknown traffic.
 
-The final full rerun, rather than focused reruns alone, is the completion evidence: `232/232` JVM, `42/42` Python, `392/392` backend and all `42/42` connected executions passed.
+The final full rerun, rather than focused reruns alone, is the completion evidence: `232/232` JVM, `43/43` Python, `392/392` backend and all `42/42` connected executions passed.
+
+### Hosted exact-head UI incident — minimum reproduction and repair contract
+
+- Minimum reproduction: run the `API 35 deterministic UI profiles` job from exact-head run [31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594), job `92858966622`, on the unmodified feature SHA `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d`.
+- Observed failure: `reactivecircus/android-emulator-runner@v2` reported that hardware acceleration was unavailable and launched emulator `37.1.11` with `-accel off`. Boot took from `12:00:35Z` to `12:15:06Z`; Gradle then reported `ShellCommandUnresponsiveException`, `Starting 0 tests`, and an instrumentation process crash. The evidence upload also failed because no non-empty profile evidence directory existed.
+- Confirmed root cause: the UI job did not make `/dev/kvm` readable and writable or require hardware acceleration before launching the emulator. This silently admitted a software-emulated API 35 device that became unresponsive before instrumentation; no product test ran, so the failure is not evidence of an app assertion regression.
+- Permanent invariant: hosted API 35 UI jobs must fail before emulator launch unless `/dev/kvm` is a readable, writable character device, must explicitly forbid the runner's Linux hardware-acceleration fallback, and must disable the emulator's interactive metrics prompt. A profile run must always leave a non-empty status/partial-report evidence bundle, including on failure.
+- Affected sibling states: the shared standard, compact and large-text profiles all use this one runner and were all blocked; the `if: always()` evidence upload path also lacked diagnostic content on an early first-profile failure.
+- Constraint owners: `.github/workflows/ci.yml` owns KVM admission and emulator options; `Android/tools/run_connected_ui_profiles.sh` owns failure evidence and per-profile result isolation; `DeterministicAndroidUiTransportTest.test_ci_requires_kvm_before_emulator_and_keeps_evidence_upload_fail_closed` owns the regression contract.
+- Verification plan: prove the strengthened named Python regression fails against the old workflow/script and passes after the repair; rerun the exact Python inventory, JVM/build/lint, all three local API 35 profiles, and a new hosted exact-head run. Hosted completion requires all `42/42` UI executions plus an uploaded evidence artifact, and the successful log must not contain the old `-accel off` fallback.
 
 ## Visual parity review
 
@@ -135,21 +145,22 @@ Review result:
 - The seven release-artifact verifier fixtures cover APK/AAB identity, version, production origin, explicit cleartext prohibition, modern signature/certificate, exact digest, explicit AAB tools and full-entry Debug marker scanning. They do not attest a real signed candidate because no such package was authorized or provided.
 - No APK website replacement, production deployment, database migration, Play upload or external distribution occurred in this local verification.
 
-## GitHub delivery fields — mandatory and pending
+## GitHub delivery fields
 
-These fields must be populated only from actual GitHub results:
+Only facts already produced by GitHub are populated:
 
 | Field | Status |
 |---|---|
-| Main-based feature branch | `codex/android-ios-parity-20260807` (local; push pending) |
-| Feature commit SHA | pending |
-| Pull request URL/number | pending |
-| Hosted exact-head CI run URL/ID and conclusion | pending |
+| Main-based feature branch | `codex/android-ios-parity-20260807` (pushed to `andro`) |
+| Feature commit SHA | `f9f581f2cec1cf44a2fae0a5524d58cd13e81e8d` |
+| Pull request URL/number | [PR #1](https://github.com/doyoulikelin-wq/Xjie_andro/pull/1) |
+| First hosted exact-head CI run URL/ID and conclusion | [run 31175685594](https://github.com/doyoulikelin-wq/Xjie_andro/actions/runs/31175685594) — **failure before UI instrumentation; backend and JVM succeeded, UI executed 0 tests after the unaccelerated emulator became unresponsive** |
+| KVM repair commit / replacement exact-head run | pending commit and hosted result; local named regression, Python `43/43`, JVM `232/232`, build/lint and UI `42/42` passed |
 | Merge commit SHA | pending |
 | Final `andro/main` SHA | pending |
 | Post-merge main CI run URL/ID and conclusion | pending |
 
-Local green results cannot fill these fields. Until the main-based feature is committed, pushed to `andro`, reviewed by hosted checks and merged, this evidence must say “local software verified; GitHub delivery pending.”
+Local green results cannot convert failed run `31175685594` to success. Until the repair is committed, pushed, passes a new exact-head run and the PR is merged, this evidence must say “first hosted run failed; repaired locally; replacement exact-head/merge/main delivery pending.”
 
 ## Remaining risks and non-claims
 
@@ -165,4 +176,4 @@ Local green results cannot fill these fields. Until the main-based feature is co
 
 Local completion for the Android software tree requires the root cause, same-class scan, permanent constraints, named regressions, exact full gates and this evidence. Those local conditions are satisfied by the final results above.
 
-End-to-end task completion additionally requires the pending GitHub branch/commit/PR/CI/merge fields. A production Android release remains a separate blocked boundary and must not be claimed without the explicit URL, external signing and exact verified candidate package.
+End-to-end task completion additionally requires exact-head CI success, the pending merge SHA and post-merge main CI. A production Android release remains a separate blocked boundary and must not be claimed without the explicit URL, external signing and exact verified candidate package.

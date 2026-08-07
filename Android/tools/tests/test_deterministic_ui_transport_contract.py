@@ -114,12 +114,51 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
         self.assertIn("reactivecircus/android-emulator-runner@v2", workflow)
         self.assertIn("bash tools/run_connected_ui_profiles.sh", workflow)
         self.assertNotIn("|| true", workflow + runner)
+        self.assertIn("trap finalize_run EXIT", runner)
+        self.assertIn('> "$EVIDENCE_ROOT/run-status.txt"', runner)
+        self.assertIn('"$EVIDENCE_ROOT/_diagnostics"', runner)
         for profile in ("standard_api35", "compact_api35", "large_text_api35"):
             self.assertIn(f"    {profile})", runner)
             self.assertIn(f"run_profile {profile}", runner)
             self.assertIn(f'--result-set "{profile}=', runner)
         self.assertIn(":app:connectedDebugAndroidTest", runner)
         self.assertIn("verify_android_ui_test_inventory.py", runner)
+
+    def test_ci_requires_kvm_before_emulator_and_keeps_evidence_upload_fail_closed(self) -> None:
+        workflow = (ANDROID_ROOT.parent / ".github/workflows/ci.yml").read_text()
+        runner = (ANDROID_ROOT / "tools/run_connected_ui_profiles.sh").read_text()
+        ui_job = workflow.split("  android-connected-ui:\n", 1)[1]
+
+        evidence_step = ui_job.index("- name: Initialize connected-test evidence")
+        kvm_step = ui_job.index("- name: Require KVM acceleration")
+        emulator_step = ui_job.index("reactivecircus/android-emulator-runner@v2")
+        self.assertLess(evidence_step, kvm_step)
+        self.assertLess(kvm_step, emulator_step)
+
+        kvm_contract = ui_job[kvm_step:emulator_step]
+        self.assertIn("test -c /dev/kvm", kvm_contract)
+        self.assertIn('KERNEL=="kvm", GROUP="kvm", MODE="0666"', kvm_contract)
+        self.assertIn("sudo udevadm control --reload-rules", kvm_contract)
+        self.assertIn("sudo udevadm trigger --name-match=kvm", kvm_contract)
+        self.assertIn("sudo udevadm settle", kvm_contract)
+        self.assertIn("test -r /dev/kvm", kvm_contract)
+        self.assertIn("test -w /dev/kvm", kvm_contract)
+        self.assertIn("disable-linux-hw-accel: false", ui_job)
+        self.assertNotIn("disable-linux-hw-accel: true", ui_job)
+        self.assertIn("-no-metrics", ui_job)
+        self.assertNotIn("continue-on-error", ui_job)
+        self.assertNotIn("|| true", ui_job + runner)
+
+        upload_step = ui_job.split("- name: Upload connected-test evidence", 1)[1]
+        self.assertIn("if: always()", upload_step)
+        self.assertIn("path: Android/build/quality/android-ui", upload_step)
+        self.assertIn("if-no-files-found: error", upload_step)
+        clear_results = 'rm -rf "$RESULT_ROOT" "$REPORT_ROOT"'
+        self.assertIn(clear_results, runner)
+        self.assertLess(
+            runner.index(clear_results),
+            runner.index('"$ANDROID_ROOT/gradlew" --no-daemon :app:connectedDebugAndroidTest'),
+        )
 
 
 if __name__ == "__main__":
