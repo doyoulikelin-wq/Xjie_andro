@@ -4,21 +4,21 @@ import androidx.compose.ui.graphics.Color
 
 /** 品牌色 — 与 iOS [Theme.swift] 对齐 */
 object XjiePalette {
-    val Primary = Color(0xFF1456C8)         // 深蓝
-    val Accent = Color(0xFF12B6A2)          // 青绿
-    val GradientStart = Color(0xFF73D5FF)
+    val Primary = Color(0xFF1565C0)         // 深蓝
+    val Accent = Color(0xFF00C9A7)          // 青绿
+    val GradientStart = Accent
     val GradientEnd = Primary
-    val Danger = Color(0xFFD84C4C)
-    val Success = Color(0xFF16A66A)
-    val Warning = Color(0xFFE5A33C)
+    val Danger = Color(0xFFEF4444)
+    val Success = Color(0xFF22C55E)
+    val Warning = Color(0xFFF59E0B)
 }
 
 // Light scheme
 val LightPrimary = XjiePalette.Primary
 val LightSecondary = XjiePalette.Accent
-val LightBackground = Color(0xFFF3F6FA)
+val LightBackground = Color(0xFFFFFFFF)
 val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFF5F8FC)
+val LightSurfaceVariant = Color(0xFFF3F8FC)
 val LightPrimaryContainer = Color(0xFFDDE9FF)
 val LightSecondaryContainer = Color(0xFFD7F4EE)
 val LightOnPrimary = Color(0xFFFFFFFF)

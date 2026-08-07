@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.HealthDocument
 import com.xjie.app.core.model.IndicatorTrend
+import com.xjie.app.core.model.TrendPoint
 import com.xjie.app.core.model.UserProfile
 import com.xjie.app.core.network.api.AgentApi
 import com.xjie.app.core.network.api.DashboardApi
@@ -14,8 +15,10 @@ import com.xjie.app.feature.elderly.ElderlyRepository
 import com.xjie.app.feature.healthdata.HealthDataRepository
 import com.xjie.app.feature.healthplan.HealthPlanRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
 import java.time.LocalDate
 import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,18 +47,31 @@ class XAgeServerSyncViewModel @Inject constructor(
     }
 
     fun refresh() {
-        if (!authManager.isLoggedIn) {
+        val owner = authManager.captureAccountScope()
+        if (owner == null) {
             _state.value = XAgeServerSyncState(snapshot = XAgeServerSyncSnapshot.loggedOut)
             return
         }
 
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
-            runCatching { loadSnapshot() }
+            if (!authManager.isCurrent(owner)) return@launch
+            _state.update { current ->
+                if (current.accountScope != owner.accountScope) {
+                    XAgeServerSyncState(
+                        isLoading = true,
+                        accountScope = owner.accountScope,
+                    )
+                } else {
+                    current.copy(isLoading = true, errorMessage = null)
+                }
+            }
+            runCatching { loadSnapshot(owner) }
                 .onSuccess { loaded ->
+                    if (loaded == null || !authManager.isCurrent(owner)) return@onSuccess
                     _state.value = loaded.copy(isLoading = false)
                 }
                 .onFailure { error ->
+                    if (!authManager.isCurrent(owner)) return@onFailure
                     _state.update {
                         it.copy(
                             isLoading = false,
@@ -66,18 +82,46 @@ class XAgeServerSyncViewModel @Inject constructor(
         }
     }
 
-    private suspend fun loadSnapshot(): XAgeServerSyncState = coroutineScope {
-        val userReq = async { runCatching { userApi.me() }.getOrNull() }
-        val dashboardReq = async { runCatching { dashboardApi.health() }.getOrNull() }
-        val todayReq = async { runCatching { agentApi.today() }.getOrNull() }
-        val summaryReq = async { healthDataRepository.summary() }
-        val recordsReq = async { runCatching { healthDataRepository.documents("record") }.getOrDefault(emptyList()) }
-        val examsReq = async { runCatching { healthDataRepository.documents("exam") }.getOrDefault(emptyList()) }
-        val indicatorsReq = async { runCatching { healthDataRepository.listIndicators() }.getOrDefault(emptyList()) }
-        val watchedReq = async { runCatching { healthDataRepository.watchedIndicators() }.getOrDefault(emptyList()) }
-        val conversationsReq = async { runCatching { chatRepository.listConversations(limit = 20, offset = 0) }.getOrDefault(emptyList()) }
-        val plansReq = async { runCatching { healthPlanRepository.plans().items }.getOrDefault(emptyList()) }
-        val elderlyReq = async { runCatching { elderlyRepository.list(days = 30, limit = 100).items }.getOrDefault(emptyList()) }
+    private suspend fun loadSnapshot(
+        owner: AuthManager.AccountScopeSnapshot,
+    ): XAgeServerSyncState? = coroutineScope {
+        val userReq = async { runCatching { userApi.meForOwner(owner) }.getOrNull() }
+        val dashboardReq = async { runCatching { dashboardApi.healthForOwner(owner) }.getOrNull() }
+        val todayReq = async { runCatching { agentApi.todayForOwner(owner) }.getOrNull() }
+        val summaryReq = async { healthDataRepository.summary(owner) }
+        val recordsReq = async {
+            runCatching { healthDataRepository.documents(owner, "record") }
+                .getOrDefault(emptyList())
+        }
+        val examsReq = async {
+            runCatching { healthDataRepository.documents(owner, "exam") }
+                .getOrDefault(emptyList())
+        }
+        val indicatorsReq = async {
+            runCatching { healthDataRepository.listIndicators(owner) }
+                .getOrDefault(emptyList())
+        }
+        val watchedReq = async {
+            runCatching { healthDataRepository.watchedIndicators(owner) }
+                .getOrDefault(emptyList())
+        }
+        val conversationsReq = async {
+            runCatching {
+                chatRepository.listConversations(
+                    limit = 20,
+                    offset = 0,
+                    expectedOwner = owner,
+                )
+            }.getOrDefault(emptyList())
+        }
+        val plansReq = async {
+            runCatching { healthPlanRepository.plans(owner).items }
+                .getOrDefault(emptyList())
+        }
+        val elderlyReq = async {
+            runCatching { elderlyRepository.list(owner, days = 30, limit = 100).items }
+                .getOrDefault(emptyList())
+        }
 
         val user = userReq.await()
         val dashboard = dashboardReq.await()
@@ -90,20 +134,25 @@ class XAgeServerSyncViewModel @Inject constructor(
         val conversations = conversationsReq.await()
         val plans = plansReq.await()
         val elderly = elderlyReq.await()
+        if (!authManager.isCurrent(owner)) return@coroutineScope null
 
         val watchedNames = watched.map { it.indicator_name }.filter { it.isNotBlank() }
-        val trends = if (watchedNames.isNotEmpty()) {
-            runCatching { healthDataRepository.trends(watchedNames.take(10)) }.getOrDefault(emptyList())
-        } else {
-            emptyList()
-        }
+        val requestedTrendNames = XAgeHealthTrendRequestContract.names(watchedNames)
+        val trends = runCatching { healthDataRepository.trends(owner, requestedTrendNames) }
+            .getOrDefault(emptyList())
+        if (!authManager.isCurrent(owner)) return@coroutineScope null
 
         val snapshot = XAgeServerSyncSnapshot(
             isLoaded = true,
+            isLoggedOut = false,
             summaryUpdatedAt = summary?.updated_at,
             hasSummary = !summary?.summary_text.isNullOrBlank(),
             recordCount = records.size,
             examCount = exams.size,
+            trustedDocumentCount = (records + exams).count {
+                it.report_workflow_status?.lowercase() in
+                    setOf("completed", "completed_score_pending")
+            },
             indicatorCount = indicators.size,
             watchedIndicatorCount = watchedNames.size,
             trendPointCount = trends.sumOf { it.points.size },
@@ -115,11 +164,16 @@ class XAgeServerSyncViewModel @Inject constructor(
             dashboardScore = dashboard?.metabolic_state?.score,
             todayGoalCount = today?.daily_plan?.payload?.today_goals?.size ?: 0,
             primaryWatchedName = watchedNames.firstOrNull(),
+            userAge = user?.profile?.age,
+            profileHeightCm = user?.profile?.height_cm,
+            profileWeightKg = user?.profile?.weight_kg,
+            algorithmTrends = algorithmTrends(trends),
         )
 
         XAgeServerSyncState(
             snapshot = snapshot,
             metricCards = metricCardsFromTrends(trends),
+            accountScope = owner.accountScope,
         )
     }
 
@@ -140,23 +194,72 @@ class XAgeServerSyncViewModel @Inject constructor(
 
     private fun metricCardsFromTrends(trends: List<IndicatorTrend>): List<XAgeServerMetric> {
         val accents = listOf(0xFF238AD6, 0xFF20CDB1, 0xFFEF9A3D, 0xFF7B4DFF)
-        return trends.take(4).mapIndexedNotNull { index, trend ->
-            val latest = trend.points.maxByOrNull { it.date } ?: return@mapIndexedNotNull null
+        val seenIds = mutableSetOf<String>()
+        val seenTitles = mutableSetOf<String>()
+        return trends
+            .filterNot { XAgeMetricIdentityPolicy.isLegacyCombinedBloodPressure(it.name) }
+            .mapIndexedNotNull { index, trend ->
+            val latest = latestPoint(trend.points) ?: return@mapIndexedNotNull null
+            val source = latest.source.orEmpty().lowercase()
+            val sourceLabel = when (source) {
+                "device", "apple_health" -> "设备同步趋势"
+                "manual" -> "手动记录趋势"
+                "cgm" -> "CGM 趋势"
+                "document" -> "已确认报告趋势"
+                else -> "指标趋势"
+            }
             XAgeServerMetric(
-                id = "server-${trend.name}",
+                id = XAgeMetricIdentityPolicy.canonicalId(trend.name),
                 title = trend.name,
-                value = displayValue(latest.value),
+                value = latest.display_value?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: displayValue(latest.value),
                 unit = trend.unit.orEmpty(),
-                time = XAgeServerSyncFormat.shortDate(latest.date),
+                time = XAgeServerSyncFormat.shortDate(
+                    latest.measured_at ?: latest.source_local_date ?: latest.date,
+                ),
                 subtitle = if (latest.abnormal) {
-                    "最近一次结果异常，来自服务端历史报告趋势。"
+                    "最近一次结果异常，来自服务端$sourceLabel。"
                 } else {
-                    "来自服务端历史报告趋势，已同步到当前版本。"
+                    "来自服务端$sourceLabel，已同步到当前版本。"
                 },
                 accentArgb = accents[index % accents.size],
+                trend = trend,
             )
+        }.filter { metric ->
+            seenIds.add(metric.id) && seenTitles.add(XAgeMetricIdentityPolicy.titleKey(metric.title))
         }
     }
+
+    /** Daily scores consume only admitted trend observations, never report csv/abnormal flags. */
+    private fun algorithmTrends(trends: List<IndicatorTrend>): List<XAgeAlgorithmTrend> =
+        trends.mapNotNull { trend ->
+            val latest = latestPoint(
+                trend.points.filter {
+                    XAgeDailyScoreEvidenceContract.admitsServerSource(it.source.orEmpty())
+                },
+            ) ?: return@mapNotNull null
+            val source = latest.source.orEmpty().lowercase()
+            XAgeAlgorithmTrend(
+                name = trend.name,
+                value = latest.value,
+                unit = trend.unit,
+                refLow = trend.ref_low,
+                refHigh = trend.ref_high,
+                abnormal = latest.abnormal,
+                measuredAt = latest.measured_at ?: latest.source_local_date ?: latest.date,
+                source = source,
+                confidence = if (trend.points.size >= 2) 0.82 else 0.72,
+                displayValue = latest.display_value,
+            )
+        }
+
+    private fun latestPoint(points: List<TrendPoint>): TrendPoint? = points.maxWithOrNull(
+        compareBy<TrendPoint> {
+            XAgeServerSyncFormat.instant(
+                it.measured_at ?: it.source_local_date ?: it.date,
+            ) ?: Instant.MIN
+        }.thenBy { "${it.source.orEmpty()}|${it.source_id.orEmpty()}|${it.value}" },
+    )
 
     private fun displayValue(value: Double): String {
         if (value % 1.0 == 0.0) return value.toInt().toString()
@@ -170,6 +273,7 @@ data class XAgeServerSyncState(
     val metricCards: List<XAgeServerMetric> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val accountScope: String? = null,
 )
 
 data class XAgeServerMetric(
@@ -180,14 +284,17 @@ data class XAgeServerMetric(
     val time: String,
     val subtitle: String,
     val accentArgb: Long,
+    val trend: IndicatorTrend,
 )
 
 data class XAgeServerSyncSnapshot(
     val isLoaded: Boolean,
+    val isLoggedOut: Boolean,
     val summaryUpdatedAt: String?,
     val hasSummary: Boolean,
     val recordCount: Int,
     val examCount: Int,
+    val trustedDocumentCount: Int,
     val indicatorCount: Int,
     val watchedIndicatorCount: Int,
     val trendPointCount: Int,
@@ -199,11 +306,16 @@ data class XAgeServerSyncSnapshot(
     val dashboardScore: Int?,
     val todayGoalCount: Int,
     val primaryWatchedName: String?,
+    val userAge: Int?,
+    val profileHeightCm: Double?,
+    val profileWeightKg: Double?,
+    val algorithmTrends: List<XAgeAlgorithmTrend>,
 ) {
     val headerCaption: String
         get() {
             if (!isLoaded) return "正在同步历史数据"
-            if (recordCount + examCount + indicatorCount == 0) return "未登录 · 暂无同步数据"
+            if (isLoggedOut) return "未登录 · 暂无同步数据"
+            if (recordCount + examCount + indicatorCount == 0) return "暂无同步数据"
             return "${XAgeServerSyncFormat.shortDate(summaryUpdatedAt ?: latestDocumentDate)} · 已同步"
         }
 
@@ -216,10 +328,12 @@ data class XAgeServerSyncSnapshot(
     companion object {
         val placeholder = XAgeServerSyncSnapshot(
             isLoaded = false,
+            isLoggedOut = false,
             summaryUpdatedAt = null,
             hasSummary = false,
             recordCount = 0,
             examCount = 0,
+            trustedDocumentCount = 0,
             indicatorCount = 0,
             watchedIndicatorCount = 0,
             trendPointCount = 0,
@@ -231,13 +345,27 @@ data class XAgeServerSyncSnapshot(
             dashboardScore = null,
             todayGoalCount = 0,
             primaryWatchedName = null,
+            userAge = null,
+            profileHeightCm = null,
+            profileWeightKg = null,
+            algorithmTrends = emptyList(),
         )
 
-        val loggedOut = placeholder.copy(isLoaded = true)
+        val loggedOut = placeholder.copy(isLoaded = true, isLoggedOut = true)
     }
 }
 
 object XAgeServerSyncFormat {
+    fun instant(raw: String?): Instant? {
+        val value = raw?.trim().orEmpty()
+        if (value.isEmpty()) return null
+        return runCatching { Instant.parse(value) }.getOrNull()
+            ?: runCatching { OffsetDateTime.parse(value).toInstant() }.getOrNull()
+            ?: runCatching {
+                LocalDate.parse(value.take(10)).atStartOfDay().toInstant(ZoneOffset.UTC)
+            }.getOrNull()
+    }
+
     fun shortDate(raw: String?): String {
         val value = raw?.trim().orEmpty()
         if (value.isEmpty()) return "暂无"

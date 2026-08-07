@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.text.HtmlCompat
+import android.text.method.LinkMovementMethod
 
 /**
  * 轻量 Markdown → HTML 渲染。
@@ -21,22 +22,28 @@ fun MarkdownText(
     modifier: Modifier = Modifier,
     color: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    val html = remember(markdown) { naiveMarkdownToHtml(markdown) }
+    val html = remember(markdown) { markdownToHtml(markdown) }
+    val linkColor = MaterialTheme.colorScheme.primary
     Box(modifier) {
         AndroidView(
             factory = { ctx ->
                 android.widget.TextView(ctx).apply {
                     setTextColor(color.toArgbCompat())
+                    setLinkTextColor(linkColor.toArgbCompat())
+                    linksClickable = true
+                    movementMethod = LinkMovementMethod.getInstance()
                 }
             },
             update = { tv ->
+                tv.setTextColor(color.toArgbCompat())
+                tv.setLinkTextColor(linkColor.toArgbCompat())
                 tv.text = HtmlCompat.fromHtml(html, HtmlCompat.FROM_HTML_MODE_COMPACT)
             },
         )
     }
 }
 
-private fun naiveMarkdownToHtml(src: String): String {
+internal fun markdownToHtml(src: String): String {
     val lines = src.lines()
     val out = StringBuilder()
     for (line in lines) {
@@ -52,13 +59,28 @@ private fun naiveMarkdownToHtml(src: String): String {
         }
     }
     return out.toString()
+        .replace(MARKDOWN_LINK) { match ->
+            val label = match.groupValues[1]
+            val target = match.groupValues[2]
+            if (isSafeMarkdownLink(target)) "<a href=\"$target\">$label</a>" else match.value
+        }
         .replace(Regex("\\*\\*(.+?)\\*\\*"), "<b>$1</b>")
         .replace(Regex("\\*(.+?)\\*"), "<i>$1</i>")
         .replace(Regex("`([^`]+)`"), "<code>$1</code>")
 }
 
 private fun escape(s: String): String =
-    s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+
+internal fun isSafeMarkdownLink(target: String): Boolean {
+    val normalized = target.trim().lowercase()
+    return normalized.startsWith("https://") || normalized.startsWith("http://")
+}
+
+private val MARKDOWN_LINK = Regex("\\[([^]]+)]\\((https?://[^\\s)]+)\\)", RegexOption.IGNORE_CASE)
 
 private fun Color.toArgbCompat(): Int {
     val a = (alpha * 255).toInt() and 0xFF

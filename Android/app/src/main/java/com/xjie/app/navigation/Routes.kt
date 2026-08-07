@@ -6,10 +6,6 @@ sealed class Route(val path: String) {
     data object Login : Route("login")
     data object Main : Route("main")
     data object XAgeShell : Route("xage_shell")
-    data class XAgePanelDestination(val category: String) : Route("xage_panel/$category") {
-        companion object { const val PATTERN = "xage_panel/{category}" }
-    }
-
     // 主 Tab
     data object Home : Route("home")
     data object Glucose : Route("glucose")
@@ -21,11 +17,13 @@ sealed class Route(val path: String) {
     data object Settings : Route("settings")
     data object Chat : Route("chat")
     data object HealthData : Route("health_data")
+    data object Weight : Route("weight")
     data object PatientHistory : Route("patient_history")
     data object Mood : Route("mood")
     data object Omics : Route("omics")
     data object Admin : Route("admin")
     data object MedicalRecords : Route("medical_records")
+    data object MedicalAssistant : Route("medical_assistant")
     data object ExamReports : Route("exam_reports")
     data object ElderlyHistory : Route("elderly_history")
     data object FamilyMode : Route("family_mode")
@@ -33,6 +31,10 @@ sealed class Route(val path: String) {
 
     data class HealthDataFocus(val focus: String) : Route("health_data_focus/$focus") {
         companion object { const val PATTERN = "health_data_focus/{focus}" }
+    }
+
+    data class SettingsFocus(val focus: String) : Route("settings_focus/$focus") {
+        companion object { const val PATTERN = "settings_focus/{focus}" }
     }
 
     data class DocumentDetail(val docId: String) : Route("document/$docId") {

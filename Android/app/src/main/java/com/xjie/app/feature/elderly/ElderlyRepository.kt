@@ -1,5 +1,6 @@
 package com.xjie.app.feature.elderly
 
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.ElderlyCheckin
 import com.xjie.app.core.model.ElderlyCheckinBody
 import com.xjie.app.core.model.ElderlyCheckinList
@@ -20,5 +21,10 @@ class ElderlyRepository @Inject constructor(
     suspend fun create(body: ElderlyCheckinBody): ElderlyCheckin = safeApiCall(json) { api.create(body) }
     suspend fun list(days: Int = 30, limit: Int = 100): ElderlyCheckinList =
         safeApiCall(json) { api.list(days, limit) }
+    suspend fun list(
+        owner: AuthManager.AccountScopeSnapshot,
+        days: Int = 30,
+        limit: Int = 100,
+    ): ElderlyCheckinList = safeApiCall(json) { api.listForOwner(owner, days, limit) }
     suspend fun delete(id: Long): SimpleOk = safeApiCall(json) { api.delete(id) }
 }

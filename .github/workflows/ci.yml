@@ -1,52 +1,161 @@
-# PROD-05: CI/CD — GitHub Actions 自动构建 + 测试
-name: Xjie CI
+name: Xjie Android CI
 
 on:
   push:
     branches: [main]
-    paths: ['Xjie/**']
+    paths:
+      - "Android/**"
+      - "backend/**"
+      - "docker-compose.yml"
+      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
-    paths: ['Xjie/**']
+    paths:
+      - "Android/**"
+      - "backend/**"
+      - "docker-compose.yml"
+      - ".github/workflows/ci.yml"
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    runs-on: macos-15
+  android-build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: Android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android compile platform
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify exact Python quality-tool inventory
+        run: python3 tools/verify_python_test_inventory.py --run
+
+      - name: Verify declared JVM test inventory
+        run: python3 tools/verify_jvm_test_inventory.py
+
+      - name: Run JVM tests, assemble, and lint
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug
+
+      - name: Verify exact executed JVM test inventory
+        run: >-
+          python3 tools/verify_jvm_test_inventory.py
+          --results app/build/test-results/testDebugUnitTest
+
+  backend-exact-test:
+    name: Backend 3.11 production-image exact tests
+    runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
+      - name: Build pinned production backend image
+        env:
+          BACKEND_IMAGE: xjie-android-backend-ci:${{ github.sha }}
+        run: >-
+          docker build
+          --pull
+          --platform linux/amd64
+          --label org.opencontainers.image.revision=${{ github.sha }}
+          --tag "$BACKEND_IMAGE"
+          backend
 
-      - name: Cache DerivedData
-        uses: actions/cache@v4
+      - name: Verify locked runtime and exact backend unit inventory
+        env:
+          BACKEND_IMAGE: xjie-android-backend-ci:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          result_dir="$RUNNER_TEMP/xjie-backend-results"
+          install -d -m 0777 "$result_dir"
+          docker run --rm \
+            --platform linux/amd64 \
+            --network none \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$result_dir,target=/results" \
+            --workdir /workspace \
+            --entrypoint python \
+            "$BACKEND_IMAGE" \
+            -I -c 'import importlib.metadata,sys; assert sys.version_info[:3] == (3,11,15); assert importlib.metadata.version("pip") == "26.1.2"'
+          docker run --rm \
+            --platform linux/amd64 \
+            --network none \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$result_dir,target=/results" \
+            --workdir /workspace \
+            --entrypoint python \
+            "$BACKEND_IMAGE" \
+            -I Android/tools/verify_backend_python_test_inventory.py \
+            --run \
+            --junit /results/backend-unit-results.xml
+
+      - name: Upload exact backend JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-deriveddata-${{ hashFiles('Xjie/Xjie.xcodeproj/project.pbxproj') }}
-          restore-keys: ${{ runner.os }}-deriveddata-
+          name: backend-unit-results
+          path: ${{ runner.temp }}/xjie-backend-results/backend-unit-results.xml
+          if-no-files-found: error
 
-      - name: Build
-        run: |
-          xcodebuild build \
-            -project Xjie/Xjie.xcodeproj \
-            -scheme Xjie \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -configuration Debug \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
-            | xcpretty || true
+  android-connected-ui:
+    name: API 35 deterministic UI profiles
+    needs: android-build-and-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: Android
 
-      - name: Test
-        run: |
-          xcodebuild test \
-            -project Xjie/Xjie.xcodeproj \
-            -scheme Xjie \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
-            -configuration Debug \
-            CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO \
-            | xcpretty || true
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android compile platform
+        run: sdkmanager "platforms;android-36" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Verify declared connected-test inventory
+        run: python3 tools/verify_android_ui_test_inventory.py
+
+      - name: Run standard, compact, and large-text deterministic UI tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          script: cd Android && bash tools/run_connected_ui_profiles.sh
+
+      - name: Upload connected-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ui-profile-results
+          path: Android/build/quality/android-ui
+          if-no-files-found: error

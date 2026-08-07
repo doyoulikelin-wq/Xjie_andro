@@ -8,7 +8,9 @@ import com.xjie.app.core.model.SubjectItem
 import com.xjie.app.core.model.WxLoginBody
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Tag
 
 interface AuthApi {
     @GET("api/auth/subjects")
@@ -32,8 +34,20 @@ interface AuthApi {
     @POST("api/auth/logout")
     suspend fun logout()
 
+    @POST("api/auth/logout")
+    suspend fun logoutWithCapturedToken(
+        @Header("Authorization") authorization: String,
+    )
+
     @POST("api/auth/password/change")
     suspend fun changePassword(@Body body: com.xjie.app.core.model.PasswordChangeBody)
+
+    @POST("api/auth/password/change")
+    suspend fun changePasswordForOwner(
+        @Tag owner: com.xjie.app.core.auth.AuthManager.AccountScopeSnapshot,
+        @Header("Authorization") authorization: String,
+        @Body body: com.xjie.app.core.model.PasswordChangeBody,
+    )
 
     @POST("api/auth/password/reset/request")
     suspend fun requestPasswordReset(@Body body: com.xjie.app.core.model.PasswordResetRequestBody): com.xjie.app.core.model.SimpleOk

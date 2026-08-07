@@ -5369,5 +5369,126 @@
       "Report picker and camera entry points were verified without submitting a real document, to avoid polluting the user's account data.",
       "Existing untracked Android backend/analysis and backend/analysis_outputs directories were left untouched."
     ]
+  },
+  {
+    "id": "2026-07-15-android-trusted-medication-loop",
+    "time": "2026-07-15T07:00:00+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / Medication Trust",
+    "feature": "fix(android): 用药页接入服务端可信执行闭环",
+    "description": "Android 用药页由 legacy CRUD 列表改为服务端权威 today/plans/prefill/reactions 四源状态，并完成 7 月 15 日用药管理目标文档。可能漏服永远保持待确认；服用、稍后、跳过与同日纠正绑定服务端计划/发生版本及稳定事件 ID。确认计划可进入完整详情、显式开启本机提醒并配置每日/隔日、提前、稍后、疗程结束、声音和锁屏隐私，配置按计划版本持久化并支持系统恢复；通知权限只在开启提醒时申请，拒绝后提供系统设置入口。记录页提供当天和七天可信记录，已确认率只计用户确认的已服/跳过；服务端尚无完整疗程聚合、续配依据、处方/历史浏览时明确显示暂不可用。OCR 只接收原始文字，识别结果必须复核后才创建计划；余量仅显示按已确认服药估算的预计剩余；不适只表达时间关联并对严重症状显示安全提示。所有页面统一键盘、返回链路和未保存退出保护。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "Medication",
+      "Trust",
+      "Notifications"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/core/model/MedicationTrustModels.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/network/api/MedicationApi.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationRepository.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationViewModel.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationTrustPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/TrustedMedicationReminderPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationReminderPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationReminderStore.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/medication/MedicationScheduler.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/push/NotificationChannels.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/MainActivity.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/MedicationApiContractTest.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/MedicationTrustPolicyTest.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/feature/medication/TrustedMedicationReminderPolicyTest.kt"},
+        {"status": "A", "path": "Android/quality/medication_trust_regression_contract.md"},
+        {"status": "M", "path": "Android/quality/expected_jvm_tests.json"},
+        {"status": "M", "path": "Android/tools/tests/test_health_trust_consumers.py"}
+      ]
+    },
+    "verification": [
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest --tests 'com.xjie.app.feature.medication.*'", "result": "passed: 34/34 focused medication tests"},
+      {"command": "python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest", "result": "passed: exact 80/80, no missing, extra, duplicate, skipped or failed tests"},
+      {"command": "python3 -m unittest discover -s tools/tests -p 'test_*.py'", "result": "passed: 11/11; medication consumer also pins contextual permission, persisted reminders, record correction and unavailable capabilities"},
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug", "result": "passed in 59 seconds"},
+      {"command": "git diff --check", "result": "passed"}
+    ],
+    "notes": [
+      "The trusted page does not read or promote legacy CRUD records; legacy code remains compatibility-only.",
+      "adb is not installed on this machine, so real notification delivery, reboot/time-zone recovery, lock-screen privacy, OEM keyboard, small-screen/large-font, accessibility and real backend deployment remain release sign-offs.",
+      "No secret, account token or raw OCR content was written to this record."
+    ]
+  },
+  {
+    "id": "2026-08-07-android-ios-parity",
+    "time": "2026-08-07T19:43:35+08:00",
+    "author": "Codex",
+    "type": "feat",
+    "type_label": "功能",
+    "scope": "Android / iOS parity replication",
+    "feature": "feat(android): complete iOS parity replication",
+    "description": "以当前 iOS 仓库为只读产品与后端权威源，完成 Android XAGE 的账号代际隔离、每日评分、三栏壳层、报告可信工作流、就医助手、饮食、用药、画像、Health Connect、对话、体重、更多/支持、登录及法律同意复刻；Apple Health 仅按平台语义替换为 Health Connect，Bluetooth/NFC 继续明确不支持。共享后端 tracked 文件逐字节同步，Debug-only 确定性传输、精确测试清单和 Release 失败关闭合同一并落地。",
+    "repos": ["XJie_And"],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Auth",
+      "Chat",
+      "Health Connect",
+      "Reports",
+      "Meals",
+      "Medication",
+      "Medical Assistant",
+      "Weight",
+      "Backend",
+      "CI",
+      "Quality"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "M", "path": ".github/workflows/ci.yml"},
+        {"status": "M", "path": ".gitignore"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/core/ui/theme/Color.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeDailyScoreAlgorithm.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/xage/XAgeMetricIdentityPolicy.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/healthconnect/HealthConnectManager.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/healthdata/HealthReportUploadCoordinator.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/medicalassistant/MedicalAssistantScreen.kt"},
+        {"status": "A", "path": "Android/app/src/main/java/com/xjie/app/feature/weight/WeightScreen.kt"},
+        {"status": "A", "path": "Android/app/src/debug/java/com/xjie/app/core/quality/DebugUiAutomationTransport.kt"},
+        {"status": "A", "path": "Android/app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"},
+        {"status": "A", "path": "Android/app/src/test/java/com/xjie/app/core/ui/theme/XjiePaletteParityTest.kt"},
+        {"status": "A", "path": "Android/quality/expected_jvm_tests.json"},
+        {"status": "A", "path": "Android/quality/expected_android_ui_tests.json"},
+        {"status": "A", "path": "Android/quality/ios_android_parity_contract_20260807.md"},
+        {"status": "A", "path": "Android/quality/evidence/ios_android_parity_20260807.md"},
+        {"status": "A", "path": "backend/app/db/migrations/versions/0026_medical_assistant_overview.py"},
+        {"status": "A", "path": "backend/requirements.lock"},
+        {"status": "M", "path": "development_records.json"},
+        {"status": "M", "path": "development_history.html"}
+      ]
+    },
+    "verification": [
+      {"command": "JAVA_HOME='/Applications/Android Studio.app/Contents/jbr/Contents/Home' ./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest", "result": "passed: exact JVM source and execution 232/232; 0 failed, skipped, missing, extra or duplicate; Debug APK and lint passed"},
+      {"command": "PATH=... JAVA_HOME=... /bin/bash tools/run_connected_ui_profiles.sh", "result": "passed: API 35 standard, compact and font-scale 1.3 profiles each exact 14/14; total 42 executions, 0 failed or skipped; deterministic transport asserted zero escaped requests"},
+      {"command": "python3 tools/verify_python_test_inventory.py --run", "result": "passed: exact Python source and execution 42/42"},
+      {"command": "/Users/linlin/Desktop/X/XJie_IOS/backend/.venv/bin/python tools/verify_backend_python_test_inventory.py --python /Users/linlin/Desktop/X/XJie_IOS/backend/.venv/bin/python --run --junit /Users/linlin/Desktop/X/XJie_And/Android/build/quality/backend-unit-results.xml", "result": "passed: backend exact 392/392, 0 failure/error/skip/duplicate"},
+      {"command": "compare git -C XJie_IOS ls-files backend against XJie_And/backend with /usr/bin/cmp", "result": "passed: tracked=261, missing=0, mismatches=0"},
+      {"command": "JAVA_HOME=... ./gradlew --no-daemon verifyReleaseConfiguration", "result": "expected fail-closed: exit 1 because API_BASE_URL_RELEASE is not an explicit non-placeholder HTTPS URL"},
+      {"command": "same-canvas visual comparison of iOS references and final Android emulator captures", "result": "passed visual review: login and XAGE have no clipping/overlap; Android Weight rich page is complete; iOS and Android XAGE payloads differ, so no pixel-equivalence claim was made"}
+    ],
+    "notes": [
+      "The iOS repository was read-only. No iOS file was modified or staged.",
+      "GitHub delivery uses only the Android remote named andro; origin points to the iOS repository and must never be pushed.",
+      "GitHub PR, hosted exact-head CI, merge SHA and final main CI are intentionally recorded as pending until those external identities exist; the evidence file must be updated after delivery rather than inventing them.",
+      "The generated Debug APK SHA-256 is e52ddf643a3dcf359ee1d3007d657a7541b0f9537b41807ca39d95998fe9b8c7; it is test evidence, not a signed production release.",
+      "Formal Android release remains blocked by missing explicit production HTTPS URL, formal signing identity and a real candidate artifact. Production migrations/backend deployment and real-device Health Connect, notification, reboot/time-zone, TalkBack, OEM keyboard, system picker/camera and real AI/OCR/SSE remain unverified.",
+      "No .env secret, signing key, account token, raw medical material or production credential was committed. backend/analysis, backend/analysis_outputs and backend/build were excluded."
+    ]
   }
 ]

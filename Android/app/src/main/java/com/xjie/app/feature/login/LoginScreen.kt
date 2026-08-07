@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -23,8 +24,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.xjie.app.core.ui.theme.XjiePalette
+import com.xjie.app.feature.settings.XAgeComplianceSection
+
+private enum class SignupLegalDocument(val title: String) {
+    UserAgreement("用户协议"),
+    PrivacyPolicy("隐私政策"),
+}
 
 @Composable
 fun LoginScreen(
@@ -33,6 +41,8 @@ fun LoginScreen(
     val state by vm.state.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showReset by remember { mutableStateOf(false) }
+    var showLegalConsentConfirmation by remember { mutableStateOf(false) }
+    var legalDocument by remember { mutableStateOf<SignupLegalDocument?>(null) }
 
     LaunchedEffect(Unit) { vm.loadSubjects() }
 
@@ -57,36 +67,59 @@ fun LoginScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             LogoArea()
-            ModeSwitch(mode = state.mode, onToggle = vm::toggleMode)
-
-            when (state.mode) {
-                LoginMode.Subject -> SubjectSection(
-                    state = state,
-                    onSelect = vm::setSelectedSubject,
-                    onLogin = vm::loginSubject,
-                )
-                LoginMode.Phone -> PhoneSection(
-                    state = state,
-                    onPhoneChange = vm::setPhone,
-                    onUsernameChange = vm::setUsername,
-                    onPasswordChange = vm::setPassword,
-                    onSexChange = vm::setSex,
-                    onAgeChange = vm::setAge,
-                    onHeightChange = vm::setHeightCm,
-                    onWeightChange = vm::setWeightKg,
-                    onTargetChange = vm::setOnboardingTarget,
-                    onToggleContent = vm::toggleOnboardingContent,
-                    onGeneratePlanChange = vm::setOnboardingGeneratePlan,
-                    onMedicationNeededChange = vm::setMedicationNeeded,
-                    onToggleSignup = vm::toggleSignup,
-                    onSubmit = vm::loginPhone,
-                    onForgot = { showReset = true },
-                )
-            }
+            PhoneSection(
+                state = state,
+                onPhoneChange = vm::setPhone,
+                onUsernameChange = vm::setUsername,
+                onPasswordChange = vm::setPassword,
+                onSexChange = vm::setSex,
+                onAgeChange = vm::setAge,
+                onHeightChange = vm::setHeightCm,
+                onWeightChange = vm::setWeightKg,
+                onUserAgreementChange = vm::setUserAgreementAccepted,
+                onPrivacyPolicyChange = vm::setPrivacyPolicyAccepted,
+                onOpenLegalDocument = { legalDocument = it },
+                onToggleSignup = vm::toggleSignup,
+                onSubmit = {
+                    if (state.isSignup && !state.hasAcceptedRequiredLegalAgreements) {
+                        showLegalConsentConfirmation = true
+                    } else {
+                        vm.loginPhone()
+                    }
+                },
+                onForgot = { showReset = true },
+            )
         }
     }
     if (showReset) {
         PasswordResetDialog(onDismiss = { showReset = false })
+    }
+    if (showLegalConsentConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showLegalConsentConfirmation = false },
+            title = { Text("请先阅读并同意协议") },
+            text = {
+                Text("注册前请阅读《用户协议》和《隐私政策》。点击“确认同意并注册”即表示你已阅读并同意两份协议。")
+            },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.testTag("login.legal.confirmAndSignup"),
+                    onClick = {
+                        showLegalConsentConfirmation = false
+                        vm.acceptRequiredLegalAgreements()
+                        vm.loginPhone()
+                    },
+                ) { Text("确认同意并注册") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLegalConsentConfirmation = false }) {
+                    Text("暂不注册")
+                }
+            },
+        )
+    }
+    legalDocument?.let { document ->
+        LegalDocumentDialog(document = document, onDismiss = { legalDocument = null })
     }
 }
 
@@ -99,12 +132,12 @@ private fun LogoArea() {
     ) {
         Image(
             painter = painterResource(id = com.xjie.app.R.drawable.ic_logo),
-            contentDescription = "Xjie Logo",
+            contentDescription = "小捷 Logo",
             modifier = Modifier
                 .size(96.dp)
                 .clip(CircleShape),
         )
-        Text("Xjie", style = MaterialTheme.typography.headlineSmall,
+        Text("小捷", style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold)
         Text(
             "智能代谢健康管理",
@@ -234,10 +267,9 @@ private fun PhoneSection(
     onAgeChange: (Int) -> Unit,
     onHeightChange: (Int) -> Unit,
     onWeightChange: (Int) -> Unit,
-    onTargetChange: (String) -> Unit,
-    onToggleContent: (String) -> Unit,
-    onGeneratePlanChange: (Boolean) -> Unit,
-    onMedicationNeededChange: (Boolean) -> Unit,
+    onUserAgreementChange: (Boolean) -> Unit,
+    onPrivacyPolicyChange: (Boolean) -> Unit,
+    onOpenLegalDocument: (SignupLegalDocument) -> Unit,
     onToggleSignup: () -> Unit,
     onSubmit: () -> Unit,
     onForgot: () -> Unit = {},
@@ -300,28 +332,26 @@ private fun PhoneSection(
                     onWeightChange = onWeightChange,
                 )
             }
-            LabeledField(label = "健康目标与计划需求") {
-                OnboardingNeedsSection(
-                    target = state.onboardingTarget,
-                    contents = state.onboardingContents,
-                    generatePlan = state.onboardingGeneratePlan,
-                    medicationNeeded = state.medicationNeeded,
-                    onTargetChange = onTargetChange,
-                    onToggleContent = onToggleContent,
-                    onGeneratePlanChange = onGeneratePlanChange,
-                    onMedicationNeededChange = onMedicationNeededChange,
-                )
-            }
+            LegalConsentSection(
+                acceptedUserAgreement = state.hasAcceptedUserAgreement,
+                acceptedPrivacyPolicy = state.hasAcceptedPrivacyPolicy,
+                onUserAgreementChange = onUserAgreementChange,
+                onPrivacyPolicyChange = onPrivacyPolicyChange,
+                onOpenDocument = onOpenLegalDocument,
+            )
         }
         GradientButton(
             label = if (state.isSignup) "注册" else "登录",
             enabled = !state.loading,
             loading = state.loading,
+            modifier = Modifier.testTag("login.submit"),
             onClick = onSubmit,
         )
         TextButton(
             onClick = onToggleSignup,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("login.signup.toggle"),
         ) {
             Text(
                 if (state.isSignup) "已有账号？去登录" else "没有账号？去注册",
@@ -331,6 +361,130 @@ private fun PhoneSection(
         if (!state.isSignup) {
             TextButton(onClick = onForgot, modifier = Modifier.fillMaxWidth()) {
                 Text("忘记密码？", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegalConsentSection(
+    acceptedUserAgreement: Boolean,
+    acceptedPrivacyPolicy: Boolean,
+    onUserAgreementChange: (Boolean) -> Unit,
+    onPrivacyPolicyChange: (Boolean) -> Unit,
+    onOpenDocument: (SignupLegalDocument) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("login.legal.consents"),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        LegalConsentRow(
+            accepted = acceptedUserAgreement,
+            document = SignupLegalDocument.UserAgreement,
+            tag = "login.legal.userAgreement",
+            onAcceptedChange = onUserAgreementChange,
+            onOpenDocument = onOpenDocument,
+        )
+        LegalConsentRow(
+            accepted = acceptedPrivacyPolicy,
+            document = SignupLegalDocument.PrivacyPolicy,
+            tag = "login.legal.privacyPolicy",
+            onAcceptedChange = onPrivacyPolicyChange,
+            onOpenDocument = onOpenDocument,
+        )
+    }
+}
+
+@Composable
+private fun LegalConsentRow(
+    accepted: Boolean,
+    document: SignupLegalDocument,
+    tag: String,
+    onAcceptedChange: (Boolean) -> Unit,
+    onOpenDocument: (SignupLegalDocument) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = accepted,
+            onCheckedChange = onAcceptedChange,
+            modifier = Modifier.testTag(tag),
+        )
+        Text(
+            "我已阅读并同意",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(
+            onClick = { onOpenDocument(document) },
+            modifier = Modifier.testTag("$tag.document"),
+            contentPadding = PaddingValues(horizontal = 4.dp),
+        ) {
+            Text("《${document.title}》", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun LegalDocumentDialog(
+    document: SignupLegalDocument,
+    onDismiss: () -> Unit,
+) {
+    val sections: List<XAgeComplianceSection> = when (document) {
+        SignupLegalDocument.UserAgreement -> LoginLegalConsentPolicy.userAgreementSections
+        SignupLegalDocument.PrivacyPolicy -> LoginLegalConsentPolicy.privacyPolicySections
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.88f)
+                .testTag("login.legal.document.${document.name}"),
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 6.dp,
+        ) {
+            Column(Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(document.title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.testTag("login.legal.document.close"),
+                    ) { Text("关闭") }
+                }
+                HorizontalDivider()
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
+                ) {
+                    Text(
+                        "请在注册前仔细阅读",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    sections.forEach { section ->
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(section.title, fontWeight = FontWeight.Bold)
+                            Text(
+                                section.content,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -522,6 +676,7 @@ private fun GradientButton(
     label: String,
     enabled: Boolean,
     loading: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -529,7 +684,7 @@ private fun GradientButton(
         enabled = enabled,
         shape = RoundedCornerShape(8.dp),
         color = Color.Transparent,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Box(
             modifier = Modifier

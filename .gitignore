@@ -51,6 +51,7 @@ Xjie/build/
 
 # Android build artifacts
 Android/.gradle/
+Android/.kotlin/
 Android/build/
 Android/app/build/
 Android/local.properties
@@ -63,3 +64,6 @@ Android/local.properties
 
 # Test data - health reports (sensitive)
 test_data/体检报告/
+backend/analysis/
+backend/analysis_outputs/
+backend/build/

@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.PasswordChangeBody
 import com.xjie.app.core.network.api.AuthApi
 import com.xjie.app.core.network.safeApiCall
@@ -36,6 +37,7 @@ data class ChangePwdUiState(
 @HiltViewModel
 class ChangePasswordViewModel @Inject constructor(
     private val authApi: AuthApi,
+    private val authManager: AuthManager,
     private val json: Json,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ChangePwdUiState())
@@ -46,7 +48,7 @@ class ChangePasswordViewModel @Inject constructor(
     fun setConfirm(v: String) = _state.update { it.copy(confirmPwd = v.take(64)) }
     fun reset() = _state.update { ChangePwdUiState() }
 
-    fun submit() = viewModelScope.launch {
+    fun submit() {
         val s = _state.value
         when {
             s.oldPwd.isBlank() -> _state.update { it.copy(message = "请输入旧密码") }
@@ -54,13 +56,30 @@ class ChangePasswordViewModel @Inject constructor(
             s.newPwd != s.confirmPwd -> _state.update { it.copy(message = "两次输入的新密码不一致") }
             s.newPwd == s.oldPwd -> _state.update { it.copy(message = "新密码不能与旧密码相同") }
             else -> {
+                if (s.saving) return
+                val owner = authManager.captureAccountScope()
+                val token = owner?.let(authManager::accessTokenIfCurrent)
+                if (owner == null || token.isNullOrBlank()) {
+                    _state.update { it.copy(message = "登录已失效，请重新登录后再试。") }
+                    return
+                }
                 _state.update { it.copy(saving = true, message = null) }
-                runCatching {
-                    safeApiCall(json) { authApi.changePassword(PasswordChangeBody(s.oldPwd, s.newPwd)) }
-                }.onSuccess {
-                    _state.update { it.copy(saving = false, done = true, message = "密码已更新") }
-                }.onFailure { e ->
-                    _state.update { it.copy(saving = false, message = e.message ?: "修改失败") }
+                viewModelScope.launch {
+                    runCatching {
+                        safeApiCall(json) {
+                            authApi.changePasswordForOwner(
+                                owner,
+                                "Bearer $token",
+                                PasswordChangeBody(s.oldPwd, s.newPwd),
+                            )
+                        }
+                    }.onSuccess {
+                        if (!authManager.isCurrent(owner)) return@onSuccess
+                        _state.update { it.copy(saving = false, done = true, message = "密码已更新") }
+                    }.onFailure { e ->
+                        if (!authManager.isCurrent(owner)) return@onFailure
+                        _state.update { it.copy(saving = false, message = e.message ?: "修改失败") }
+                    }
                 }
             }
         }

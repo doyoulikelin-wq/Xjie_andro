@@ -38,6 +38,8 @@ class TokenAuthenticator @Inject constructor(
     override fun authenticate(route: Route?, response: Response): Request? {
         if (responseCount(response) >= 2) return null  // 防止无限循环
         if (response.request.url.encodedPath.startsWith("/api/auth/")) return null
+        val expectedOwner = response.request.tag(AuthManager.AccountScopeSnapshot::class.java)
+        if (expectedOwner != null && !auth.isCurrent(expectedOwner)) return null
 
         val triedToken = response.request.header("Authorization")
             ?.removePrefix("Bearer ")
@@ -46,6 +48,9 @@ class TokenAuthenticator @Inject constructor(
 
         return runBlocking {
             refreshMutex.withLock {
+                if (expectedOwner != null && !auth.isCurrent(expectedOwner)) {
+                    return@withLock null
+                }
                 // 期间另一线程可能已刷新成功
                 val current = auth.accessToken
                 if (current.isNotEmpty() && current != triedToken) {
@@ -56,13 +61,16 @@ class TokenAuthenticator @Inject constructor(
 
                 val rt = auth.refreshToken
                 if (rt.isEmpty()) {
-                    auth.logout()
+                    if (expectedOwner == null || auth.isCurrent(expectedOwner)) auth.logout()
                     return@withLock null
                 }
 
                 val refreshed = doRefresh(rt)
                 if (refreshed == null) {
-                    auth.logout()
+                    if (expectedOwner == null || auth.isCurrent(expectedOwner)) auth.logout()
+                    return@withLock null
+                }
+                if (expectedOwner != null && !auth.isCurrent(expectedOwner)) {
                     return@withLock null
                 }
                 auth.setAuth(refreshed.access_token, refreshed.refresh_token ?: rt)
@@ -78,7 +86,7 @@ class TokenAuthenticator @Inject constructor(
             val client = refreshClientProvider.get()
             val body = json.encodeToString(RefreshTokenBody.serializer(), RefreshTokenBody(refreshToken))
             val req = Request.Builder()
-                .url(BuildConfig.API_BASE_URL.trimEnd('/') + "/api/auth/refresh")
+                .url(ApiEndpointPolicy.endpoint(BuildConfig.API_BASE_URL, "api/auth/refresh"))
                 .post(body.toRequestBody("application/json".toMediaType()))
                 .build()
             client.newCall(req).execute().use { resp ->

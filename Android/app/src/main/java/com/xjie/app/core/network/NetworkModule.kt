@@ -2,6 +2,7 @@ package com.xjie.app.core.network
 
 import com.xjie.app.BuildConfig
 import com.xjie.app.core.util.ApiConstants
+import com.xjie.app.core.quality.UiAutomationRuntime
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,11 +52,11 @@ object NetworkModule {
     @Provides @Singleton @RefreshClient
     fun provideRefreshClient(
         logging: HttpLoggingInterceptor,
-    ): OkHttpClient = OkHttpClient.Builder()
+    ): OkHttpClient = UiAutomationRuntime.installOn(OkHttpClient.Builder()
         .connectTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .readTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
-        .addInterceptor(logging)
+        .addInterceptor(logging))
         .build()
 
     @Provides @Singleton @DefaultClient
@@ -64,14 +65,14 @@ object NetworkModule {
         retryInterceptor: RetryInterceptor,
         tokenAuthenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor,
-    ): OkHttpClient = OkHttpClient.Builder()
+    ): OkHttpClient = UiAutomationRuntime.installOn(OkHttpClient.Builder()
         .connectTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .readTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
         .addInterceptor(retryInterceptor)
         .addInterceptor(logging)
-        .authenticator(tokenAuthenticator)
+        .authenticator(tokenAuthenticator))
         .build()
 
     @Provides @Singleton @UploadClient
@@ -79,13 +80,13 @@ object NetworkModule {
         authInterceptor: AuthInterceptor,
         tokenAuthenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor,
-    ): OkHttpClient = OkHttpClient.Builder()
+    ): OkHttpClient = UiAutomationRuntime.installOn(OkHttpClient.Builder()
         .connectTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .readTimeout(ApiConstants.UPLOAD_TIMEOUT_S, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.UPLOAD_TIMEOUT_S, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
         .addInterceptor(logging)
-        .authenticator(tokenAuthenticator)
+        .authenticator(tokenAuthenticator))
         .build()
 
     @Provides @Singleton @LlmClient
@@ -93,13 +94,13 @@ object NetworkModule {
         authInterceptor: AuthInterceptor,
         tokenAuthenticator: TokenAuthenticator,
         logging: HttpLoggingInterceptor,
-    ): OkHttpClient = OkHttpClient.Builder()
+    ): OkHttpClient = UiAutomationRuntime.installOn(OkHttpClient.Builder()
         .connectTimeout(ApiConstants.REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
         .readTimeout(ApiConstants.LLM_TIMEOUT_S, TimeUnit.SECONDS)
         .writeTimeout(ApiConstants.LLM_TIMEOUT_S, TimeUnit.SECONDS)
         .addInterceptor(authInterceptor)
         .addInterceptor(logging)
-        .authenticator(tokenAuthenticator)
+        .authenticator(tokenAuthenticator))
         .build()
 
     @Provides @Singleton
@@ -109,7 +110,20 @@ object NetworkModule {
     ): Retrofit {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL.trimEnd('/') + "/")
+            .baseUrl(ApiEndpointPolicy.retrofitBaseUrl(BuildConfig.API_BASE_URL))
+            .callFactory(client as Call.Factory)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+    }
+
+    @Provides @Singleton @UploadClient
+    fun provideUploadRetrofit(
+        @UploadClient client: OkHttpClient,
+        json: Json,
+    ): Retrofit {
+        val contentType = "application/json".toMediaType()
+        return Retrofit.Builder()
+            .baseUrl(ApiEndpointPolicy.retrofitBaseUrl(BuildConfig.API_BASE_URL))
             .callFactory(client as Call.Factory)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
@@ -122,7 +136,7 @@ object NetworkModule {
     ): Retrofit {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.API_BASE_URL.trimEnd('/') + "/")
+            .baseUrl(ApiEndpointPolicy.retrofitBaseUrl(BuildConfig.API_BASE_URL))
             .callFactory(client as Call.Factory)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()

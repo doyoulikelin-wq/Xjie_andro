@@ -1,5 +1,6 @@
 package com.xjie.app.core.network.api
 
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.HealthPlanDetail
 import com.xjie.app.core.model.HealthPlanFromChatRequest
 import com.xjie.app.core.model.HealthPlanQuestionnaireRequest
@@ -19,10 +20,17 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Tag
 
 interface HealthPlanApi {
     @GET("api/health-plans")
     suspend fun listPlans(@Query("status") status: String? = "active"): HealthPlanListResponse
+
+    @GET("api/health-plans")
+    suspend fun listPlansForOwner(
+        @Tag owner: AuthManager.AccountScopeSnapshot,
+        @Query("status") status: String? = "active",
+    ): HealthPlanListResponse
 
     @GET("api/health-plans/{id}")
     suspend fun planDetail(@Path("id") id: String): HealthPlanDetail
@@ -36,8 +44,20 @@ interface HealthPlanApi {
     @POST("api/health-plans/from-chat")
     suspend fun createFromChat(@Body body: HealthPlanFromChatRequest): HealthPlanDetail
 
+    @POST("api/health-plans/from-chat")
+    suspend fun createFromChatForOwner(
+        @Tag owner: AuthManager.AccountScopeSnapshot,
+        @Body body: HealthPlanFromChatRequest,
+    ): HealthPlanDetail
+
     @POST("api/health-plans/questionnaire")
     suspend fun createFromQuestionnaire(@Body body: HealthPlanQuestionnaireRequest): HealthPlanDetail
+
+    @POST("api/health-plans/questionnaire")
+    suspend fun createFromQuestionnaireForOwner(
+        @Tag owner: AuthManager.AccountScopeSnapshot,
+        @Body body: HealthPlanQuestionnaireRequest,
+    ): HealthPlanDetail
 
     @POST("api/health-plans/tube/complete")
     suspend fun completeTubeTask(@Body body: TubeCompleteRequest): TubeCompleteResponse

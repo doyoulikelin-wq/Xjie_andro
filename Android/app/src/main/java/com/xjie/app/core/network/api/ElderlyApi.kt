@@ -1,5 +1,6 @@
 package com.xjie.app.core.network.api
 
+import com.xjie.app.core.auth.AuthManager
 import com.xjie.app.core.model.ElderlyCheckin
 import com.xjie.app.core.model.ElderlyCheckinBody
 import com.xjie.app.core.model.ElderlyCheckinList
@@ -11,6 +12,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Tag
 
 interface ElderlyApi {
     @GET("api/elderly/today")
@@ -21,6 +23,13 @@ interface ElderlyApi {
 
     @GET("api/elderly")
     suspend fun list(
+        @Query("days") days: Int = 30,
+        @Query("limit") limit: Int = 100,
+    ): ElderlyCheckinList
+
+    @GET("api/elderly")
+    suspend fun listForOwner(
+        @Tag owner: AuthManager.AccountScopeSnapshot,
         @Query("days") days: Int = 30,
         @Query("limit") limit: Int = 100,
     ): ElderlyCheckinList

@@ -10,19 +10,33 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
-// Read API base URL from local.properties (override per-developer)
+// Read non-secret build inputs from local.properties or the process environment.
+// Signing credentials must never be checked in.
 val localProps = Properties().apply {
     val f = rootProject.file("local.properties")
     if (f.exists()) f.inputStream().use { load(it) }
 }
-val devApiBaseUrl: String = localProps.getProperty("API_BASE_URL_DEBUG")
+fun buildInput(name: String): String? =
+    localProps.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: System.getenv(name)?.trim()?.takeIf { it.isNotEmpty() }
+
+val devApiBaseUrl: String = buildInput("API_BASE_URL_DEBUG")
     ?: "http://10.0.2.2:8000"
-val prodApiBaseUrl: String = localProps.getProperty("API_BASE_URL_RELEASE")
-    ?: "https://api.example.com"
+val prodApiBaseUrl: String = buildInput("API_BASE_URL_RELEASE").orEmpty()
+val releaseStoreFilePath = buildInput("XJIE_RELEASE_STORE_FILE")
+val releaseStorePassword = buildInput("XJIE_RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = buildInput("XJIE_RELEASE_KEY_ALIAS")
+val releaseKeyPassword = buildInput("XJIE_RELEASE_KEY_PASSWORD")
+val releaseSigningConfigured = listOf(
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.xjie.app"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.xjie.app"
@@ -34,6 +48,17 @@ android {
         vectorDrawables { useSupportLibrary = true }
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = rootProject.file(requireNotNull(releaseStoreFilePath))
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -43,6 +68,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -78,6 +104,36 @@ android {
     }
 }
 
+val verifyReleaseConfiguration by tasks.registering {
+    group = "verification"
+    description = "Reject release artifacts without an explicit HTTPS API and external signing inputs."
+    doLast {
+        check(
+            prodApiBaseUrl.startsWith("https://") &&
+                !prodApiBaseUrl.contains("example.com", ignoreCase = true),
+        ) {
+            "API_BASE_URL_RELEASE must be an explicit non-placeholder HTTPS URL"
+        }
+        check(releaseSigningConfigured) {
+            "Release signing inputs are incomplete; provide XJIE_RELEASE_STORE_FILE, " +
+                "XJIE_RELEASE_STORE_PASSWORD, XJIE_RELEASE_KEY_ALIAS, and XJIE_RELEASE_KEY_PASSWORD"
+        }
+        check(rootProject.file(requireNotNull(releaseStoreFilePath)).isFile) {
+            "XJIE_RELEASE_STORE_FILE does not identify a regular keystore file"
+        }
+    }
+}
+
+tasks.configureEach {
+    if (
+        name == "assembleRelease" ||
+        name == "bundleRelease" ||
+        name == "packageRelease"
+    ) {
+        dependsOn(verifyReleaseConfiguration)
+    }
+}
+
 dependencies {
     // Core
     implementation(libs.androidx.core.ktx)
@@ -94,6 +150,7 @@ dependencies {
     implementation(libs.compose.material.icons.extended)
     implementation(libs.compose.foundation)
     debugImplementation(libs.compose.ui.tooling)
+    debugImplementation(libs.compose.ui.test.manifest)
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -133,6 +190,7 @@ dependencies {
 
     // Permissions
     implementation(libs.accompanist.permissions)
+    implementation(libs.androidx.health.connect.client)
 
     // Logging
     implementation(libs.timber)
@@ -148,5 +206,8 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.ext.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
     androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
 }
