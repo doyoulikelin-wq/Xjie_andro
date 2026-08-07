@@ -5552,5 +5552,57 @@
       "Only the Android repository is modified. The iOS repository and workspace/iOS development histories remain untouched; only remote andro may receive this branch.",
       "No secret, account token, raw medical material or production credential is recorded. backend/analysis and backend/analysis_outputs remain excluded and untouched."
     ]
+  },
+  {
+    "id": "2026-08-08-android-modal-focus-owner",
+    "time": "2026-08-08T01:16:18+08:00",
+    "author": "Codex",
+    "type": "fix",
+    "type_label": "修复",
+    "scope": "Android / Connected UI / Modal focus ownership",
+    "feature": "fix(android): close app-owned modals through focused semantic owners",
+    "description": "PR #3 合并后的独立 main 门禁 31199236127 在 large-text 档唯一失败：第二个 Compose Dialog 持有独立焦点窗口时，Espresso.pressBack() 选择了失焦的基础 Activity root，10 秒后抛出 RootViewWithoutFocusException。产品评分、数据、后端和确定性传输均已通过，根因是测试控制权错误而非业务失败。永久约束由共享 closeAppOwnedModal(closeTag) 持有：等待精确语义 owner、验证显示且双向至少 48dp、在焦点窗口点击、再等待 owner 消失；raw pressBack 只允许精确页面/route 返回清单。Android 同类扫描覆盖 4 个 XAGE glass dialog 和 2 个 Weight bottom sheet，Weight guidance 新增语义关闭 tag；Meals/Profile/设备/权限/Medication Plans/Weight route 等页面返回保持不变。本记录只证明 Android 确定性客户端与模拟器门禁，不证明签名 Release/Play 分发、生产后端部署、真实 Health Connect/通知/重启时区/TalkBack/OEM 键盘/系统相机选择器或跨平台逐像素一致。",
+    "repos": [
+      "XJie_And"
+    ],
+    "modules": [
+      "Android",
+      "XAGE",
+      "Weight",
+      "Connected UI",
+      "Accessibility",
+      "CI",
+      "Quality"
+    ],
+    "files_by_repo": {
+      "XJie_And": [
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/androidTest/java/com/xjie/app/feature/weight/WeightDashboardUiTest.kt"},
+        {"status": "M", "path": "Android/app/src/main/java/com/xjie/app/feature/weight/WeightScreen.kt"},
+        {"status": "M", "path": "Android/tools/tests/test_deterministic_ui_transport_contract.py"},
+        {"status": "M", "path": "Android/tools/tests/test_weight_parity_contract.py"},
+        {"status": "M", "path": "Android/quality/expected_python_tests.json"},
+        {"status": "M", "path": "Android/quality/evidence/ios_android_parity_20260807.md"},
+        {"status": "M", "path": "development_records.json"},
+        {"status": "M", "path": "development_history.html"}
+      ]
+    },
+    "verification": [
+      "GitHub push/main run 31199236127 + downloaded artifacts 9002399058/9002156984 — exact d63a876 preserved red; backend 392/392, standard 14/14, compact 14/14, large-text 13/14; sole failure was RootViewWithoutFocusException at the second modal pressBack",
+      "DeterministicAndroidUiTransportTest.test_app_owned_modals_close_through_focused_semantic_owner — red/green passed; rejects old modal raw-back behavior and locks helper, 48dp owners, six sibling modal paths and exact page-back allowlist",
+      "for attempt in 1 2 3; do ./gradlew --no-daemon :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.xjie.ui.profile=large_text_api35 -Pandroid.testInstrumentationRunnerArguments.class=com.xjie.app.feature.xage.XAgeShellSwipeUiTest#zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning || exit 1; done; then run the same selector once for XAgeShellSwipeUiTest#swipingFocusedChatInputUsesStubbedAnswerAndClearsEditorPage and WeightDashboardUiTest#quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely — final-tree large-text zero-evidence 3/3, chat-dialog 1/1, Weight modal 1/1; zero failure/error/skip",
+      "python3 tools/verify_python_test_inventory.py --run — exact Python source/execution 46/46; no missing, extra, duplicate, failure, skip or expected failure",
+      "./gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:lintDebug && python3 tools/verify_jvm_test_inventory.py --results app/build/test-results/testDebugUnitTest — build/lint passed and JVM exact 232/232",
+      "python3 tools/verify_android_ui_test_inventory.py && bash tools/run_connected_ui_profiles.sh — source exact 14; standard/compact/large-text each 14/14, total 42/42; JUnit SHA-256 d6a6d541..., 1d6d158e..., dacd1f01...; runtime unknown-request/escape assertion passed",
+      "git diff --check — passed before repair delivery"
+    ],
+    "notes": [
+      "Run 31199236127 is immutable historical failure evidence and must not be rerun or relabelled; a new exact-head PR, protected merge and independent replacement main run are required.",
+      "This repair changes test interaction ownership plus one Weight guidance semantic tag; it does not change XAGE scoring, backend contracts, deterministic fixtures or user data behavior.",
+      "Only the Android repository is modified. The iOS repository and workspace/iOS development histories remain untouched; delivery may push only remote andro, never origin.",
+      "No signed production Release, Play upload, backend deployment/migration, real-device Health Connect/notification/TalkBack/system-picker behavior or literal pixel identity is claimed.",
+      "No secret, account token, raw medical material or production credential is recorded. backend/analysis and backend/analysis_outputs remain excluded and untouched."
+    ]
   }
 ]

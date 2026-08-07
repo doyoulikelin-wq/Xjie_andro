@@ -1055,7 +1055,10 @@ private fun WeightGuidanceSheet(onClose: () -> Unit) {
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )
-            IconButton(onClick = onClose, modifier = Modifier.size(48.dp)) {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.size(48.dp).testTag("weight.guidance.close"),
+            ) {
                 Icon(Icons.Filled.Close, contentDescription = "关闭体重变化说明")
             }
         }

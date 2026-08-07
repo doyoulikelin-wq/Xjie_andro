@@ -6,7 +6,9 @@ import android.os.Build
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
@@ -19,6 +21,7 @@ import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.junit4.ComposeTestRule
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -100,6 +103,17 @@ abstract class DeterministicXjieUiTest {
     /** Distinguishes the composed loading shell from the authoritative loaded-empty state. */
     protected fun waitForLoadedXAgeData() {
         waitFor(hasTestTag("xage.data.metrics.loaded"))
+    }
+
+    /** Closes the focused modal through its app-owned 48dp control, never a stale Activity root. */
+    protected fun closeAppOwnedModal(closeTag: String) {
+        waitFor(hasTestTag(closeTag))
+        compose.onNodeWithTag(closeTag, useUnmergedTree = true)
+            .assertIsDisplayed()
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        waitForAbsent(hasTestTag(closeTag))
     }
 
     /** Waits for asynchronously produced semantics before asking its scroll owner to reveal it. */

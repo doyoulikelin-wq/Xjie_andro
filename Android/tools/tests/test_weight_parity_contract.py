@@ -112,7 +112,9 @@ class WeightParityContractTests(unittest.TestCase):
             'testTag("weight.error")',
             'testTag("weight.trend.empty")',
             'testTag("weight.height.sheet")',
+            'testTag("weight.height.close")',
             'testTag("weight.picker.sheet")',
+            'testTag("weight.guidance.close")',
             "LocalConfiguration.current.fontScale >= 1.25f",
             "maxWidth < 330.dp",
             "BackHandler",
@@ -141,6 +143,8 @@ class WeightParityContractTests(unittest.TestCase):
             'hasTestTag("weight.height.sheet")',
             'hasTestTag("weight.picker.sheet")',
             "数据范围异常，请填写正确数字。",
+            'closeAppOwnedModal("weight.height.close")',
+            'closeAppOwnedModal("weight.guidance.close")',
             "pressBack()",
         ):
             self.assertIn(required, ui_test)

@@ -114,7 +114,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
             .performClick()
         waitFor(hasText("压力详情"))
         compose.onNodeWithText("压力详情").assertIsDisplayed()
-        pressBack()
+        closeAppOwnedModal("xage.dialog.close")
         compose.onNodeWithTag("xage.data.score.pressure.info", useUnmergedTree = true)
             .assertWidthIsAtLeast(48.dp)
             .assertHeightIsAtLeast(48.dp)
@@ -122,7 +122,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         waitFor(hasText("压力评分说明"))
         compose.onNodeWithText("先看结论").assertIsDisplayed()
         compose.onNodeWithText("当前数据完整度 0%", substring = true).assertDoesNotExist()
-        pressBack()
+        closeAppOwnedModal("xage.dialog.close")
         compose.onNodeWithTag(
             "xage.data.score.pressure.confidenceWarning",
             useUnmergedTree = true,
@@ -226,7 +226,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithTag("xage.chat.attachment.documents").assertIsDisplayed()
         compose.onNodeWithTag("xage.chat.attachment.photos").assertIsDisplayed()
         compose.onNodeWithTag("xage.chat.attachment.new").assertIsDisplayed()
-        pressBack()
+        closeAppOwnedModal("xage.dialog.close")
 
         compose.onNodeWithTag("xage.chat.input").performTextInput("今天的数据怎么样？")
         compose.onNodeWithTag("xage.chat.send").performClick()
@@ -236,7 +236,7 @@ class XAgeShellSwipeUiTest : DeterministicXjieUiTest() {
         waitFor(hasText("正文显式引用的确定性测试证据。"))
         compose.onNodeWithText("正文显式引用的确定性测试证据。").assertIsDisplayed()
         compose.onNodeWithText("未被正文引用的测试证据。").assertDoesNotExist()
-        pressBack()
+        closeAppOwnedModal("xage.dialog.close")
 
         compose.onNodeWithTag("xage.shell.pager").performTouchInput { swipeLeft() }
         waitFor(hasTestTag("xage.particle.ring"))
