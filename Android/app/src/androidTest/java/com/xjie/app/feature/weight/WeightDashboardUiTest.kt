@@ -7,7 +7,6 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performScrollToNode
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.xjie.app.quality.DeterministicXjieUiTest
@@ -28,8 +27,11 @@ class WeightDashboardUiTest : DeterministicXjieUiTest() {
             .assertIsDisplayed()
             .performClick()
 
-        compose.onNodeWithTag("xage.data.scroll")
-            .performScrollToNode(hasTestTag("xage.data.metric.bodyWeight"))
+        waitForAndScrollToTag(
+            rootTag = "xage.data.scroll",
+            readinessTag = "xage.data.metrics.loaded",
+            targetTag = "xage.data.metric.bodyWeight",
+        )
         compose.onNodeWithTag("xage.data.metric.bodyWeight", useUnmergedTree = true)
             .performClick()
 

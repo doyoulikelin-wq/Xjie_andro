@@ -560,7 +560,11 @@ private fun XAgeDataPage(
         Modifier
             .fillMaxSize()
             .padding(horizontal = adaptive.contentHorizontalPadding)
-            .padding(bottom = 0.dp),
+            .padding(bottom = 0.dp)
+            .then(
+                if (syncState.snapshot.isLoaded) Modifier.testTag("xage.data.metrics.loaded")
+                else Modifier,
+            ),
     ) {
         XAgeDataStickyHeader(
             showsTodayStatus = showsTodayStatus,

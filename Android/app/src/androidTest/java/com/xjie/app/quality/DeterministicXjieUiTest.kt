@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
@@ -99,8 +100,22 @@ abstract class DeterministicXjieUiTest {
     /** Waits for asynchronously produced semantics before asking its scroll owner to reveal it. */
     protected fun waitForAndScrollToText(text: String) {
         waitFor(hasText(text))
-        compose.onNodeWithText(text, useUnmergedTree = true)
+        compose.onNodeWithText(text)
             .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    /** Waits for an explicit loaded state before revealing an exact lazy-container target. */
+    protected fun waitForAndScrollToTag(
+        rootTag: String,
+        readinessTag: String,
+        targetTag: String,
+    ) {
+        waitFor(hasTestTag(readinessTag))
+        waitFor(hasTestTag(rootTag))
+        compose.onNodeWithTag(rootTag, useUnmergedTree = true)
+            .performScrollToNode(hasTestTag(targetTag))
+        compose.onNodeWithTag(targetTag, useUnmergedTree = true)
             .assertIsDisplayed()
     }
 

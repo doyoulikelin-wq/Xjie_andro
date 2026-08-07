@@ -1,8 +1,14 @@
+import re
 import unittest
 from pathlib import Path
 
 
 ANDROID_ROOT = Path(__file__).resolve().parents[2]
+
+
+def without_kotlin_comments(source: str) -> str:
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    return re.sub(r"//[^\n]*", "", source)
 
 
 class DeterministicAndroidUiTransportTest(unittest.TestCase):
@@ -84,6 +90,27 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
             ANDROID_ROOT
             / "app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"
         ).read_text()
+        medication_ui = (
+            ANDROID_ROOT
+            / "app/src/androidTest/java/com/xjie/app/feature/medication/MedicationDashboardUiTest.kt"
+        ).read_text()
+        weight_ui = (
+            ANDROID_ROOT
+            / "app/src/androidTest/java/com/xjie/app/feature/weight/WeightDashboardUiTest.kt"
+        ).read_text()
+        xage_screen = (
+            ANDROID_ROOT
+            / "app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+        ).read_text()
+        medication_screen = (
+            ANDROID_ROOT
+            / "app/src/main/java/com/xjie/app/feature/medication/MedicationListScreen.kt"
+        ).read_text()
+        active_xage_screen = without_kotlin_comments(xage_screen)
+        active_medication_screen = without_kotlin_comments(medication_screen)
+        active_xage_ui = without_kotlin_comments(xage_ui)
+        active_medication_ui = without_kotlin_comments(medication_ui)
+        active_weight_ui = without_kotlin_comments(weight_ui)
         runtime = (
             ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/quality/UiAutomationRuntime.kt"
         ).read_text()
@@ -108,13 +135,117 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
         self.assertIn('"compact_api35"', factory)
         self.assertIn('"large_text_api35"', factory)
         self.assertIn("protected fun waitForAndScrollToText(text: String)", factory)
-        helper = factory.split("protected fun waitForAndScrollToText(text: String)", 1)[1]
+        helper = factory.split("protected fun waitForAndScrollToText(text: String)", 1)[1].split(
+            "/**", 1
+        )[0]
         self.assertLess(helper.index("waitFor(hasText(text))"), helper.index("performScrollTo()"))
+        self.assertIn(
+            "compose.onNodeWithText(text)\n"
+            "            .performScrollTo()\n"
+            "            .assertIsDisplayed()",
+            helper,
+        )
+        self.assertNotIn("useUnmergedTree = true", helper)
         for loaded_text in (
             "本日暂无已确认餐食；识别草稿不会自动进入这里",
             "暂无服务端已确认的长期用药摘要。",
         ):
-            self.assertIn(f'waitForAndScrollToText("{loaded_text}")', xage_ui)
+            call_pattern = rf'^\s{{8}}waitForAndScrollToText\("{re.escape(loaded_text)}"\)\s*$'
+            self.assertEqual(
+                len(re.findall(call_pattern, active_xage_ui, flags=re.MULTILINE)),
+                1,
+            )
+            self.assertNotIn(f'onNodeWithText("{loaded_text}"', active_xage_ui)
+
+        self.assertIn(
+            "protected fun waitForAndScrollToTag(\n"
+            "        rootTag: String,\n"
+            "        readinessTag: String,\n"
+            "        targetTag: String,\n"
+            "    )",
+            factory,
+        )
+        tag_helper = factory.split(
+            "protected fun waitForAndScrollToTag(", 1
+        )[1].split("/**", 1)[0]
+        self.assertIn("waitFor(hasTestTag(rootTag))", tag_helper)
+        self.assertLess(
+            tag_helper.index("waitFor(hasTestTag(readinessTag))"),
+            tag_helper.index("waitFor(hasTestTag(rootTag))"),
+        )
+        self.assertLess(
+            tag_helper.index("waitFor(hasTestTag(rootTag))"),
+            tag_helper.index("performScrollToNode(hasTestTag(targetTag))"),
+        )
+        self.assertIn(
+            "compose.onNodeWithTag(rootTag, useUnmergedTree = true)\n"
+            "            .performScrollToNode(hasTestTag(targetTag))",
+            tag_helper,
+        )
+        self.assertIn(
+            "compose.onNodeWithTag(targetTag, useUnmergedTree = true)\n"
+            "            .assertIsDisplayed()",
+            tag_helper,
+        )
+        self.assertEqual(active_xage_screen.count('"xage.data.metrics.loaded"'), 1)
+        self.assertRegex(
+            active_xage_screen,
+            r'\.then\s*\(\s*if\s*\(syncState\.snapshot\.isLoaded\)\s*'
+            r'Modifier\.testTag\("xage\.data\.metrics\.loaded"\)',
+        )
+        self.assertLess(
+            active_xage_screen.index('"xage.data.metrics.loaded"'),
+            active_xage_screen.index('.testTag("xage.data.scroll")'),
+        )
+        self.assertNotIn('item(key = "metrics-loaded-sentinel")', active_xage_screen)
+        self.assertEqual(active_medication_screen.count('"xage.medication.loaded"'), 1)
+        self.assertRegex(
+            active_medication_screen,
+            r'Scaffold\s*\(\s*modifier\s*=\s*if\s*'
+            r'\(editor\s*==\s*null\s*&&\s*!state\.loading\s*&&\s*'
+            r'state\.today\s*!=\s*null\)\s*\{\s*'
+            r'Modifier\.testTag\("xage\.medication\.loaded"\)',
+        )
+        self.assertLess(
+            active_medication_screen.index('"xage.medication.loaded"'),
+            active_medication_screen.index('snackbarHost = { SnackbarHost(snackbar) }'),
+        )
+        self.assertNotIn('item(key = "loaded-state")', active_medication_screen)
+        for source, root_tag, readiness_tag, target_tag in (
+            (
+                active_weight_ui,
+                "xage.data.scroll",
+                "xage.data.metrics.loaded",
+                "xage.data.metric.bodyWeight",
+            ),
+            (
+                active_medication_ui,
+                "xage.medication.root",
+                "xage.medication.loaded",
+                "xage.medication.destination.plans",
+            ),
+            (
+                active_medication_ui,
+                "xage.medication.root",
+                "xage.medication.loaded",
+                "xage.medication.destination.reactions",
+            ),
+        ):
+            expected_call = (
+                f'waitForAndScrollToTag(\n'
+                f'            rootTag = "{root_tag}",\n'
+                f'            readinessTag = "{readiness_tag}",\n'
+                f'            targetTag = "{target_tag}",\n'
+                "        )"
+            )
+            self.assertEqual(source.count(expected_call), 1)
+            self.assertEqual(source.count(f'"{target_tag}"'), 2)
+            self.assertIsNone(
+                re.search(
+                    rf'performScrollToNode\s*\(\s*hasTestTag\s*\(\s*"{re.escape(target_tag)}"',
+                    source,
+                ),
+            )
 
     def test_ci_runs_backend_and_all_ui_profiles_with_exact_fail_closed_gates(self) -> None:
         workflow = (ANDROID_ROOT.parent / ".github/workflows/ci.yml").read_text()

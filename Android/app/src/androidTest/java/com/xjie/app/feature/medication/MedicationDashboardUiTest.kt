@@ -41,17 +41,22 @@ class MedicationDashboardUiTest : DeterministicXjieUiTest() {
     fun secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard() {
         openMedication()
         waitFor(hasTestTag("xage.medication.root"))
-        val root = compose.onNodeWithTag("xage.medication.root", useUnmergedTree = true)
 
-        root.performScrollToNode(hasTestTag("xage.medication.destination.plans"))
+        waitForAndScrollToTag(
+            rootTag = "xage.medication.root",
+            readinessTag = "xage.medication.loaded",
+            targetTag = "xage.medication.destination.plans",
+        )
         compose.onNodeWithTag("xage.medication.destination.plans", useUnmergedTree = true).performClick()
         waitFor(hasTestTag("xage.medication.detail.plans"))
         compose.onNodeWithTag("xage.medication.detail.plans").assertIsDisplayed()
 
         androidx.test.espresso.Espresso.pressBack()
-        waitFor(hasTestTag("xage.medication.root"))
-        compose.onNodeWithTag("xage.medication.root", useUnmergedTree = true)
-            .performScrollToNode(hasTestTag("xage.medication.destination.reactions"))
+        waitForAndScrollToTag(
+            rootTag = "xage.medication.root",
+            readinessTag = "xage.medication.loaded",
+            targetTag = "xage.medication.destination.reactions",
+        )
         compose.onNodeWithTag("xage.medication.destination.reactions", useUnmergedTree = true)
             .performClick()
         waitFor(hasTestTag("xage.medication.detail.reactions"))

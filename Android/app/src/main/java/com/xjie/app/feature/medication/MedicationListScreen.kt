@@ -374,6 +374,11 @@ fun MedicationListScreen(
     }
 
     Scaffold(
+        modifier = if (editor == null && !state.loading && state.today != null) {
+            Modifier.testTag("xage.medication.loaded")
+        } else {
+            Modifier
+        },
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (editor == null && state.today != null) {
