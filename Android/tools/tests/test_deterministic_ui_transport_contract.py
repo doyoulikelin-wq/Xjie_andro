@@ -84,6 +84,118 @@ class DeterministicAndroidUiTransportTest(unittest.TestCase):
             ["XAgeShellSwipeUiTest.kt::zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning"],
         )
 
+    def test_app_owned_modals_close_through_focused_semantic_owner(self) -> None:
+        factory = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/androidTest/java/com/xjie/app/quality/DeterministicXjieUiTest.kt"
+            ).read_text()
+        )
+        helper = factory.split("protected fun closeAppOwnedModal(closeTag: String)", 1)[1].split(
+            "/**", 1
+        )[0]
+        self.assertIn("waitFor(hasTestTag(closeTag))", helper)
+        self.assertIn(
+            "compose.onNodeWithTag(closeTag, useUnmergedTree = true)",
+            helper,
+        )
+        self.assertIn(".assertWidthIsAtLeast(48.dp)", helper)
+        self.assertIn(".assertHeightIsAtLeast(48.dp)", helper)
+        self.assertIn(".performClick()", helper)
+        self.assertIn("waitForAbsent(hasTestTag(closeTag))", helper)
+
+        xage_source = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/androidTest/java/com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt"
+            ).read_text()
+        )
+        weight_source = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/androidTest/java/com/xjie/app/feature/weight/WeightDashboardUiTest.kt"
+            ).read_text()
+        )
+        xage_screen = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/main/java/com/xjie/app/feature/xage/XAgeMainScreen.kt"
+            ).read_text()
+        )
+        weight_screen = without_kotlin_comments(
+            (
+                ANDROID_ROOT
+                / "app/src/main/java/com/xjie/app/feature/weight/WeightScreen.kt"
+            ).read_text()
+        )
+
+        def test_method(source: str, name: str) -> str:
+            segment = source.split(f"fun {name}()", 1)[1]
+            return segment.split("\n    @Test", 1)[0]
+
+        dialog_methods = {
+            "zeroEvidenceShowsNeutralDailyScoreAndIndependentWarning": 2,
+            "swipingFocusedChatInputUsesStubbedAnswerAndClearsEditorPage": 2,
+        }
+        for method_name, expected_closes in dialog_methods.items():
+            method = test_method(xage_source, method_name)
+            self.assertEqual(
+                method.count('closeAppOwnedModal("xage.dialog.close")'),
+                expected_closes,
+                method_name,
+            )
+            self.assertNotIn("pressBack()", method, method_name)
+        self.assertEqual(
+            xage_source.count('closeAppOwnedModal("xage.dialog.close")'),
+            4,
+        )
+
+        weight_method = test_method(
+            weight_source,
+            "quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely",
+        )
+        height_close = 'closeAppOwnedModal("weight.height.close")'
+        guidance_close = 'closeAppOwnedModal("weight.guidance.close")'
+        self.assertEqual(weight_method.count(height_close), 1)
+        self.assertEqual(weight_method.count(guidance_close), 1)
+        self.assertEqual(weight_method.count("pressBack()"), 1)
+        self.assertLess(weight_method.index(height_close), weight_method.index(guidance_close))
+        self.assertLess(weight_method.index(guidance_close), weight_method.index("pressBack()"))
+
+        self.assertRegex(
+            xage_screen,
+            r'\.size\(48\.dp\)\s*\.testTag\("xage\.dialog\.close"\)',
+        )
+        for close_tag in ("weight.height.close", "weight.guidance.close"):
+            self.assertIn(
+                f'Modifier.size(48.dp).testTag("{close_tag}")',
+                weight_screen,
+            )
+
+        allowed_raw_backs: dict[str, int] = {}
+        test_root = ANDROID_ROOT / "app/src/androidTest/java"
+        for path in sorted(test_root.rglob("*.kt")):
+            source = without_kotlin_comments(path.read_text())
+            for segment in source.split("\n    @Test"):
+                count = segment.count("pressBack()")
+                if count == 0:
+                    continue
+                method_name = re.search(r"fun\s+([A-Za-z0-9_]+)\s*\(", segment)
+                self.assertIsNotNone(method_name, str(path))
+                relative_path = path.relative_to(test_root).as_posix()
+                key = f"{relative_path}::{method_name.group(1)}"
+                self.assertNotIn(key, allowed_raw_backs, key)
+                allowed_raw_backs[key] = count
+        self.assertEqual(
+            allowed_raw_backs,
+            {
+                "com/xjie/app/feature/medication/MedicationDashboardUiTest.kt::secondaryRowsOpenRealDestinationsAndBackReturnsToDashboard": 1,
+                "com/xjie/app/feature/weight/WeightDashboardUiTest.kt::quickActionOpensTrustedWeightDetailAndInputSheetsReturnSafely": 1,
+                "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::mealsAndProfileUseAllowlistedEmptyStatesAndReturnToDataPage": 2,
+                "com/xjie/app/feature/xage/XAgeShellSwipeUiTest.kt::moreMenuRoutesDeviceAndSupportWithoutDeadAffordances": 2,
+            },
+        )
+
     def test_every_app_owned_okhttp_builder_installs_the_shared_transport(self) -> None:
         network = (ANDROID_ROOT / "app/src/main/java/com/xjie/app/core/network/NetworkModule.kt").read_text()
         health_connect = (

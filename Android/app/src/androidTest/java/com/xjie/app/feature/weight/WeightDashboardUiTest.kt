@@ -78,7 +78,7 @@ class WeightDashboardUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithText("数据范围异常，请填写正确数字。")
             .assertIsDisplayed()
 
-        pressBack()
+        closeAppOwnedModal("weight.height.close")
         compose.waitForIdle()
         compose.onNodeWithTag("weight.height.sheet").assertDoesNotExist()
 
@@ -102,7 +102,7 @@ class WeightDashboardUiTest : DeterministicXjieUiTest() {
         compose.onNodeWithText("怎么看体重变化").assertIsDisplayed()
         compose.onNodeWithText("看趋势，不只看今天").assertIsDisplayed()
         compose.onNodeWithText("记录条件尽量一致").assertIsDisplayed()
-        pressBack()
+        closeAppOwnedModal("weight.guidance.close")
         compose.waitForIdle()
         compose.onNodeWithTag("weight.guidance.sheet").assertDoesNotExist()
 
